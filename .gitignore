@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+# Secrets - NEVER commit
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
