@@ -8,7 +8,8 @@ Vì không có server riêng, **bảo mật nằm ở Supabase**: RLS, hàm RPC 
 2. `npm install`
 3. `cp .env.example .env.local` rồi điền URL + publishable key của Supabase
 4. `npm run dev` -> http://localhost:3000
-5. Kiểm tra: `npm run typecheck && npm run lint && npm run build`
+5. Database: Supabase Dashboard > SQL Editor, chạy lần lượt 5 file trong `supabase/migrations/` theo thứ tự tên file (0100 -> 0500)
+6. Kiểm tra: `npm run typecheck && npm run lint && npm run build`
 
 ## Deploy GitHub Pages
 1. Repo > Settings > Pages > Source: **GitHub Actions**
