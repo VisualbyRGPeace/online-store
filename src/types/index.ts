@@ -66,3 +66,54 @@ export type OrderDetail = OrderSummary & {
   note: string | null;
   order_items: OrderItemRow[];
 };
+
+// ---- admin ----
+export type ProductStatus = "draft" | "active" | "archived";
+
+export type AdminImage = { id: string; storage_path: string; sort_order: number; is_primary: boolean };
+
+export type AdminProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  stock: number;
+  status: ProductStatus;
+  product_images: ProductImageRow[];
+};
+
+export type AdminProduct = {
+  id: string;
+  category_id: string | null;
+  name: string;
+  slug: string;
+  description: string | null;
+  price: number;
+  compare_at_price: number | null;
+  stock: number;
+  status: ProductStatus;
+};
+
+export type ProductInput = Omit<AdminProduct, "id">;
+
+export type AdminCategory = { id: string; name: string; slug: string; is_active: boolean; sort_order: number };
+
+export type DashboardStats = {
+  total_products: number;
+  total_orders: number;
+  new_orders: number;
+  revenue: number;
+  low_stock: { id: string; name: string; stock: number }[];
+};
+
+export type AdminOrderRow = OrderSummary & { customer_name: string; payment_method: string };
+
+export type Customer = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  role: string;
+  created_at: string;
+  order_count: number;
+};

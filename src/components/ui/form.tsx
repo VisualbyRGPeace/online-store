@@ -5,40 +5,83 @@ export const primaryButton =
 export const secondaryButton =
   "rounded-md border border-neutral-300 px-4 py-2.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50";
 
+function FieldShell({ label, name, error, children }: { label: string; name: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={name} className="mb-1 block text-sm font-medium">
+        {label}
+      </label>
+      {children}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+/** Uncontrolled by default (defaultValue); pass value + onChange for a controlled input. */
 export function Field({
   label,
   name,
   type = "text",
   error,
   defaultValue,
+  value,
+  onChange,
   autoComplete,
   maxLength,
+  inputMode,
 }: {
   label: string;
   name: string;
   type?: string;
   error?: string;
   defaultValue?: string;
+  value?: string;
+  onChange?: (value: string) => void;
   autoComplete?: string;
   maxLength?: number;
+  inputMode?: "numeric" | "text";
 }) {
+  const controlled = value !== undefined;
   return (
-    <div>
-      <label htmlFor={name} className="mb-1 block text-sm font-medium">
-        {label}
-      </label>
+    <FieldShell label={label} name={name} error={error}>
       <input
         id={name}
         name={name}
         type={type}
-        defaultValue={defaultValue}
+        {...(controlled ? { value, onChange: (e) => onChange?.(e.target.value) } : { defaultValue })}
         autoComplete={autoComplete}
         maxLength={maxLength}
+        inputMode={inputMode}
         aria-invalid={error ? true : undefined}
         className={inputClass}
       />
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </div>
+    </FieldShell>
+  );
+}
+
+export function TextAreaField({ label, name, error, defaultValue, rows = 5, maxLength }: {
+  label: string; name: string; error?: string; defaultValue?: string; rows?: number; maxLength?: number;
+}) {
+  return (
+    <FieldShell label={label} name={name} error={error}>
+      <textarea id={name} name={name} defaultValue={defaultValue} rows={rows} maxLength={maxLength} className={inputClass} />
+    </FieldShell>
+  );
+}
+
+export function SelectField({ label, name, error, defaultValue, options }: {
+  label: string; name: string; error?: string; defaultValue?: string; options: { value: string; label: string }[];
+}) {
+  return (
+    <FieldShell label={label} name={name} error={error}>
+      <select id={name} name={name} defaultValue={defaultValue} className={inputClass}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </FieldShell>
   );
 }
 

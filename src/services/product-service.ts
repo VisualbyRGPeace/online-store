@@ -71,3 +71,7 @@ export async function listCategories(): Promise<Category[]> {
   if (error) throw error;
   return (data ?? []) as Category[];
 }
+
+export function publicImageUrl(path: string): string {
+  return createClient().storage.from("product-images").getPublicUrl(path).data.publicUrl;
+}

@@ -49,3 +49,34 @@ export function fieldErrors(error: z.ZodError): Record<string, string> {
   }
   return out;
 }
+
+// ---- admin ----
+const slug = z
+  .string()
+  .min(1, "Vui lòng nhập slug")
+  .max(200)
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Slug chỉ gồm chữ thường không dấu, số và dấu gạch ngang");
+
+const wholeNumber = (label: string, max: number) =>
+  z
+    .string()
+    .regex(/^\d+$/, `${label} phải là số nguyên không âm`)
+    .refine((v) => Number(v) <= max, `${label} quá lớn`);
+
+export const productSchema = z
+  .object({
+    name: text("tên sản phẩm", 200),
+    slug,
+    price: wholeNumber("Giá", 1_000_000_000),
+    compare_at_price: z.union([z.literal(""), wholeNumber("Giá cũ", 1_000_000_000)]),
+    stock: wholeNumber("Tồn kho", 1_000_000),
+    category_id: z.string(),
+    description: z.string().max(10000, "Mô tả tối đa 10.000 ký tự"),
+    status: z.enum(["draft", "active", "archived"]),
+  })
+  .refine((v) => v.compare_at_price === "" || Number(v.compare_at_price) >= Number(v.price), {
+    path: ["compare_at_price"],
+    message: "Giá cũ phải lớn hơn hoặc bằng giá bán",
+  });
+
+export const categorySchema = z.object({ name: text("tên danh mục", 100), slug });
