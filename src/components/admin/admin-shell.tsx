@@ -13,6 +13,7 @@ const links = [
   ["/admin/categories/", "Danh mục"],
   ["/admin/orders/", "Đơn hàng"],
   ["/admin/customers/", "Khách hàng"],
+  ["/admin/settings/", "Cài đặt"],
 ] as const;
 
 /** UI guard only. The database (RLS + is_admin()) is what actually protects admin data. */

@@ -71,9 +71,9 @@ export function CartView() {
           <span className="font-semibold">{formatVnd(subtotal)}</span>
         </div>
         <p className="mt-2 text-xs text-neutral-500">Phí vận chuyển và tổng cuối cùng được tính ở bước thanh toán.</p>
-        <button type="button" disabled className="mt-5 w-full cursor-not-allowed rounded-md bg-neutral-300 px-4 py-2.5 text-sm text-white">
-          Thanh toán (sắp ra mắt)
-        </button>
+        <Link href="/checkout/" className="mt-5 block w-full rounded-md bg-neutral-900 px-4 py-2.5 text-center text-sm text-white hover:bg-neutral-700">
+          Tiến hành thanh toán
+        </Link>
       </aside>
     </div>
   );

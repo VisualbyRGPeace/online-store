@@ -117,3 +117,29 @@ export type Customer = {
   created_at: string;
   order_count: number;
 };
+
+// ---- checkout ----
+export type ShopSettings = { shipping_fee: number; free_shipping_threshold: number | null };
+
+export type PlacedOrder = {
+  out_order_id: string;
+  out_order_number: number;
+  out_lookup_token: string;
+  out_total: number;
+};
+
+export type PublicOrder = {
+  id: string;
+  order_number: number;
+  status: string;
+  payment_status: string;
+  payment_method: string;
+  subtotal: number;
+  shipping_fee: number;
+  total: number;
+  customer_name: string;
+  customer_phone: string;
+  shipping_address: string;
+  created_at: string;
+  items: { name: string; price: number; quantity: number; subtotal: number }[];
+};

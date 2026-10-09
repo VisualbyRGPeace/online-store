@@ -9,3 +9,20 @@ export function adminErrorMessage(err: unknown): string {
   if (msg.includes("forbidden") || e?.code === "42501") return "Bạn không có quyền thực hiện thao tác này.";
   return "Thao tác không thành công, vui lòng thử lại.";
 }
+
+/** Errors raised by place_order() and the order rate-limit trigger. */
+export function orderErrorMessage(err: unknown): string {
+  const msg = (err as { message?: string } | null)?.message ?? "";
+  if (msg.includes("insufficient_stock")) return "Một số sản phẩm không còn đủ hàng. Vui lòng quay lại giỏ hàng và kiểm tra lại.";
+  if (msg.includes("product_unavailable")) return "Một số sản phẩm không còn được bán. Vui lòng quay lại giỏ hàng.";
+  if (msg.includes("too_many_orders")) return "Bạn đã đặt quá nhiều đơn trong thời gian ngắn. Vui lòng thử lại sau.";
+  if (msg.includes("invalid_phone")) return "Số điện thoại không hợp lệ.";
+  if (msg.includes("invalid_email")) return "Email không hợp lệ.";
+  if (msg.includes("invalid_name") || msg.includes("invalid_address") || msg.includes("invalid_note")) {
+    return "Thông tin giao hàng chưa hợp lệ, vui lòng kiểm tra lại.";
+  }
+  if (msg.includes("invalid_items") || msg.includes("unsupported_payment_method")) {
+    return "Đơn hàng không hợp lệ, vui lòng kiểm tra lại giỏ hàng.";
+  }
+  return "Không đặt được hàng, vui lòng thử lại sau.";
+}

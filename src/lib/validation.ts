@@ -80,3 +80,21 @@ export const productSchema = z
   });
 
 export const categorySchema = z.object({ name: text("tên danh mục", 100), slug });
+
+// ---- checkout / settings ----
+export const checkoutSchema = z.object({
+  customer_name: text("họ tên", 100),
+  customer_phone: phone,
+  customer_email: z.union([z.literal(""), email]),
+  province: text("tỉnh/thành phố", 100),
+  district: text("quận/huyện", 100),
+  ward: text("phường/xã", 100),
+  street: text("địa chỉ cụ thể", 200),
+  note: z.string().max(500, "Ghi chú tối đa 500 ký tự"),
+  payment_method: z.enum(["cod"], { message: "Vui lòng chọn phương thức thanh toán" }),
+});
+
+export const settingsSchema = z.object({
+  shipping_fee: wholeNumber("Phí vận chuyển", 10_000_000),
+  free_shipping_threshold: z.union([z.literal(""), wholeNumber("Mức miễn phí vận chuyển", 1_000_000_000)]),
+});
