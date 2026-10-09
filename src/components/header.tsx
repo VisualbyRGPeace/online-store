@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
 import { useCart } from "@/hooks/use-cart";
 
 export function Header() {
   const { count } = useCart();
+  const { user, loading } = useAuth();
   return (
     <header className="sticky top-0 z-10 border-b border-neutral-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -15,6 +17,11 @@ export function Header() {
           <Link href="/products/" className="hover:underline">
             Sản phẩm
           </Link>
+          {!loading && (
+            <Link href={user ? "/account/" : "/login/"} className="hover:underline">
+              {user ? "Tài khoản" : "Đăng nhập"}
+            </Link>
+          )}
           <Link href="/cart/" className="flex items-center gap-1.5 hover:underline">
             Giỏ hàng
             {count > 0 && (

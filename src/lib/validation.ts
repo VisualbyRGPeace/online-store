@@ -1,0 +1,51 @@
+import { z } from "zod";
+
+const email = z.email("Email không hợp lệ").max(254);
+const password = z.string().min(8, "Mật khẩu tối thiểu 8 ký tự").max(72, "Mật khẩu tối đa 72 ký tự");
+const phone = z.string().regex(/^\+?[0-9]{9,15}$/, "Số điện thoại không hợp lệ");
+const text = (label: string, max: number) =>
+  z.string().min(1, `Vui lòng nhập ${label}`).max(max, `${label} tối đa ${max} ký tự`);
+
+export const loginSchema = z.object({ email, password: z.string().min(1, "Vui lòng nhập mật khẩu") });
+
+export const registerSchema = z
+  .object({ full_name: text("họ tên", 100), email, password, confirm: z.string() })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Mật khẩu nhập lại không khớp" });
+
+export const forgotSchema = z.object({ email });
+
+export const resetSchema = z
+  .object({ password, confirm: z.string() })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Mật khẩu nhập lại không khớp" });
+
+export const profileSchema = z.object({
+  full_name: z.string().max(100, "Họ tên tối đa 100 ký tự"),
+  phone: z.union([z.literal(""), phone]),
+});
+
+export const addressSchema = z.object({
+  recipient_name: text("tên người nhận", 100),
+  phone,
+  province: text("tỉnh/thành phố", 100),
+  district: text("quận/huyện", 100),
+  ward: text("phường/xã", 100),
+  street: text("địa chỉ cụ thể", 200),
+});
+
+/** Trimmed form values (passwords are never trimmed). */
+export function formValues(form: HTMLFormElement): Record<string, string> {
+  const out: Record<string, string> = {};
+  new FormData(form).forEach((v, k) => {
+    if (typeof v === "string") out[k] = k.startsWith("password") || k === "confirm" ? v : v.trim();
+  });
+  return out;
+}
+
+export function fieldErrors(error: z.ZodError): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const key = String(issue.path[0] ?? "form");
+    if (!(key in out)) out[key] = issue.message;
+  }
+  return out;
+}
