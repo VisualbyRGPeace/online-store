@@ -33,7 +33,7 @@ export function ProductDetailView() {
   }
   if (state.status === "error") return <ErrorState />;
   if (!state.data) {
-    return <EmptyState title="Không tìm thấy tài nguyên" description="Tài nguyên không tồn tại hoặc đã bị ẩn." href="/" actionLabel="Về trang chủ" />;
+    return <EmptyState title="Không tìm thấy tài nguyên" description="Tài nguyên không tồn tại hoặc đã bị ẩn." href="/products/" actionLabel="Xem tài nguyên" />;
   }
   return <ResourceContent product={state.data} />;
 }
@@ -43,7 +43,7 @@ function ResourceContent({ product }: { product: ProductDetail }) {
   const image = getCardImage(product.product_images);
   return (
     <div className="mx-auto max-w-5xl">
-      <Link href="/" className="mb-6 inline-block text-sm text-slate-500 hover:text-black">
+      <Link href="/products/" className="mb-6 inline-block text-sm text-slate-500 hover:text-black">
         ← Tất cả tài nguyên
       </Link>
 
@@ -55,7 +55,7 @@ function ResourceContent({ product }: { product: ProductDetail }) {
         <div>
           {product.categories && (
             <Link
-              href={`/?category=${encodeURIComponent(product.categories.slug)}`}
+              href={`/products/?category=${encodeURIComponent(product.categories.slug)}`}
               className="inline-block rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:border-slate-400 hover:text-black"
             >
               {product.categories.name}

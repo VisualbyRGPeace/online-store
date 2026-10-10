@@ -24,6 +24,9 @@ export function Header() {
           <span className="text-[17px] font-semibold tracking-tight">{SITE_NAME}</span>
         </Link>
         <nav className="flex items-center gap-2 text-sm font-medium">
+          <Link href="/products/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
+            Tài nguyên
+          </Link>
           {!loading &&
             (user ? (
               <Link href="/account/" className="rounded-lg bg-black px-3.5 py-2 text-white transition hover:bg-slate-700">
@@ -48,8 +51,11 @@ export function Header() {
 export function Footer() {
   return (
     <footer className="mt-16 border-t border-slate-200 py-6">
-      <div className="mx-auto flex max-w-6xl justify-center px-4">
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row">
         <Byline />
+        <Link href="/products/" className="text-sm text-slate-500 hover:text-black">
+          Tài nguyên
+        </Link>
       </div>
     </footer>
   );
