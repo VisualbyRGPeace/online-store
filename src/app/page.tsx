@@ -1,21 +1,37 @@
 import Link from "next/link";
 import { LatestProducts } from "@/components/latest-products";
+import { SearchBox } from "@/components/search-box";
+import { ArrowRightIcon } from "@/components/ui/icons";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site-config";
 
 export default function HomePage() {
   return (
     <>
-      <section className="rounded-xl bg-neutral-100 px-6 py-14 text-center">
-        <h1 className="text-3xl font-semibold sm:text-4xl">{SITE_NAME}</h1>
-        <p className="mx-auto mt-3 max-w-xl text-neutral-600">{SITE_TAGLINE}</p>
-        <Link href="/products/" className="mt-6 inline-block rounded-md bg-neutral-900 px-5 py-2.5 text-sm text-white hover:bg-neutral-700">
-          Xem tài nguyên
-        </Link>
+      <section className="hero-bg rounded-3xl border border-slate-200 px-6 py-14 text-center sm:py-20">
+        <p className="mx-auto inline-flex items-center rounded-full border border-brand-200 bg-white px-3.5 py-1 text-xs font-medium text-brand-700 shadow-sm">
+          Miễn phí &amp; trả phí · Tải trực tiếp qua Google Drive
+        </p>
+        <h1 className="mx-auto mt-5 max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
+          <span className="bg-linear-to-r from-brand-600 to-violet-600 bg-clip-text text-transparent">{SITE_NAME}</span>
+        </h1>
+        <p className="mx-auto mt-4 max-w-xl text-base text-slate-600 sm:text-lg">{SITE_TAGLINE}</p>
+        <SearchBox className="mx-auto mt-8 max-w-xl" />
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-sm font-medium">
+          <Link href="/products/" className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-white shadow-sm hover:bg-slate-700">
+            Xem tất cả <ArrowRightIcon />
+          </Link>
+          <Link href="/products/?type=free" className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-slate-700 shadow-sm hover:bg-slate-50">
+            Chỉ miễn phí
+          </Link>
+        </div>
       </section>
-      <section className="mt-12">
-        <div className="mb-5 flex items-baseline justify-between">
-          <h2 className="text-xl font-semibold">Mới cập nhật</h2>
-          <Link href="/products/" className="text-sm text-neutral-600 hover:underline">Xem tất cả →</Link>
+
+      <section className="mt-14">
+        <div className="mb-6 flex items-end justify-between">
+          <h2 className="text-2xl font-semibold tracking-tight">Mới cập nhật</h2>
+          <Link href="/products/" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700">
+            Xem tất cả <ArrowRightIcon />
+          </Link>
         </div>
         <LatestProducts />
       </section>

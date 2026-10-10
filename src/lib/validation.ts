@@ -9,9 +9,7 @@ const text = (label: string, max: number) =>
 
 export const loginSchema = z.object({ email, password: z.string().min(1, "Vui lòng nhập mật khẩu") });
 
-export const registerSchema = z
-  .object({ full_name: text("họ tên", 100), email, password, confirm: z.string() })
-  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Mật khẩu nhập lại không khớp" });
+export const registerSchema = z.object({ full_name: text("họ tên", 100), email, password });
 
 export const forgotSchema = z.object({ email });
 

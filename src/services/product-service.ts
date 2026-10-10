@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { smallPath } from "@/utils/image";
 import type { Category, Page, ProductDetail, ProductImageRow, ProductListItem } from "@/types";
 
 export const PAGE_SIZE = 12;
@@ -18,6 +19,7 @@ export async function listProducts(opts: {
   page: number;
   categorySlug?: string;
   kind?: "free" | "paid";
+  q?: string;
   pageSize?: number;
 }): Promise<Page<ProductListItem>> {
   const pageSize = opts.pageSize ?? PAGE_SIZE;
@@ -36,6 +38,11 @@ export async function listProducts(opts: {
   if (opts.categorySlug) query = query.eq("categories.slug", opts.categorySlug);
   if (opts.kind === "free") query = query.eq("price", 0);
   if (opts.kind === "paid") query = query.gt("price", 0);
+  if (opts.q) {
+    // letters/numbers/spaces only: no wildcard or filter-syntax characters from the user
+    const safe = opts.q.slice(0, 100).replace(/[\\%_,()*]/g, " ").trim();
+    if (safe) query = query.ilike("name", `%${safe}%`);
+  }
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -87,4 +94,15 @@ export async function getDownloadUrl(productId: string): Promise<string | null> 
   const { data, error } = await createClient().rpc("get_download_url", { p_product_id: productId });
   if (error) throw error;
   return (data as string | null) ?? null;
+}
+
+/** First image of a resource: the small (400px) URL for cards, with the full URL as a fallback. */
+export function getCardImage(images: ProductImageRow[]): { small: string; src: string } | undefined {
+  const first = [...images].sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order)[0];
+  if (!first) return undefined;
+  const storage = createClient().storage.from("product-images");
+  return {
+    small: storage.getPublicUrl(smallPath(first.storage_path)).data.publicUrl,
+    src: storage.getPublicUrl(first.storage_path).data.publicUrl,
+  };
 }

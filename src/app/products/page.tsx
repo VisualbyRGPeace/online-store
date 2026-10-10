@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Tài nguyên" };
 export default function ProductsPage() {
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold">Tài nguyên</h1>
+      <h1 className="mb-6 text-3xl font-semibold tracking-tight">Tài nguyên</h1>
       <Suspense fallback={<ProductGridSkeleton count={12} />}>
         <ProductsView />
       </Suspense>

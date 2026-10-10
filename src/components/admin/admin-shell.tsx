@@ -39,7 +39,7 @@ function RoleGate({ userId, children }: { userId: string; children: React.ReactN
             <Link
               key={href}
               href={href}
-              className={`whitespace-nowrap rounded-md px-3 py-2 text-sm ${active ? "bg-neutral-900 text-white" : "hover:bg-neutral-100"}`}
+              className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition ${active ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"}`}
             >
               {label}
             </Link>

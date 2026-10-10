@@ -7,30 +7,31 @@ import { ErrorState } from "@/components/ui/states";
 
 export function DashboardView() {
   const state = useQuery("admin-resource-stats", getResourceStats);
-  if (state.status === "loading") return <div className="h-40 animate-pulse rounded-lg bg-neutral-200" aria-busy="true" />;
+  if (state.status === "loading") return <div className="h-40 animate-pulse rounded-2xl bg-slate-200" aria-busy="true" />;
   if (state.status === "error") return <ErrorState />;
   const s = state.data;
 
   const cards = [
-    ["Tổng tài nguyên", s.total],
-    ["Miễn phí", s.free],
-    ["Trả phí", s.paid],
-    ["Đang ẩn", s.hidden],
-  ] as const;
+    { label: "Tổng tài nguyên", value: s.total, accent: "bg-brand-500" },
+    { label: "Miễn phí", value: s.free, accent: "bg-emerald-500" },
+    { label: "Trả phí", value: s.paid, accent: "bg-amber-500" },
+    { label: "Đang ẩn", value: s.hidden, accent: "bg-slate-400" },
+  ];
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Tổng quan</h1>
-        <Link href="/admin/products/new/" className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-700">
+        <h1 className="text-2xl font-semibold tracking-tight">Tổng quan</h1>
+        <Link href="/admin/products/new/" className="rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700">
           Thêm tài nguyên
         </Link>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([label, value]) => (
-          <div key={label} className="rounded-lg border border-neutral-200 p-4">
-            <p className="text-sm text-neutral-600">{label}</p>
-            <p className="mt-1 text-xl font-semibold">{value}</p>
+        {cards.map((c) => (
+          <div key={c.label} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <span className={`absolute inset-y-0 left-0 w-1 ${c.accent}`} aria-hidden />
+            <p className="text-sm text-slate-500">{c.label}</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight">{c.value}</p>
           </div>
         ))}
       </div>

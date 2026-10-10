@@ -1,18 +1,18 @@
 export const inputClass =
-  "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900";
+  "w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-100";
 export const primaryButton =
-  "rounded-md bg-neutral-900 px-4 py-2.5 text-sm text-white hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-300";
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-50";
 export const secondaryButton =
-  "rounded-md border border-neutral-300 px-4 py-2.5 text-sm hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50";
 
 function FieldShell({ label, name, error, children }: { label: string; name: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label htmlFor={name} className="mb-1 block text-sm font-medium">
+      <label htmlFor={name} className="mb-1.5 block text-sm font-medium text-slate-700">
         {label}
       </label>
       {children}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
@@ -86,9 +86,9 @@ export function SelectField({ label, name, error, defaultValue, options }: {
 }
 
 export function FormMessage({ kind, children }: { kind: "error" | "success"; children: React.ReactNode }) {
-  const color = kind === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-green-200 bg-green-50 text-green-800";
+  const color = kind === "error" ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800";
   return (
-    <p role={kind === "error" ? "alert" : "status"} className={`rounded-md border px-3 py-2 text-sm ${color}`}>
+    <p role={kind === "error" ? "alert" : "status"} className={`rounded-xl border px-3.5 py-2.5 text-sm ${color}`}>
       {children}
     </p>
   );
@@ -96,8 +96,8 @@ export function FormMessage({ kind, children }: { kind: "error" | "success"; chi
 
 export function AuthCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-semibold">{title}</h1>
+    <div className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">{title}</h1>
       {children}
     </div>
   );

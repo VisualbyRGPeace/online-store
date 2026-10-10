@@ -9,7 +9,7 @@ import { requestPasswordReset, signIn, signUp, updatePassword } from "@/services
 import { AuthCard, Field, FormMessage, primaryButton } from "@/components/ui/form";
 
 type Errors = Record<string, string>;
-const linkClass = "underline hover:text-neutral-600";
+const linkClass = "font-medium text-brand-600 hover:text-brand-700 hover:underline";
 
 export function LoginForm() {
   const router = useRouter();
@@ -40,7 +40,7 @@ export function LoginForm() {
           {busy ? "Đang đăng nhập..." : "Đăng nhập"}
         </button>
       </form>
-      <p className="mt-4 text-sm text-neutral-600">
+      <p className="mt-5 text-sm text-slate-600">
         <Link href="/forgot-password/" className={linkClass}>Quên mật khẩu?</Link>
         {" · "}
         <Link href="/register/" className={linkClass}>Tạo tài khoản</Link>
@@ -88,12 +88,11 @@ export function RegisterForm() {
         <Field label="Họ và tên" name="full_name" autoComplete="name" maxLength={100} error={errors.full_name} />
         <Field label="Email" name="email" type="email" autoComplete="email" error={errors.email} />
         <Field label="Mật khẩu (tối thiểu 8 ký tự)" name="password" type="password" autoComplete="new-password" error={errors.password} />
-        <Field label="Nhập lại mật khẩu" name="confirm" type="password" autoComplete="new-password" error={errors.confirm} />
         <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
           {busy ? "Đang tạo tài khoản..." : "Đăng ký"}
         </button>
       </form>
-      <p className="mt-4 text-sm text-neutral-600">
+      <p className="mt-5 text-sm text-slate-600">
         Đã có tài khoản? <Link href="/login/" className={linkClass}>Đăng nhập</Link>
       </p>
     </AuthCard>

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import { processImage } from "@/utils/image";
+import { processThumbnail, smallPath } from "@/utils/image";
 import type { AdminCategory, AdminImage, AdminProduct, AdminProductRow, Page, ProductStatus, ResourceInput, ResourceStats } from "@/types";
 
 // All writes below are allowed only for admins: enforced by RLS + Storage policies in the database.
@@ -49,7 +49,7 @@ export async function deleteProduct(id: string): Promise<void> {
   const { data: imgs } = await supabase.from("product_images").select("storage_path").eq("product_id", id);
   const { error } = await supabase.from("products").delete().eq("id", id);
   if (error) throw error;
-  const paths = ((imgs ?? []) as { storage_path: string }[]).map((i) => i.storage_path);
+  const paths = ((imgs ?? []) as { storage_path: string }[]).flatMap((i) => [i.storage_path, smallPath(i.storage_path)]);
   if (paths.length) {
     const removed = await supabase.storage.from(BUCKET).remove(paths);
     if (removed.error) console.error(removed.error);
@@ -83,10 +83,16 @@ export async function uploadProductImages(
 
   for (const file of files) {
     try {
-      const { blob, ext } = await processImage(file);
+      const { full, small, ext } = await processThumbnail(file);
       const path = `products/${productId}/${crypto.randomUUID()}.${ext}`;
-      const up = await storage.upload(path, blob, { contentType: blob.type, upsert: false, cacheControl: "31536000" });
+      const options = { contentType: full.type, upsert: false, cacheControl: "31536000" };
+      const up = await storage.upload(path, full, options);
       if (up.error) throw up.error;
+      const upSmall = await storage.upload(smallPath(path), small, options);
+      if (upSmall.error) {
+        await storage.remove([path]);
+        throw upSmall.error;
+      }
       const ins = await supabase.from("product_images").insert({
         product_id: productId,
         storage_path: path,
@@ -94,7 +100,7 @@ export async function uploadProductImages(
         is_primary: !primaryTaken,
       });
       if (ins.error) {
-        await storage.remove([path]);
+        await storage.remove([path, smallPath(path)]);
         throw ins.error;
       }
       primaryTaken = true;
@@ -128,7 +134,7 @@ export async function deleteProductImage(productId: string, image: AdminImage): 
   const supabase = createClient();
   const { error } = await supabase.from("product_images").delete().eq("id", image.id);
   if (error) throw error;
-  const removed = await supabase.storage.from(BUCKET).remove([image.storage_path]);
+  const removed = await supabase.storage.from(BUCKET).remove([image.storage_path, smallPath(image.storage_path)]);
   if (removed.error) console.error(removed.error);
   if (image.is_primary) {
     const { data } = await supabase.from("product_images").select("id").eq("product_id", productId).order("sort_order").limit(1);
