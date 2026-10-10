@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Byline } from "@/components/byline";
 import { DownloadIcon } from "@/components/ui/icons";
+import { SITE_NAME } from "@/lib/site-config";
 
 export function LogoMark() {
   return (
@@ -18,8 +19,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" aria-label="Trang chủ">
+        <Link href="/" aria-label="Trang chủ" className="flex items-center gap-2.5">
           <LogoMark />
+          <span className="text-[17px] font-semibold tracking-tight">{SITE_NAME}</span>
         </Link>
         <nav className="flex items-center gap-2 text-sm font-medium">
           {!loading &&
