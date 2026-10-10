@@ -34,7 +34,12 @@ export function ResourceForm({
   async function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const parsed = resourceSchema.safeParse(formValues(e.currentTarget));
-    if (!parsed.success) return setErrors(fieldErrors(parsed.error));
+    if (!parsed.success) {
+      const errs = fieldErrors(parsed.error);
+      setErrors(errs);
+      setMessage({ kind: "error", text: `Vui lòng kiểm tra lại: ${Object.values(errs).join("; ")}` });
+      return;
+    }
     const v = parsed.data;
     setErrors({});
     setMessage(null);
@@ -45,7 +50,7 @@ export function ResourceForm({
           name: v.name,
           slug: v.slug,
           description: v.description || null,
-          price: v.kind === "free" ? 0 : Number(v.price),
+          price: v.kind === "free" ? 0 : Number(v.price ?? ""),
           category_id: v.category_id || null,
           status: v.status,
         },

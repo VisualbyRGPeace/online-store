@@ -107,7 +107,7 @@ export const resourceSchema = z
     slug,
     description: z.string().max(2000, "Mô tả tối đa 2.000 ký tự"),
     kind: z.enum(["free", "paid"]),
-    price: z.string(),
+    price: z.string().optional(), // not sent for free resources (the price box is hidden)
     drive_url: z
       .string()
       .min(1, "Vui lòng dán liên kết Google Drive")
@@ -116,7 +116,8 @@ export const resourceSchema = z
     status: z.enum(["draft", "active"]),
   })
   .superRefine((v, ctx) => {
-    if (v.kind === "paid" && (!/^\d+$/.test(v.price) || Number(v.price) < 1 || Number(v.price) > 1_000_000_000)) {
+    const price = v.price ?? "";
+    if (v.kind === "paid" && (!/^\d+$/.test(price) || Number(price) < 1 || Number(price) > 1_000_000_000)) {
       ctx.addIssue({ code: "custom", path: ["price"], message: "Giá phải là số nguyên từ 1 VND trở lên" });
     }
   });
