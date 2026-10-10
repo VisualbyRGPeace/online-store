@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { DownloadButton } from "@/components/download-button";
 import { ImageIcon } from "@/components/ui/icons";
+import { FREE_LABEL } from "@/lib/site-config";
 import { getCardImage } from "@/services/product-service";
 import { formatVnd } from "@/utils/format";
 import type { ProductListItem } from "@/types";
@@ -52,9 +53,9 @@ export function ProductImage({
 
 export function PriceBadge({ price }: { price: number }) {
   return price === 0 ? (
-    <span className="inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">Miễn phí</span>
+    <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-black shadow-sm ring-1 ring-black/10">{FREE_LABEL}</span>
   ) : (
-    <span className="inline-flex items-center rounded-full bg-slate-900/90 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">{formatVnd(price)}</span>
+    <span className="inline-flex items-center rounded-full bg-black px-2.5 py-1 text-xs font-semibold text-white shadow-sm">{formatVnd(price)}</span>
   );
 }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@/hooks/use-query";
 import { getResourceStats } from "@/services/admin-catalog-service";
 import { ErrorState } from "@/components/ui/states";
+import { FREE_LABEL } from "@/lib/site-config";
 
 export function DashboardView() {
   const state = useQuery("admin-resource-stats", getResourceStats);
@@ -12,10 +13,10 @@ export function DashboardView() {
   const s = state.data;
 
   const cards = [
-    { label: "Tổng tài nguyên", value: s.total, accent: "bg-brand-500" },
-    { label: "Miễn phí", value: s.free, accent: "bg-emerald-500" },
-    { label: "Trả phí", value: s.paid, accent: "bg-amber-500" },
-    { label: "Đang ẩn", value: s.hidden, accent: "bg-slate-400" },
+    { label: "Tổng tài nguyên", value: s.total, accent: "bg-black" },
+    { label: FREE_LABEL, value: s.free, accent: "bg-slate-600" },
+    { label: "Trả phí", value: s.paid, accent: "bg-slate-400" },
+    { label: "Đang ẩn", value: s.hidden, accent: "bg-slate-300" },
   ];
 
   return (

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { safeNext } from "@/lib/next-param";
 import { fieldErrors, forgotSchema, formValues, loginSchema, registerSchema, resetSchema } from "@/lib/validation";
 import { requestPasswordReset, signIn, signUp, updatePassword } from "@/services/auth-service";
 import { AuthCard, Field, FormMessage, primaryButton } from "@/components/ui/form";
@@ -13,6 +14,7 @@ const linkClass = "font-medium text-brand-600 hover:text-brand-700 hover:underli
 
 export function LoginForm() {
   const router = useRouter();
+  const next = safeNext(useSearchParams().get("next"));
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +29,7 @@ export function LoginForm() {
     const result = await signIn(parsed.data.email, parsed.data.password);
     setBusy(false);
     if (!result.ok) return setMessage(result.message);
-    router.push("/account/");
+    router.push(next ?? "/");
   }
 
   return (
@@ -43,7 +45,7 @@ export function LoginForm() {
       <p className="mt-5 text-sm text-slate-600">
         <Link href="/forgot-password/" className={linkClass}>Quên mật khẩu?</Link>
         {" · "}
-        <Link href="/register/" className={linkClass}>Tạo tài khoản</Link>
+        <Link href={next ? `/register/?next=${encodeURIComponent(next)}` : "/register/"} className={linkClass}>Tạo tài khoản</Link>
       </p>
     </AuthCard>
   );
@@ -51,6 +53,7 @@ export function LoginForm() {
 
 export function RegisterForm() {
   const router = useRouter();
+  const next = safeNext(useSearchParams().get("next"));
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -67,7 +70,7 @@ export function RegisterForm() {
     setBusy(false);
     if (!result.ok) return setMessage(result.message);
     if (result.needsEmailConfirmation) return setSent(true);
-    router.push("/account/");
+    router.push(next ?? "/");
   }
 
   if (sent) {
@@ -93,7 +96,7 @@ export function RegisterForm() {
         </button>
       </form>
       <p className="mt-5 text-sm text-slate-600">
-        Đã có tài khoản? <Link href="/login/" className={linkClass}>Đăng nhập</Link>
+        Đã có tài khoản? <Link href={next ? `/login/?next=${encodeURIComponent(next)}` : "/login/"} className={linkClass}>Đăng nhập</Link>
       </p>
     </AuthCard>
   );

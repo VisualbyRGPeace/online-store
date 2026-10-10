@@ -213,8 +213,10 @@ begin
   perform pg_temp.t('customer cannot read the download links table', 'authenticated', a, 'select 1 from public.product_downloads', 'error');
   perform pg_temp.t('customer cannot change a download link', 'authenticated', a, format($s$update public.product_downloads set drive_url = 'https://drive.google.com/x' where product_id = %L$s$, p_free), 'error');
   perform pg_temp.t('admin can read the download links table', 'authenticated', c, 'select 1 from public.product_downloads', 'rows>0');
-  perform pg_temp.t('free resource: anon gets the link', 'anon', null, format('select 1 where public.get_download_url(%L) is not null', p_free), 'rows=1');
+  perform pg_temp.t('free resource: anon gets NO link (login required)', 'anon', null, format('select 1 where public.get_download_url(%L) is not null', p_free), 'rows=0');
+  perform pg_temp.t('free resource: signed-in user gets the link', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_free), 'rows=1');
   perform pg_temp.t('free but hidden resource: no link for anon', 'anon', null, format('select 1 where public.get_download_url(%L) is not null', p_free_draft), 'rows=0');
+  perform pg_temp.t('free but hidden resource: no link for a signed-in user', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_free_draft), 'rows=0');
   perform pg_temp.t('paid resource: no link for anon (even if a guest order exists)', 'anon', null, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=0');
   perform pg_temp.t('paid resource: no link without a paid order (A)', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=0');
   perform pg_temp.t('paid resource: buyer B gets the link', 'authenticated', b, format('select 1 where public.get_download_url(%L) is not null', p_bulk), 'rows=1');

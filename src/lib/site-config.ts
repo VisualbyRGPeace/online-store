@@ -1,3 +1,5 @@
-// Change the site name here (header, footer, page titles).
-export const SITE_NAME = "Kho tài nguyên";
-export const SITE_TAGLINE = "Tải xuống tài nguyên miễn phí và trả phí.";
+// One place for the site texts.
+export const SITE_NAME = "Visual_rgpeace";
+export const SITE_TAGLINE = "Tài nguyên tải xuống.";
+// Label for free resources (shown on cards, filters and in admin).
+export const FREE_LABEL = "Có sẵn";

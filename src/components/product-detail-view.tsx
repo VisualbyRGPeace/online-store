@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@/hooks/use-query";
+import { SITE_NAME } from "@/lib/site-config";
 import { getCardImage, getProductBySlug } from "@/services/product-service";
 import { DownloadButton } from "@/components/download-button";
 import { PriceBadge, ProductImage } from "@/components/product-card";
 import { EmptyState, ErrorState } from "@/components/ui/states";
-import { SITE_NAME } from "@/lib/site-config";
 import type { ProductDetail } from "@/types";
 
 export function ProductDetailView() {
@@ -25,7 +25,6 @@ export function ProductDetailView() {
       <div className="mx-auto grid max-w-5xl animate-pulse gap-8 md:grid-cols-2" aria-busy="true">
         <div className="aspect-square rounded-3xl bg-slate-200" />
         <div className="space-y-4">
-          <div className="h-4 w-24 rounded bg-slate-200" />
           <div className="h-8 w-3/4 rounded bg-slate-200" />
           <div className="h-24 rounded bg-slate-100" />
         </div>
@@ -34,7 +33,7 @@ export function ProductDetailView() {
   }
   if (state.status === "error") return <ErrorState />;
   if (!state.data) {
-    return <EmptyState title="Không tìm thấy tài nguyên" description="Tài nguyên không tồn tại hoặc đã bị ẩn." href="/products/" actionLabel="Xem tài nguyên khác" />;
+    return <EmptyState title="Không tìm thấy tài nguyên" description="Tài nguyên không tồn tại hoặc đã bị ẩn." href="/" actionLabel="Về trang chủ" />;
   }
   return <ResourceContent product={state.data} />;
 }
@@ -42,27 +41,22 @@ export function ProductDetailView() {
 function ResourceContent({ product }: { product: ProductDetail }) {
   // the detail page shows the full-size image (the small one is only for cards)
   const image = getCardImage(product.product_images);
-  const free = product.price === 0;
   return (
     <div className="mx-auto max-w-5xl">
-      <nav aria-label="Đường dẫn" className="mb-6 flex items-center gap-2 text-sm text-slate-500">
-        <Link href="/" className="hover:text-slate-900">Trang chủ</Link>
-        <span aria-hidden>/</span>
-        <Link href="/products/" className="hover:text-slate-900">Tài nguyên</Link>
-        <span aria-hidden>/</span>
-        <span className="truncate text-slate-700">{product.name}</span>
-      </nav>
+      <Link href="/" className="mb-6 inline-block text-sm text-slate-500 hover:text-black">
+        ← Tất cả tài nguyên
+      </Link>
 
       <div className="grid gap-8 md:grid-cols-2 md:gap-10">
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
           <ProductImage src={image?.src} alt={product.name} priority />
         </div>
 
         <div>
           {product.categories && (
             <Link
-              href={`/products/?category=${encodeURIComponent(product.categories.slug)}`}
-              className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+              href={`/?category=${encodeURIComponent(product.categories.slug)}`}
+              className="inline-block rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:border-slate-400 hover:text-black"
             >
               {product.categories.name}
             </Link>
@@ -74,14 +68,9 @@ function ResourceContent({ product }: { product: ProductDetail }) {
           {product.description && (
             <p className="mt-5 whitespace-pre-line text-[15px] leading-relaxed text-slate-600">{product.description}</p>
           )}
-
           <div className="mt-8 max-w-sm">
             <DownloadButton productId={product.id} price={product.price} large />
           </div>
-          <ul className="mt-6 space-y-2 text-sm text-slate-500">
-            <li>{free ? "✓ Miễn phí, không cần đăng nhập" : "• Tài nguyên trả phí, sắp mở bán"}</li>
-            <li>✓ Tải trực tiếp từ Google Drive</li>
-          </ul>
         </div>
       </div>
     </div>

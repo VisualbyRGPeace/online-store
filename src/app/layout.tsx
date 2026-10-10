@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
+import { AuthProvider } from "@/components/auth-provider";
 import { Footer, Header } from "@/components/header";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site-config";
 import "./globals.css";
@@ -34,9 +35,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         )}
       </head>
       <body className="flex min-h-screen flex-col font-sans antialiased">
-        <Header />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">{children}</main>
-        <Footer />
+        <AuthProvider>
+          <Header />
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
