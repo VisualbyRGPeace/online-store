@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import { processImage } from "@/utils/image";
-import type { AdminCategory, AdminImage, AdminProduct, AdminProductRow, Page, ProductInput, ProductStatus } from "@/types";
+import type { AdminCategory, AdminImage, AdminProduct, AdminProductRow, Page, ProductStatus, ResourceInput, ResourceStats } from "@/types";
 
 // All writes below are allowed only for admins: enforced by RLS + Storage policies in the database.
 const BUCKET = "product-images";
@@ -27,13 +27,13 @@ export async function getAdminProduct(id: string): Promise<AdminProduct | null> 
   return data as AdminProduct | null;
 }
 
-export async function createProduct(input: ProductInput): Promise<string> {
+export async function createProduct(input: ResourceInput): Promise<string> {
   const { data, error } = await createClient().from("products").insert(input).select("id").single();
   if (error) throw error;
   return (data as { id: string }).id;
 }
 
-export async function updateProduct(id: string, input: ProductInput): Promise<void> {
+export async function updateProduct(id: string, input: ResourceInput): Promise<void> {
   const { error } = await createClient().from("products").update(input).eq("id", id);
   if (error) throw error;
 }
@@ -161,4 +161,50 @@ export async function updateCategory(id: string, patch: { name?: string; is_acti
 export async function deleteCategory(id: string): Promise<void> {
   const { error } = await createClient().from("categories").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ---- resources: Google Drive link (stored in a table only admins can read) ----
+export async function getDriveUrl(productId: string): Promise<string> {
+  const { data, error } = await createClient().from("product_downloads").select("drive_url").eq("product_id", productId).maybeSingle();
+  if (error) throw error;
+  return (data as { drive_url: string } | null)?.drive_url ?? "";
+}
+
+async function saveDriveUrl(productId: string, driveUrl: string): Promise<void> {
+  const { error } = await createClient().from("product_downloads").upsert({ product_id: productId, drive_url: driveUrl });
+  if (error) throw error;
+}
+
+export async function createResource(input: ResourceInput, driveUrl: string): Promise<string> {
+  const id = await createProduct(input);
+  try {
+    await saveDriveUrl(id, driveUrl);
+  } catch (err) {
+    await createClient().from("products").delete().eq("id", id); // do not leave a resource without a link
+    throw err;
+  }
+  return id;
+}
+
+export async function updateResource(id: string, input: ResourceInput, driveUrl: string): Promise<void> {
+  await updateProduct(id, input);
+  await saveDriveUrl(id, driveUrl);
+}
+
+export async function ensurePrimaryImage(productId: string): Promise<void> {
+  const images = await listProductImages(productId);
+  const first = images[0];
+  if (first && !images.some((i) => i.is_primary)) await setPrimaryImage(productId, first.id);
+}
+
+export async function getResourceStats(): Promise<ResourceStats> {
+  const head = () => createClient().from("products").select("id", { count: "exact", head: true });
+  const [total, free, paid, hidden] = await Promise.all([
+    head(),
+    head().eq("price", 0),
+    head().gt("price", 0),
+    head().neq("status", "active"),
+  ]);
+  for (const r of [total, free, paid, hidden]) if (r.error) throw r.error;
+  return { total: total.count ?? 0, free: free.count ?? 0, paid: paid.count ?? 0, hidden: hidden.count ?? 0 };
 }

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useQuery } from "@/hooks/use-query";
-import { createProduct, getAdminProduct, listAdminCategories, updateProduct, uploadProductImages } from "@/services/admin-catalog-service";
-import { ProductForm } from "@/components/admin/product-form";
+import { createResource, getAdminProduct, getDriveUrl, listAdminCategories, updateResource, uploadProductImages } from "@/services/admin-catalog-service";
+import { ResourceForm } from "@/components/admin/resource-form";
 import { ImageManager, PendingImages } from "@/components/admin/image-tools";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 
@@ -22,18 +22,18 @@ export function NewProductView() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Thêm sản phẩm</h1>
-      <ProductForm
+      <h1 className="text-2xl font-semibold">Thêm tài nguyên</h1>
+      <ResourceForm
         categories={categories.data}
-        submitLabel="Lưu sản phẩm"
-        onSubmit={async (input) => {
-          const id = await createProduct(input);
+        submitLabel="Lưu tài nguyên"
+        onSubmit={async (input, driveUrl) => {
+          const id = await createResource(input, driveUrl);
           if (files.length > 0) await uploadProductImages(id, files, 0, false);
           router.push(`/admin/products/edit/?id=${id}`);
         }}
       >
         <PendingImages files={files} onChange={setFiles} />
-      </ProductForm>
+      </ResourceForm>
     </div>
   );
 }
@@ -42,22 +42,29 @@ export function EditProductView() {
   const id = useSearchParams().get("id") ?? "";
   const valid = UUID.test(id);
   const product = useQuery(`admin-product:${id}`, () => (valid ? getAdminProduct(id) : Promise.resolve(null)));
+  const driveUrl = useQuery(`admin-drive:${id}`, () => (valid ? getDriveUrl(id) : Promise.resolve("")));
   const categories = useQuery("admin-categories", listAdminCategories);
 
-  if (product.status === "loading" || categories.status === "loading") return skeleton;
-  if (product.status === "error" || categories.status === "error") return <ErrorState />;
+  if (product.status === "loading" || driveUrl.status === "loading" || categories.status === "loading") return skeleton;
+  if (product.status === "error" || driveUrl.status === "error" || categories.status === "error") return <ErrorState />;
   if (!product.data) {
-    return <EmptyState title="Không tìm thấy sản phẩm" href="/admin/products/" actionLabel="Về danh sách sản phẩm" />;
+    return <EmptyState title="Không tìm thấy tài nguyên" href="/admin/products/" actionLabel="Về danh sách" />;
   }
   const p = product.data;
 
   return (
     <div className="space-y-10">
       <div>
-        <Link href="/admin/products/" className="text-sm text-neutral-600 hover:underline">← Danh sách sản phẩm</Link>
-        <h1 className="mt-1 text-2xl font-semibold">Sửa sản phẩm</h1>
+        <Link href="/admin/products/" className="text-sm text-neutral-600 hover:underline">← Danh sách tài nguyên</Link>
+        <h1 className="mt-1 text-2xl font-semibold">Sửa tài nguyên</h1>
       </div>
-      <ProductForm categories={categories.data} initial={p} submitLabel="Lưu thay đổi" onSubmit={(input) => updateProduct(p.id, input)} />
+      <ResourceForm
+        categories={categories.data}
+        initial={p}
+        initialDriveUrl={driveUrl.data}
+        submitLabel="Lưu thay đổi"
+        onSubmit={(input, url) => updateResource(p.id, input, url)}
+      />
       <div className="max-w-3xl">
         <ImageManager productId={p.id} />
       </div>

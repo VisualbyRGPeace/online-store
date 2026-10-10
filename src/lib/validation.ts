@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isAllowedDriveUrl } from "@/utils/drive";
 
 const email = z.email("Email không hợp lệ").max(254);
 const password = z.string().min(8, "Mật khẩu tối thiểu 8 ký tự").max(72, "Mật khẩu tối đa 72 ký tự");
@@ -98,3 +99,24 @@ export const settingsSchema = z.object({
   shipping_fee: wholeNumber("Phí vận chuyển", 10_000_000),
   free_shipping_threshold: z.union([z.literal(""), wholeNumber("Mức miễn phí vận chuyển", 1_000_000_000)]),
 });
+
+// ---- resources ----
+export const resourceSchema = z
+  .object({
+    name: text("tiêu đề", 200),
+    slug,
+    description: z.string().max(2000, "Mô tả tối đa 2.000 ký tự"),
+    kind: z.enum(["free", "paid"]),
+    price: z.string(),
+    drive_url: z
+      .string()
+      .min(1, "Vui lòng dán liên kết Google Drive")
+      .refine(isAllowedDriveUrl, "Liên kết phải bắt đầu bằng https://drive.google.com/ (hoặc docs.google.com)"),
+    category_id: z.string(),
+    status: z.enum(["draft", "active"]),
+  })
+  .superRefine((v, ctx) => {
+    if (v.kind === "paid" && (!/^\d+$/.test(v.price) || Number(v.price) < 1 || Number(v.price) > 1_000_000_000)) {
+      ctx.addIssue({ code: "custom", path: ["price"], message: "Giá phải là số nguyên từ 1 VND trở lên" });
+    }
+  });

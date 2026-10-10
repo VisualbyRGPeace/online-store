@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import { Footer, Header } from "@/components/header";
+import { SITE_NAME, SITE_TAGLINE } from "@/lib/site-config";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: { default: "Shop", template: "%s | Shop" },
-  description: "Cửa hàng trực tuyến",
-  openGraph: { title: "Shop", description: "Cửa hàng trực tuyến", type: "website", locale: "vi_VN" },
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_TAGLINE,
+  openGraph: { title: SITE_NAME, description: SITE_TAGLINE, type: "website", locale: "vi_VN" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

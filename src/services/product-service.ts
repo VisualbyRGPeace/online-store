@@ -4,7 +4,7 @@ import type { Category, Page, ProductDetail, ProductImageRow, ProductListItem } 
 export const PAGE_SIZE = 12;
 
 const IMAGES = "product_images(storage_path,sort_order,is_primary)";
-const LIST_COLUMNS = `id,name,slug,price,compare_at_price,stock,${IMAGES}`;
+const LIST_COLUMNS = `id,name,slug,description,price,compare_at_price,stock,${IMAGES}`;
 
 /** Public image URLs, primary image first. */
 export function getImageUrls(images: ProductImageRow[]): string[] {
@@ -17,6 +17,7 @@ export function getImageUrls(images: ProductImageRow[]): string[] {
 export async function listProducts(opts: {
   page: number;
   categorySlug?: string;
+  kind?: "free" | "paid";
   pageSize?: number;
 }): Promise<Page<ProductListItem>> {
   const pageSize = opts.pageSize ?? PAGE_SIZE;
@@ -33,6 +34,8 @@ export async function listProducts(opts: {
     .range(from, from + pageSize - 1);
 
   if (opts.categorySlug) query = query.eq("categories.slug", opts.categorySlug);
+  if (opts.kind === "free") query = query.eq("price", 0);
+  if (opts.kind === "paid") query = query.gt("price", 0);
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -74,4 +77,14 @@ export async function listCategories(): Promise<Category[]> {
 
 export function publicImageUrl(path: string): string {
   return createClient().storage.from("product-images").getPublicUrl(path).data.publicUrl;
+}
+
+/**
+ * Asks the database for the Google Drive link. It answers only if this person may download:
+ * free + visible resource -> anyone; paid resource -> a buyer with a paid order; admin -> always.
+ */
+export async function getDownloadUrl(productId: string): Promise<string | null> {
+  const { data, error } = await createClient().rpc("get_download_url", { p_product_id: productId });
+  if (error) throw error;
+  return (data as string | null) ?? null;
 }

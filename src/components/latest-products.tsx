@@ -11,7 +11,7 @@ export function LatestProducts() {
   if (state.status === "loading") return <ProductGridSkeleton />;
   if (state.status === "error") return <ErrorState />;
   if (state.data.items.length === 0) {
-    return <EmptyState title="Chưa có sản phẩm" description="Cửa hàng đang cập nhật, vui lòng quay lại sau." />;
+    return <EmptyState title="Chưa có tài nguyên" description="Đang cập nhật, vui lòng quay lại sau." />;
   }
   return <ProductGrid products={state.data.items} />;
 }

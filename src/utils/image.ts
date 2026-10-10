@@ -1,9 +1,9 @@
-export const MAX_IMAGES_PER_PRODUCT = 10;
+export const MAX_IMAGES_PER_PRODUCT = 1; // one square thumbnail per resource
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_INPUT_BYTES = 15 * 1024 * 1024;
 const MAX_OUTPUT_BYTES = 5 * 1024 * 1024; // same as the storage bucket limit
-const MAX_DIMENSION = 1600;
+const MAX_DIMENSION = 900;
 const EXT: Record<string, string> = { "image/webp": "webp", "image/png": "png", "image/jpeg": "jpg" };
 
 /** Returns an error message, or null when the file may be processed. */
@@ -16,18 +16,22 @@ export function validateImageFile(file: File): string | null {
 }
 
 /**
- * Re-encodes the image in the browser (max 1600px, WebP). The original file name is never used:
- * the stored name is a random UUID, so there are no collisions and no unsafe characters.
+ * Crops the image to a centred square, shrinks it to at most 900px and re-encodes it as WebP in the
+ * browser. The original file name is never used: the stored name is a random UUID.
  */
 export async function processImage(file: File): Promise<{ blob: Blob; ext: string }> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+  const side = Math.min(bitmap.width, bitmap.height);
+  const sx = Math.round((bitmap.width - side) / 2);
+  const sy = Math.round((bitmap.height - side) / 2);
+  const out = Math.max(1, Math.min(side, MAX_DIMENSION));
+
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.width = out;
+  canvas.height = out;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas_unavailable");
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, out, out);
   bitmap.close();
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));

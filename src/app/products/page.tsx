@@ -3,12 +3,12 @@ import { Suspense } from "react";
 import { ProductsView } from "@/components/products-view";
 import { ProductGridSkeleton } from "@/components/ui/states";
 
-export const metadata: Metadata = { title: "Sản phẩm" };
+export const metadata: Metadata = { title: "Tài nguyên" };
 
 export default function ProductsPage() {
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold">Sản phẩm</h1>
+      <h1 className="mb-6 text-2xl font-semibold">Tài nguyên</h1>
       <Suspense fallback={<ProductGridSkeleton count={12} />}>
         <ProductsView />
       </Suspense>

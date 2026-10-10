@@ -28,7 +28,6 @@ function AccountContent({ userId, email }: { userId: string; email: string }) {
           <p className="text-sm text-neutral-600">{email}</p>
         </div>
         <div className="flex gap-3">
-          <Link href="/account/orders/" className={secondaryButton}>Đơn hàng của tôi</Link>
           <button
             type="button"
             className={secondaryButton}
@@ -49,7 +48,6 @@ function AccountContent({ userId, email }: { userId: string; email: string }) {
         {profile.status === "success" && <ProfileForm userId={userId} profile={profile.data} />}
       </section>
 
-      <AddressBook userId={userId} />
     </div>
   );
 }

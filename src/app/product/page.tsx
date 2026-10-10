@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProductDetailView } from "@/components/product-detail-view";
 
-export const metadata: Metadata = { title: "Chi tiết sản phẩm" };
+export const metadata: Metadata = { title: "Chi tiết tài nguyên" };
 
 export default function ProductPage() {
   return (

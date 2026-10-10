@@ -11,6 +11,7 @@ export type ProductListItem = {
   price: number;
   compare_at_price: number | null;
   stock: number;
+  description: string | null;
   product_images: ProductImageRow[];
 };
 
@@ -143,3 +144,15 @@ export type PublicOrder = {
   created_at: string;
   items: { name: string; price: number; quantity: number; subtotal: number }[];
 };
+
+// ---- resources ----
+export type ResourceInput = {
+  name: string;
+  slug: string;
+  description: string | null;
+  price: number; // 0 = free
+  category_id: string | null;
+  status: ProductStatus;
+};
+
+export type ResourceStats = { total: number; free: number; paid: number; hidden: number };

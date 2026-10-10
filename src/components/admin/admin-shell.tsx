@@ -9,12 +9,11 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 
 const links = [
   ["/admin/", "Tổng quan"],
-  ["/admin/products/", "Sản phẩm"],
+  ["/admin/products/", "Tài nguyên"],
   ["/admin/categories/", "Danh mục"],
-  ["/admin/orders/", "Đơn hàng"],
-  ["/admin/customers/", "Khách hàng"],
-  ["/admin/settings/", "Cài đặt"],
+  ["/admin/customers/", "Thành viên"],
 ] as const;
+// Orders (/admin/orders/) and settings (/admin/settings/) still exist for when paid sales are switched on.
 
 /** UI guard only. The database (RLS + is_admin()) is what actually protects admin data. */
 export function AdminShell({ children }: { children: React.ReactNode }) {

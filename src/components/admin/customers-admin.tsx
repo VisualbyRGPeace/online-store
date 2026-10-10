@@ -9,7 +9,7 @@ export function CustomersAdmin() {
   const state = useQuery("admin-customers", listCustomers);
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Khách hàng</h1>
+      <h1 className="text-2xl font-semibold">Thành viên</h1>
       {state.status === "loading" && <div className="h-40 animate-pulse rounded-lg bg-neutral-200" aria-busy="true" />}
       {state.status === "error" && <ErrorState />}
       {state.status === "success" && state.data.length === 0 && <EmptyState title="Chưa có tài khoản nào" />}
