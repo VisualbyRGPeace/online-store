@@ -29,6 +29,7 @@ export function Field({
   autoComplete,
   maxLength,
   inputMode,
+  autoFocus,
 }: {
   label: string;
   name: string;
@@ -40,6 +41,7 @@ export function Field({
   autoComplete?: string;
   maxLength?: number;
   inputMode?: "numeric" | "text";
+  autoFocus?: boolean;
 }) {
   const controlled = value !== undefined;
   return (
@@ -52,6 +54,7 @@ export function Field({
         autoComplete={autoComplete}
         maxLength={maxLength}
         inputMode={inputMode}
+        autoFocus={autoFocus}
         aria-invalid={error ? true : undefined}
         className={inputClass}
       />

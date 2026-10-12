@@ -22,7 +22,18 @@ export function toDownloadUrl(value: string): string | null {
     const fromPath = url.pathname.match(/^\/file\/d\/([\w-]+)/)?.[1];
     const fromQuery = url.pathname === "/open" || url.pathname === "/uc" ? url.searchParams.get("id") : null;
     const id = fromPath ?? fromQuery;
-    if (id && /^[\w-]+$/.test(id)) return `https://drive.google.com/uc?export=download&id=${id}`;
+    // confirm=t skips the "too large to scan for viruses" page so the file starts downloading right away
+    if (id && /^[\w-]+$/.test(id)) return `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`;
   }
   return url.toString();
+}
+
+/** True for a direct file download (it can run in the current tab without leaving the site). */
+export function isDirectDownload(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.hostname === "drive.usercontent.google.com" && url.pathname === "/download";
+  } catch {
+    return false;
+  }
 }
