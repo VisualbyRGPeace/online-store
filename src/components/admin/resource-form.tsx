@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { fieldErrors, formValues, resourceSchema } from "@/lib/validation";
 import { adminErrorMessage } from "@/utils/errors";
-import { FREE_LABEL } from "@/lib/site-config";
+import { FREE_LABEL, PAID_LABEL } from "@/lib/site-config";
 import { slugify } from "@/utils/slug";
 import { Field, FormMessage, primaryButton, SelectField, TextAreaField } from "@/components/ui/form";
 import type { AdminCategory, AdminProduct, ResourceInput } from "@/types";
@@ -89,7 +89,7 @@ export function ResourceForm({
             <input type="radio" name="kind" value="free" checked={kind === "free"} onChange={() => setKind("free")} /> {FREE_LABEL} (thành viên đăng nhập là tải được)
           </label>
           <label className="flex items-center gap-2">
-            <input type="radio" name="kind" value="paid" checked={kind === "paid"} onChange={() => setKind("paid")} /> Trả phí
+            <input type="radio" name="kind" value="paid" checked={kind === "paid"} onChange={() => setKind("paid")} /> {PAID_LABEL}
           </label>
         </div>
       </fieldset>

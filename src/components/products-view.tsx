@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@/hooks/use-query";
-import { FREE_LABEL } from "@/lib/site-config";
+import { FREE_LABEL, PAID_LABEL } from "@/lib/site-config";
 import { listCategories, listProducts } from "@/services/product-service";
 import { ProductGrid } from "@/components/product-card";
 import { SearchBox } from "@/components/search-box";
@@ -60,7 +60,7 @@ export function ProductsView({
       <div className="mb-3 flex flex-wrap gap-2">
         <Link scroll={false} href={buildHref(base, { category, q })} className={`${chip} ${!type ? on : off}`}>Tất cả</Link>
         <Link scroll={false} href={buildHref(base, { category, q, type: "free" })} className={`${chip} ${type === "free" ? on : off}`}>{FREE_LABEL}</Link>
-        <Link scroll={false} href={buildHref(base, { category, q, type: "paid" })} className={`${chip} ${type === "paid" ? on : off}`}>Trả phí</Link>
+        <Link scroll={false} href={buildHref(base, { category, q, type: "paid" })} className={`${chip} ${type === "paid" ? on : off}`}>{PAID_LABEL}</Link>
       </div>
       {categories.status === "success" && categories.data.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
