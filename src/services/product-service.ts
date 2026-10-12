@@ -106,3 +106,9 @@ export function getCardImage(images: ProductImageRow[]): { small: string; src: s
     src: storage.getPublicUrl(first.storage_path).data.publicUrl,
   };
 }
+
+/** "Xác nhận đã cúng dường": honor system. The database records it and unlocks the file for this member. */
+export async function claimDonation(productId: string): Promise<void> {
+  const { error } = await createClient().rpc("claim_donation", { p_product_id: productId });
+  if (error) throw error;
+}

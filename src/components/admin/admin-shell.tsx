@@ -6,11 +6,13 @@ import { AuthGate } from "@/components/auth-gate";
 import { useQuery } from "@/hooks/use-query";
 import { getMyRole } from "@/services/admin-order-service";
 import { EmptyState, ErrorState } from "@/components/ui/states";
+import { PAID_LABEL } from "@/lib/site-config";
 
 const links = [
   ["/admin/", "Tổng quan"],
   ["/admin/products/", "Tài nguyên"],
   ["/admin/categories/", "Danh mục"],
+  ["/admin/donations/", PAID_LABEL],
   ["/admin/customers/", "Thành viên"],
 ] as const;
 // Orders (/admin/orders/) and settings (/admin/settings/) still exist for when paid sales are switched on.

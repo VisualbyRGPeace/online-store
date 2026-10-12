@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import type { AdminOrderRow, Customer, DashboardStats, Page } from "@/types";
+import type { AdminOrderRow, Customer, DashboardStats, DonationRow, Page } from "@/types";
 import { ADMIN_PAGE_SIZE } from "@/services/admin-catalog-service";
 
 export async function getMyRole(userId: string): Promise<string | null> {
@@ -42,4 +42,21 @@ export async function listCustomers(): Promise<Customer[]> {
   const { data, error } = await createClient().rpc("admin_list_customers");
   if (error) throw error;
   return (data ?? []) as Customer[];
+}
+
+/** kick = blocked 24 hours, ban = blocked permanently, unban = cleared. Enforced by the database. */
+export async function setBan(userId: string, mode: "kick" | "ban" | "unban", reason: string): Promise<void> {
+  const { error } = await createClient().rpc("admin_set_ban", { p_user_id: userId, p_mode: mode, p_reason: reason });
+  if (error) throw error;
+}
+
+export async function listDonations(): Promise<DonationRow[]> {
+  const { data, error } = await createClient().rpc("admin_list_donations");
+  if (error) throw error;
+  return (data ?? []) as DonationRow[];
+}
+
+export async function revokeDonation(id: number): Promise<void> {
+  const { error } = await createClient().rpc("admin_revoke_donation", { p_id: id });
+  if (error) throw error;
 }

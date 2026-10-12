@@ -3,36 +3,39 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { DownloadIcon, LockIcon } from "@/components/ui/icons";
+import { DonateDialog } from "@/components/donate-dialog";
+import { DownloadIcon, HeartIcon, LockIcon } from "@/components/ui/icons";
 import { getDownloadUrl } from "@/services/product-service";
 import { toDownloadUrl } from "@/utils/drive";
 import { formatVnd } from "@/utils/format";
 
 /**
  * Signed-out visitor: "Đăng nhập để tải" (returns to this page after login).
- * Signed-in user, free resource: asks the database for the Google Drive link and opens it.
- * Paid resource: shows the price (online payment is not switched on yet).
- * The database enforces all of this too: it only hands out the link to signed-in users.
+ * Signed-in member: asks the database for the Google Drive link and opens it.
+ *   - Free ("Có sẵn") resource: any signed-in member.
+ *   - Cúng dường resource: a member who already confirmed a donation. If not yet, a pop-up shows the QR code
+ *     and the "Xác nhận đã cúng dường" button; after confirming, the file opens by itself.
+ * The database enforces all of this too (and refuses blocked members).
  */
-export function DownloadButton({ productId, price, large = false }: { productId: string; price: number; large?: boolean }) {
+export function DownloadButton({
+  productId,
+  productName,
+  price,
+  large = false,
+}: {
+  productId: string;
+  productName: string;
+  price: number;
+  large?: boolean;
+}) {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [link, setLink] = useState<string | null>(null);
+  const [showDonate, setShowDonate] = useState(false);
+  const paid = price > 0;
   const base = `inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition ${large ? "py-3.5 text-base" : "py-2.5"}`;
   const icon = large ? "h-5 w-5" : "h-4 w-4";
-
-  if (price > 0) {
-    return (
-      <div>
-        <button type="button" disabled className={`${base} cursor-not-allowed bg-slate-100 text-slate-500`}>
-          <LockIcon className={icon} />
-          Mua · {formatVnd(price)}
-        </button>
-        <p className="mt-1.5 text-center text-xs text-slate-400">Sắp mở bán</p>
-      </div>
-    );
-  }
 
   function goLogin() {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -41,12 +44,17 @@ export function DownloadButton({ productId, price, large = false }: { productId:
     router.push(`/login/?next=${encodeURIComponent(path + search)}`);
   }
 
-  async function download() {
+  async function download(afterDonation = false) {
     setStatus("loading");
     try {
       const raw = await getDownloadUrl(productId);
       const url = raw ? toDownloadUrl(raw) : null;
       if (!url) {
+        if (paid && !afterDonation) {
+          setStatus("idle");
+          setShowDonate(true); // not unlocked yet: show the QR code
+          return;
+        }
         setStatus("error");
         return;
       }
@@ -72,12 +80,12 @@ export function DownloadButton({ productId, price, large = false }: { productId:
     <div>
       <button
         type="button"
-        onClick={download}
+        onClick={() => download()}
         disabled={loading || status === "loading"}
         className={`${base} bg-black text-white hover:bg-slate-700 disabled:opacity-60`}
       >
-        <DownloadIcon className={icon} />
-        {status === "loading" ? "Đang lấy liên kết..." : "Tải xuống"}
+        {paid ? <HeartIcon className={icon} /> : <DownloadIcon className={icon} />}
+        {status === "loading" ? "Đang lấy liên kết..." : paid ? `Cúng dường · ${formatVnd(price)}` : "Tải xuống"}
       </button>
       {status === "error" && (
         <p role="alert" className="mt-1.5 text-center text-xs text-red-600">
@@ -91,6 +99,19 @@ export function DownloadButton({ productId, price, large = false }: { productId:
             Bấm vào đây
           </a>
         </p>
+      )}
+      {paid && (
+        <DonateDialog
+          open={showDonate}
+          productId={productId}
+          productName={productName}
+          price={price}
+          onClose={() => setShowDonate(false)}
+          onConfirmed={() => {
+            setShowDonate(false);
+            void download(true);
+          }}
+        />
       )}
     </div>
   );

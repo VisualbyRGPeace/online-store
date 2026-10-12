@@ -118,6 +118,8 @@ export type Customer = {
   created_at: string;
   order_count: number;
   download_count: number;
+  banned_until: string | null;
+  ban_reason: string | null;
 };
 
 // ---- checkout ----
@@ -164,4 +166,14 @@ export type DownloadLog = {
   product_name: string;
   created_at: string;
   products?: { slug: string } | null;
+};
+
+export type DonationRow = {
+  id: number;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  product_name: string;
+  amount: number;
+  created_at: string;
 };

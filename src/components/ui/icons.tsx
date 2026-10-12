@@ -53,3 +53,11 @@ export function ImageIcon({ className = "h-8 w-8" }: IconProps) {
     </svg>
   );
 }
+
+export function HeartIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg {...svgProps} className={className}>
+      <path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8l1 1.1L12 21.2l7.8-7.7 1-1.1a5.5 5.5 0 000-7.8z" />
+    </svg>
+  );
+}

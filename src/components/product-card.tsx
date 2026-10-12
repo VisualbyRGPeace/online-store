@@ -80,7 +80,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         </h3>
         <p className="mt-1 line-clamp-2 min-h-10 text-sm leading-5 text-slate-500">{product.description ?? ""}</p>
         <div className="mt-auto pt-4">
-          <DownloadButton productId={product.id} price={product.price} />
+          <DownloadButton productId={product.id} productName={product.name} price={product.price} />
         </div>
       </div>
     </article>

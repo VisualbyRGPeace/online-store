@@ -244,6 +244,39 @@ begin
   select count(*) into v_int from public.download_logs;
   perform pg_temp.assert_that('a refused download is not logged', v_int = v_before, 'before=' || v_before || ' after=' || v_int);
 
+  -- ---------- J. honor-system donations and bans ----------
+  perform pg_temp.t('anon cannot confirm a donation', 'anon', null, format('select public.claim_donation(%L)', p_active), 'error');
+  perform pg_temp.t('A confirms a donation for a paid resource', 'authenticated', a, format('select public.claim_donation(%L)', p_active), 'ok');
+  perform pg_temp.t('confirming twice is harmless', 'authenticated', a, format('select public.claim_donation(%L)', p_active), 'ok');
+  perform pg_temp.t('A gets the link after confirming', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=1');
+  perform pg_temp.t('B still gets no link for that resource', 'authenticated', b, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=0');
+  perform pg_temp.t('no donation confirmation for a free resource', 'authenticated', a, format('select public.claim_donation(%L)', p_free), 'error');
+  perform pg_temp.t('no donation confirmation for a hidden resource', 'authenticated', a, format('select public.claim_donation(%L)', p_draft), 'error');
+  perform pg_temp.t('customer cannot write donation claims directly', 'authenticated', b, format($s$insert into public.donation_claims (user_id, product_id, product_name, amount) values (%L, %L, 'x', 1)$s$, b, p_active), 'error');
+  perform pg_temp.t('A sees only own donation claims (1)', 'authenticated', a, 'select 1 from public.donation_claims', 'rows=1');
+  perform pg_temp.t('anon cannot read donation claims', 'anon', null, 'select 1 from public.donation_claims', 'error');
+  perform pg_temp.t('customer cannot list all donations', 'authenticated', a, 'select * from public.admin_list_donations()', 'error');
+  perform pg_temp.t('admin lists donations', 'authenticated', c, 'select * from public.admin_list_donations()', 'rows>0');
+
+  perform pg_temp.t('customer cannot ban anyone', 'authenticated', a, format($s$select public.admin_set_ban(%L, 'ban', 'x')$s$, b), 'error');
+  perform pg_temp.t('customer cannot edit own ban fields', 'authenticated', a, format('update public.profiles set banned_until = null where id = %L', a), 'error');
+  perform pg_temp.t('admin cannot ban an admin', 'authenticated', c, format($s$select public.admin_set_ban(%L, 'ban', 'x')$s$, c), 'error');
+  perform pg_temp.t('admin bans B', 'authenticated', c, format($s$select public.admin_set_ban(%L, 'ban', 'test')$s$, b), 'ok');
+  perform pg_temp.t('banned B gets no download link', 'authenticated', b, format('select 1 where public.get_download_url(%L) is not null', p_free), 'rows=0');
+  perform pg_temp.t('banned B cannot confirm a donation', 'authenticated', b, format('select public.claim_donation(%L)', p_active), 'error');
+  perform pg_temp.t('admin unbans B', 'authenticated', c, format($s$select public.admin_set_ban(%L, 'unban', '')$s$, b), 'ok');
+  perform pg_temp.t('unbanned B downloads again', 'authenticated', b, format('select 1 where public.get_download_url(%L) is not null', p_free), 'rows=1');
+  perform pg_temp.t('admin kicks B for 24 hours', 'authenticated', c, format($s$select public.admin_set_ban(%L, 'kick', 'test')$s$, b), 'ok');
+  select count(*) into v_int from public.profiles where id = b and banned_until > now() and banned_until < now() + interval '25 hours';
+  perform pg_temp.assert_that('a kick lasts about 24 hours', v_int = 1, 'count=' || v_int);
+  perform pg_temp.t('kicked B gets no download link', 'authenticated', b, format('select 1 where public.get_download_url(%L) is not null', p_free), 'rows=0');
+  perform pg_temp.t('admin clears the kick', 'authenticated', c, format($s$select public.admin_set_ban(%L, 'unban', '')$s$, b), 'ok');
+
+  select id into v_int from public.donation_claims where user_id = a limit 1;
+  perform pg_temp.t('customer cannot revoke a donation', 'authenticated', a, format('select public.admin_revoke_donation(%L)', v_int), 'error');
+  perform pg_temp.t('admin revokes a donation', 'authenticated', c, format('select public.admin_revoke_donation(%L)', v_int), 'ok');
+  perform pg_temp.t('after revoking, A gets no link', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=0');
+
   -- ---------- report (the error below is intentional: it rolls everything back) ----------
   select count(*) filter (where passed), count(*) filter (where not passed) into v_pass, v_fail from t_results;
   for rec in select test, detail from t_results where not passed order by n loop

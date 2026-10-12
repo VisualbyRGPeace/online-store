@@ -69,7 +69,7 @@ function ResourceContent({ product }: { product: ProductDetail }) {
             <p className="mt-5 whitespace-pre-line text-[15px] leading-relaxed text-slate-600">{product.description}</p>
           )}
           <div className="mt-8 max-w-sm">
-            <DownloadButton productId={product.id} price={product.price} large />
+            <DownloadButton productId={product.id} productName={product.name} price={product.price} large />
           </div>
         </div>
       </div>
