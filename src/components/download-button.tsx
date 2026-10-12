@@ -1,24 +1,24 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { LoginDialog } from "@/components/login-dialog";
 import { DownloadIcon, LockIcon } from "@/components/ui/icons";
 import { getDownloadUrl } from "@/services/product-service";
-import { isDirectDownload, toDownloadUrl } from "@/utils/drive";
+import { toDownloadUrl } from "@/utils/drive";
 import { formatVnd } from "@/utils/format";
 
 /**
- * Signed-out visitor: pressing the button opens a sign-in pop-up; after signing in the file downloads by itself.
- * Signed-in user: pressing the button asks the database for the Google Drive link and the download starts
- * right away in the same tab (no new window).
- * Cúng dường (paid) resources show the price (online payment is not switched on yet).
- * The database enforces the rules too: it only hands out the link to people who are allowed to download.
+ * Signed-out visitor: "Đăng nhập để tải" (returns to this page after login).
+ * Signed-in user, free resource: asks the database for the Google Drive link and opens it.
+ * Paid resource: shows the price (online payment is not switched on yet).
+ * The database enforces all of this too: it only hands out the link to signed-in users.
  */
 export function DownloadButton({ productId, price, large = false }: { productId: string; price: number; large?: boolean }) {
+  const router = useRouter();
   const { user, loading } = useAuth();
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [showLogin, setShowLogin] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
   const base = `inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition ${large ? "py-3.5 text-base" : "py-2.5"}`;
   const icon = large ? "h-5 w-5" : "h-4 w-4";
 
@@ -34,6 +34,13 @@ export function DownloadButton({ productId, price, large = false }: { productId:
     );
   }
 
+  function goLogin() {
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    const { pathname, search } = window.location;
+    const path = basePath && pathname.startsWith(basePath) ? pathname.slice(basePath.length) || "/" : pathname;
+    router.push(`/login/?next=${encodeURIComponent(path + search)}`);
+  }
+
   async function download() {
     setStatus("loading");
     try {
@@ -43,41 +50,48 @@ export function DownloadButton({ productId, price, large = false }: { productId:
         setStatus("error");
         return;
       }
+      setLink(url);
       setStatus("idle");
-      if (isDirectDownload(url)) window.location.assign(url); // starts the download, the page stays open
-      else window.open(url, "_blank", "noopener,noreferrer"); // folders / other pages need a tab
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
       console.error(err);
       setStatus("error");
     }
   }
 
-  const signedOut = !loading && !user;
+  if (!loading && !user) {
+    return (
+      <button type="button" onClick={goLogin} className={`${base} border border-black bg-white text-black hover:bg-black hover:text-white`}>
+        <LockIcon className={icon} />
+        Đăng nhập để tải
+      </button>
+    );
+  }
 
   return (
     <div>
       <button
         type="button"
-        onClick={signedOut ? () => setShowLogin(true) : download}
+        onClick={download}
         disabled={loading || status === "loading"}
         className={`${base} bg-black text-white hover:bg-slate-700 disabled:opacity-60`}
       >
-        {signedOut ? <LockIcon className={icon} /> : <DownloadIcon className={icon} />}
-        {status === "loading" ? "Đang chuẩn bị..." : "Tải xuống"}
+        <DownloadIcon className={icon} />
+        {status === "loading" ? "Đang lấy liên kết..." : "Tải xuống"}
       </button>
       {status === "error" && (
         <p role="alert" className="mt-1.5 text-center text-xs text-red-600">
           Chưa lấy được liên kết tải. Vui lòng thử lại sau.
         </p>
       )}
-      <LoginDialog
-        open={showLogin}
-        onClose={() => setShowLogin(false)}
-        onSuccess={() => {
-          setShowLogin(false);
-          void download();
-        }}
-      />
+      {link && (
+        <p className="mt-1.5 text-center text-xs text-slate-500">
+          Chưa thấy tải?{" "}
+          <a href={link} target="_blank" rel="noopener noreferrer" className="font-medium text-black underline">
+            Bấm vào đây
+          </a>
+        </p>
+      )}
     </div>
   );
 }
