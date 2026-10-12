@@ -14,8 +14,8 @@ export const metadata: Metadata = {
 };
 
 const steps = [
-  { Icon: SearchIcon, title: "Chọn tài nguyên", text: "Tìm theo tên hoặc duyệt theo danh mục." },
   { Icon: LockIcon, title: "Đăng nhập", text: "Tạo tài khoản trong vài giây, không cần xác thực email." },
+  { Icon: SearchIcon, title: "Tìm mục tiêu", text: "Tìm theo tên hoặc duyệt theo danh mục." },
   { Icon: DownloadIcon, title: "Tải về", text: "Nhận liên kết và tải trực tiếp từ Google Drive." },
 ];
 
@@ -29,12 +29,12 @@ export default function HomePage() {
           <div>
             <Byline />
             <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight sm:text-6xl">
-              Tìm đúng tài nguyên.
+              Tài nguyên
               <br />
-              <span className="text-slate-400">Tải về ngay.</span>
+              <span className="text-slate-400">siêu cấp bá khí</span>
             </h1>
             <p className="mt-5 max-w-md text-base text-slate-600 sm:text-lg">
-              Duyệt theo danh mục, tìm theo tên, đăng nhập một lần để tải trực tiếp từ Google Drive.
+              Được phát triển bởi đội ngũ top 1 thế giới Việt Nam.
             </p>
             <SearchBox base="/products/" className="mt-8 max-w-md" />
             <Link href="/products/" className="mt-5 inline-flex items-center gap-2 text-sm font-medium hover:underline">
@@ -49,7 +49,7 @@ export default function HomePage() {
 
       {/* How it works */}
       <section className="mt-14">
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500">Cách hoạt động</h2>
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-500">Cách dùng</h2>
         <ol className="grid gap-4 md:grid-cols-3">
           {steps.map(({ Icon, title, text }, i) => (
             <li key={title} className="rounded-2xl border border-slate-200 bg-white p-6">

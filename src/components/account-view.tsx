@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
+import { MyDownloads } from "@/components/my-downloads";
 import { useQuery } from "@/hooks/use-query";
 import { addressSchema, fieldErrors, formValues, profileSchema } from "@/lib/validation";
 import { signOut } from "@/services/auth-service";
@@ -47,6 +48,8 @@ function AccountContent({ userId, email }: { userId: string; email: string }) {
         {profile.status === "error" && <ErrorState />}
         {profile.status === "success" && <ProfileForm userId={userId} profile={profile.data} />}
       </section>
+
+      <MyDownloads userId={userId} />
 
     </div>
   );

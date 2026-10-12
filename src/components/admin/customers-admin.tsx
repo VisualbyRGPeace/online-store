@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@/hooks/use-query";
 import { listCustomers } from "@/services/admin-order-service";
 import { EmptyState, ErrorState } from "@/components/ui/states";
@@ -22,8 +23,9 @@ export function CustomersAdmin() {
                 <th className="p-3 font-medium">Email</th>
                 <th className="p-3 font-medium">Điện thoại</th>
                 <th className="p-3 font-medium">Vai trò</th>
-                <th className="p-3 font-medium">Đơn</th>
+                <th className="p-3 font-medium">Lượt tải</th>
                 <th className="p-3 font-medium">Ngày tạo</th>
+                <th className="p-3 font-medium"><span className="sr-only">Chi tiết</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-200">
@@ -33,8 +35,9 @@ export function CustomersAdmin() {
                   <td className="p-3">{c.email}</td>
                   <td className="p-3">{c.phone ?? "—"}</td>
                   <td className="p-3">{c.role === "admin" ? "Quản trị" : "Khách"}</td>
-                  <td className="p-3">{c.order_count}</td>
+                  <td className="p-3">{c.download_count}</td>
                   <td className="p-3">{formatDateTime(c.created_at)}</td>
+                  <td className="whitespace-nowrap p-3"><Link href={`/admin/customers/detail/?id=${c.id}`} className="underline">Xem lịch sử tải</Link></td>
                 </tr>
               ))}
             </tbody>

@@ -117,6 +117,7 @@ export type Customer = {
   role: string;
   created_at: string;
   order_count: number;
+  download_count: number;
 };
 
 // ---- checkout ----
@@ -156,3 +157,11 @@ export type ResourceInput = {
 };
 
 export type ResourceStats = { total: number; free: number; paid: number; hidden: number };
+
+export type DownloadLog = {
+  id: number;
+  product_id: string | null;
+  product_name: string;
+  created_at: string;
+  products?: { slug: string } | null;
+};

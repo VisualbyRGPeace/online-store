@@ -229,6 +229,21 @@ begin
   perform pg_temp.t('look-alike Google host is rejected', 'postgres', null, format($s$insert into public.product_downloads (product_id, drive_url) values (%L, 'https://drive.google.com.evil.com/x')$s$, p_draft), 'error');
   perform pg_temp.t('real Drive link is accepted', 'postgres', null, format($s$insert into public.product_downloads (product_id, drive_url) values (%L, 'https://drive.google.com/file/d/abc123/view?usp=sharing')$s$, p_draft), 'rows=1');
 
+  -- ---------- I. download history ----------
+  perform pg_temp.t('anon cannot read download logs', 'anon', null, 'select 1 from public.download_logs', 'error');
+  perform pg_temp.t('A sees only own download log (1)', 'authenticated', a, 'select 1 from public.download_logs', 'rows=1');
+  perform pg_temp.t('B cannot read the log of A', 'authenticated', b, format('select 1 from public.download_logs where user_id = %L', a), 'rows=0');
+  perform pg_temp.t('customer cannot write download logs', 'authenticated', a, format($s$insert into public.download_logs (user_id, product_name) values (%L, 'fake')$s$, a), 'error');
+  perform pg_temp.t('customer cannot delete download logs', 'authenticated', a, 'delete from public.download_logs', 'error');
+  perform pg_temp.t('admin can read all download logs', 'authenticated', c, 'select 1 from public.download_logs', 'rows>0');
+  perform pg_temp.t('admin member list shows download counts', 'authenticated', c, 'select 1 from public.admin_list_customers() where download_count >= 1', 'rows>0');
+  select count(*) into v_int from public.download_logs where user_id = a and product_name = 'ZZ free';
+  perform pg_temp.assert_that('a successful download is logged with the resource name', v_int = 1, 'count=' || v_int);
+  select count(*) into v_before from public.download_logs;
+  perform pg_temp.t('anon download attempt gets nothing', 'anon', null, format('select 1 where public.get_download_url(%L) is not null', p_free), 'rows=0');
+  select count(*) into v_int from public.download_logs;
+  perform pg_temp.assert_that('a refused download is not logged', v_int = v_before, 'before=' || v_before || ' after=' || v_int);
+
   -- ---------- report (the error below is intentional: it rolls everything back) ----------
   select count(*) filter (where passed), count(*) filter (where not passed) into v_pass, v_fail from t_results;
   for rec in select test, detail from t_results where not passed order by n loop
