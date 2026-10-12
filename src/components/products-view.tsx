@@ -25,7 +25,17 @@ function buildHref(base: string, opts: { category?: string; type?: Kind; q?: str
 }
 
 /** The browsing page: search, filters, grid, pagination. `lead` is shown to the left of the search box. */
-export function ProductsView({ base = "/products/", lead }: { base?: string; lead?: React.ReactNode }) {
+export function ProductsView({
+  base = "/products/",
+  lead,
+  showSearch = true,
+  anchor,
+}: {
+  base?: string;
+  lead?: React.ReactNode;
+  showSearch?: boolean;
+  anchor?: string; // id of the section: page changes scroll back to it
+}) {
   const params = useSearchParams();
   const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
   const category = params.get("category") ?? undefined;
@@ -40,21 +50,23 @@ export function ProductsView({ base = "/products/", lead }: { base?: string; lea
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {lead ?? <span />}
-        <SearchBox key={q ?? ""} base={base} defaultValue={q ?? ""} className="w-full sm:max-w-sm" />
-      </div>
+      {(lead || showSearch) && (
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {lead ?? <span />}
+          {showSearch && <SearchBox key={q ?? ""} base={base} defaultValue={q ?? ""} anchor={anchor} className="w-full sm:max-w-sm" />}
+        </div>
+      )}
 
       <div className="mb-3 flex flex-wrap gap-2">
-        <Link href={buildHref(base, { category, q })} className={`${chip} ${!type ? on : off}`}>Tất cả</Link>
-        <Link href={buildHref(base, { category, q, type: "free" })} className={`${chip} ${type === "free" ? on : off}`}>{FREE_LABEL}</Link>
-        <Link href={buildHref(base, { category, q, type: "paid" })} className={`${chip} ${type === "paid" ? on : off}`}>Trả phí</Link>
+        <Link scroll={false} href={buildHref(base, { category, q })} className={`${chip} ${!type ? on : off}`}>Tất cả</Link>
+        <Link scroll={false} href={buildHref(base, { category, q, type: "free" })} className={`${chip} ${type === "free" ? on : off}`}>{FREE_LABEL}</Link>
+        <Link scroll={false} href={buildHref(base, { category, q, type: "paid" })} className={`${chip} ${type === "paid" ? on : off}`}>Trả phí</Link>
       </div>
       {categories.status === "success" && categories.data.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
-          <Link href={buildHref(base, { type, q })} className={`${chip} ${!category ? on : off}`}>Mọi danh mục</Link>
+          <Link scroll={false} href={buildHref(base, { type, q })} className={`${chip} ${!category ? on : off}`}>Mọi danh mục</Link>
           {categories.data.map((c) => (
-            <Link key={c.id} href={buildHref(base, { type, q, category: c.slug })} className={`${chip} ${category === c.slug ? on : off}`}>
+            <Link key={c.id} scroll={false} href={buildHref(base, { type, q, category: c.slug })} className={`${chip} ${category === c.slug ? on : off}`}>
               {c.name}
             </Link>
           ))}
@@ -74,7 +86,7 @@ export function ProductsView({ base = "/products/", lead }: { base?: string; lea
       {list.status === "success" && list.data.items.length > 0 && (
         <>
           <ProductGrid products={list.data.items} />
-          <Pagination page={page} totalPages={Math.ceil(list.data.total / list.data.pageSize)} href={(p) => buildHref(base, { category, type, q, page: p })} />
+          <Pagination page={page} totalPages={Math.ceil(list.data.total / list.data.pageSize)} href={(p) => `${buildHref(base, { category, type, q, page: p })}${anchor ? `#${anchor}` : ""}`} />
         </>
       )}
     </div>

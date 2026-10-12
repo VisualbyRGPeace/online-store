@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Byline } from "@/components/byline";
 import { HeroShowcase } from "@/components/home/hero-showcase";
-import { HomeCategories } from "@/components/home/home-categories";
-import { HomeCta } from "@/components/home/home-cta";
+import { ProductsView } from "@/components/products-view";
 import { SearchBox } from "@/components/search-box";
+import { ProductGridSkeleton } from "@/components/ui/states";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { SITE_NAME } from "@/lib/site-config";
 
@@ -30,18 +31,26 @@ export default function HomePage() {
             <p className="mt-5 max-w-md text-base text-slate-600 sm:text-lg">
               Được phát triển bởi đội ngũ top 1 thế giới Việt Nam.
             </p>
-            <SearchBox base="/products/" className="mt-8 max-w-md" />
-            <Link href="/products/" className="mt-5 inline-flex items-center gap-2 text-sm font-medium hover:underline">
-              Xem tất cả tài nguyên <ArrowRightIcon />
-            </Link>
+            <SearchBox base="/" anchor="tai-nguyen" className="mt-8 max-w-md" />
+            <a href="#tai-nguyen" className="mt-5 inline-flex items-center gap-2 text-sm font-medium hover:underline">
+              Xem tất cả tài nguyên <ArrowRightIcon className="h-4 w-4 rotate-90" />
+            </a>
           </div>
           <HeroShowcase />
         </div>
       </section>
 
-      <HomeCategories />
-
-      <HomeCta />
+      {/* All resources + categories, right under the hero */}
+      <section id="tai-nguyen" className="mt-14 scroll-mt-20">
+        <Suspense fallback={<ProductGridSkeleton count={12} />}>
+          <ProductsView
+            base="/"
+            anchor="tai-nguyen"
+            showSearch={false}
+            lead={<h2 className="text-xl font-semibold tracking-tight">Tất cả tài nguyên</h2>}
+          />
+        </Suspense>
+      </section>
     </>
   );
 }

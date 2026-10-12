@@ -4,14 +4,24 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SearchIcon } from "@/components/ui/icons";
 
-export function SearchBox({ defaultValue = "", className = "", base = "/products/" }: { defaultValue?: string; className?: string; base?: string }) {
+export function SearchBox({
+  defaultValue = "",
+  className = "",
+  base = "/products/",
+  anchor,
+}: {
+  defaultValue?: string;
+  className?: string;
+  base?: string;
+  anchor?: string;
+}) {
   const router = useRouter();
   const [value, setValue] = useState(defaultValue);
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const q = value.trim().slice(0, 100);
-    router.push(q ? `${base}?q=${encodeURIComponent(q)}` : base);
+    router.push(`${q ? `${base}?q=${encodeURIComponent(q)}` : base}${anchor ? `#${anchor}` : ""}`);
   }
 
   return (
