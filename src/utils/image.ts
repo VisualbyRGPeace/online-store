@@ -53,3 +53,27 @@ export async function processThumbnail(file: File): Promise<{ full: Blob; small:
     bitmap.close();
   }
 }
+
+const QR_MAX = 1200;
+
+/** Resizes a QR picture (max 1200px, white background) and saves it as lossless PNG. No cropping. */
+export async function processQrImage(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, QR_MAX / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas_unavailable");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("encode_failed");
+    if (blob.size > MAX_OUTPUT_BYTES) throw new Error("image_too_large");
+    return blob;
+  } finally {
+    bitmap.close();
+  }
+}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@/hooks/use-query";
 import { listDonations, revokeDonation } from "@/services/admin-order-service";
+import { DonationQrManager } from "@/components/admin/donation-qr-manager";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { FormMessage } from "@/components/ui/form";
 import { PAID_LABEL } from "@/lib/site-config";
@@ -34,6 +35,8 @@ export function DonationsAdmin() {
         <h1 className="text-2xl font-semibold tracking-tight">{PAID_LABEL}</h1>
         <p className="mt-1 text-sm text-slate-500">Danh sách thành viên đã bấm “Xác nhận đã cúng dường”. Đối chiếu với tài khoản nhận tiền; thu hồi nếu không đúng.</p>
       </div>
+      <DonationQrManager />
+
       {error && <FormMessage kind="error">{error}</FormMessage>}
 
       {state.status === "loading" && <div className="h-40 animate-pulse rounded-2xl bg-slate-200" aria-busy="true" />}
