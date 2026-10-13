@@ -277,6 +277,16 @@ begin
   perform pg_temp.t('admin revokes a donation', 'authenticated', c, format('select public.admin_revoke_donation(%L)', v_int), 'ok');
   perform pg_temp.t('after revoking, A gets no link', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=0');
 
+  -- ---------- K. donation QR image (site-assets) ----------
+  perform pg_temp.t('customer cannot upload to site-assets', 'authenticated', a, $s$insert into storage.objects (bucket_id, name) values ('site-assets', 'qr/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.png')$s$, 'error');
+  perform pg_temp.t('anon cannot upload to site-assets', 'anon', null, $s$insert into storage.objects (bucket_id, name) values ('site-assets', 'qr/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.png')$s$, 'error');
+  perform pg_temp.t('admin can upload the QR image', 'authenticated', c, $s$insert into storage.objects (bucket_id, name) values ('site-assets', 'qr/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.png')$s$, 'rows=1');
+  perform pg_temp.t('admin cannot upload outside qr/', 'authenticated', c, $s$insert into storage.objects (bucket_id, name) values ('site-assets', 'other/x.png')$s$, 'error');
+  perform pg_temp.t('customer cannot change the QR setting', 'authenticated', a, $s$update public.shop_settings set donation_qr_path = 'qr/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.png'$s$, 'blocked');
+  perform pg_temp.t('admin can set the QR setting', 'authenticated', c, $s$update public.shop_settings set donation_qr_path = 'qr/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.png'$s$, 'rows=1');
+  perform pg_temp.t('QR setting rejects odd paths', 'postgres', null, $s$update public.shop_settings set donation_qr_path = 'qr/../../etc.png'$s$, 'error');
+  perform pg_temp.t('anyone can read the QR setting', 'anon', null, 'select 1 from public.shop_settings where donation_qr_path is not null', 'rows=1');
+
   -- ---------- report (the error below is intentional: it rolls everything back) ----------
   select count(*) filter (where passed), count(*) filter (where not passed) into v_pass, v_fail from t_results;
   for rec in select test, detail from t_results where not passed order by n loop
