@@ -176,4 +176,24 @@ export type DonationRow = {
   product_name: string;
   amount: number;
   created_at: string;
+  source: string; // 'bank' = confirmed automatically, 'honor' = confirmed by the member
+};
+
+// ---- automatic payments ----
+export type PaymentSettings = {
+  payment_mode: "manual" | "auto";
+  bank_name: string | null;
+  bank_account: string | null;
+  bank_account_name: string | null;
+};
+
+export type DonationPayment = { code: string; amount: number; status: string };
+
+export type BankTransfer = {
+  id: number;
+  amount: number;
+  content: string | null;
+  code: string | null;
+  result: string;
+  created_at: string;
 };

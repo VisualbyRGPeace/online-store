@@ -66,7 +66,7 @@ declare
   g_id uuid; g_token text; a_order uuid;
   items_active text; items_draft text; items_bulk text; items_zero text; items_many text;
   tpl text := $q$select * from public.place_order(%L::jsonb, 'Test', %L, null, 'HCM', 'Q1', 'P1', 'Street', 'cod', null)$q$;
-  v_int int; v_before int; v_pass int; v_fail int; v_report text := ''; rec record; i int;
+  v_int int; v_before int; v_pass int; v_fail int; v_report text := ''; rec record; i int; v_code text; v_amt int;
 begin
   -- ---------- fixtures (rolled back at the end) ----------
   insert into auth.users (id, email) values (a, 'zz-a@test.local'), (b, 'zz-b@test.local'), (c, 'zz-c@test.local');
@@ -286,6 +286,35 @@ begin
   perform pg_temp.t('admin can set the QR setting', 'authenticated', c, $s$update public.shop_settings set donation_qr_path = 'qr/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb.png'$s$, 'rows=1');
   perform pg_temp.t('QR setting rejects odd paths', 'postgres', null, $s$update public.shop_settings set donation_qr_path = 'qr/../../etc.png'$s$, 'error');
   perform pg_temp.t('anyone can read the QR setting', 'anon', null, 'select 1 from public.shop_settings where donation_qr_path is not null', 'rows=1');
+
+  -- ---------- L. automatic bank-transfer payments (SePay webhook) ----------
+  perform pg_temp.t('anon cannot create a payment code', 'anon', null, format('select * from public.create_donation_payment(%L)', p_active), 'error');
+  perform pg_temp.t('no payment code for a free resource', 'authenticated', a, format('select * from public.create_donation_payment(%L)', p_free), 'error');
+  perform pg_temp.t('A gets a payment code for a paid resource', 'authenticated', a, format('select * from public.create_donation_payment(%L)', p_active), 'rows=1');
+  perform pg_temp.t('asking again reuses the same code', 'authenticated', a, format('select * from public.create_donation_payment(%L)', p_active), 'rows=1');
+  select count(*) into v_int from public.donation_payments where user_id = a and product_id = p_active;
+  perform pg_temp.assert_that('only one pending payment per member and resource', v_int = 1, 'count=' || v_int);
+  select code, amount into v_code, v_amt from public.donation_payments where user_id = a and product_id = p_active;
+  perform pg_temp.t('A reads own payment status', 'authenticated', a, format($s$select 1 where public.get_donation_payment(%L) = 'pending'$s$, v_code), 'rows=1');
+  perform pg_temp.t('B cannot read the payment status of A', 'authenticated', b, format('select 1 where public.get_donation_payment(%L) is not null', v_code), 'rows=0');
+  perform pg_temp.t('A reads only own payments', 'authenticated', a, 'select 1 from public.donation_payments', 'rows=1');
+  perform pg_temp.t('A cannot write payments directly', 'authenticated', a, $s$update public.donation_payments set status = 'paid'$s$, 'error');
+  perform pg_temp.t('customer cannot call apply_bank_transfer', 'authenticated', a, $s$select public.apply_bank_transfer('x', null, 1, 'ref-x', '{}'::jsonb)$s$, 'error');
+  perform pg_temp.t('anon cannot call apply_bank_transfer', 'anon', null, $s$select public.apply_bank_transfer('x', null, 1, 'ref-y', '{}'::jsonb)$s$, 'error');
+  perform pg_temp.t('a transfer without a code is logged, nothing unlocked', 'service_role', null, $s$select 1 where public.apply_bank_transfer('chuyen tien', null, 100000, 'ref-nocode', '{}'::jsonb) = 'no_code'$s$, 'rows=1');
+  perform pg_temp.t('an unknown code is not matched', 'service_role', null, $s$select 1 where public.apply_bank_transfer('DWFFFFFFFF', null, 100000, 'ref-nomatch', '{}'::jsonb) = 'no_match'$s$, 'rows=1');
+  perform pg_temp.t('too little money does not unlock', 'service_role', null, format($s$select 1 where public.apply_bank_transfer('CK %s', null, 1, 'ref-low', '{}'::jsonb) = 'amount_too_low'$s$, v_code), 'rows=1');
+  perform pg_temp.t('A still has no link after an underpayment', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=0');
+  perform pg_temp.t('the right transfer unlocks the file (code in lower case)', 'service_role', null, format($s$select 1 where public.apply_bank_transfer('chuyen khoan %s cam on', null, %s, 'ref-ok', '{}'::jsonb) = 'paid'$s$, lower(v_code), v_amt), 'rows=1');
+  perform pg_temp.t('A gets the link after the transfer', 'authenticated', a, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=1');
+  perform pg_temp.t('payment status becomes paid', 'authenticated', a, format($s$select 1 where public.get_donation_payment(%L) = 'paid'$s$, v_code), 'rows=1');
+  perform pg_temp.t('the same transfer sent twice is ignored', 'service_role', null, $s$select 1 where public.apply_bank_transfer('whatever', null, 1, 'ref-ok', '{}'::jsonb) = 'duplicate'$s$, 'rows=1');
+  perform pg_temp.t('B still has no link', 'authenticated', b, format('select 1 where public.get_download_url(%L) is not null', p_active), 'rows=0');
+  perform pg_temp.t('customer cannot read bank transfers', 'authenticated', a, 'select 1 from public.bank_transfers', 'blocked');
+  perform pg_temp.t('admin can read bank transfers', 'authenticated', c, 'select 1 from public.bank_transfers', 'rows>0');
+  perform pg_temp.t('customer cannot change payment settings', 'authenticated', a, $s$update public.shop_settings set payment_mode = 'auto'$s$, 'blocked');
+  perform pg_temp.t('admin can change payment settings', 'authenticated', c, $s$update public.shop_settings set payment_mode = 'manual'$s$, 'rows=1');
+  perform pg_temp.t('payment settings reject a bad account number', 'postgres', null, $s$update public.shop_settings set bank_account = 'abc'$s$, 'error');
 
   -- ---------- report (the error below is intentional: it rolls everything back) ----------
   select count(*) filter (where passed), count(*) filter (where not passed) into v_pass, v_fail from t_results;

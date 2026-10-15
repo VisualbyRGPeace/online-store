@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@/hooks/use-query";
 import { listDonations, revokeDonation } from "@/services/admin-order-service";
+import { BankTransfersPanel } from "@/components/admin/bank-transfers-panel";
 import { DonationQrManager } from "@/components/admin/donation-qr-manager";
+import { PaymentSettingsManager } from "@/components/admin/payment-settings-manager";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { FormMessage } from "@/components/ui/form";
 import { PAID_LABEL } from "@/lib/site-config";
@@ -35,6 +37,7 @@ export function DonationsAdmin() {
         <h1 className="text-2xl font-semibold tracking-tight">{PAID_LABEL}</h1>
         <p className="mt-1 text-sm text-slate-500">Danh sách thành viên đã bấm “Xác nhận đã cúng dường”. Đối chiếu với tài khoản nhận tiền; thu hồi nếu không đúng.</p>
       </div>
+      <PaymentSettingsManager />
       <DonationQrManager />
 
       {error && <FormMessage kind="error">{error}</FormMessage>}
@@ -51,6 +54,7 @@ export function DonationsAdmin() {
                 <th className="p-3 font-medium">Thành viên</th>
                 <th className="p-3 font-medium">Tài nguyên</th>
                 <th className="p-3 font-medium">Số tiền</th>
+                <th className="p-3 font-medium">Xác nhận</th>
                 <th className="p-3 font-medium"><span className="sr-only">Thao tác</span></th>
               </tr>
             </thead>
@@ -66,6 +70,7 @@ export function DonationsAdmin() {
                   </td>
                   <td className="p-3">{d.product_name}</td>
                   <td className="whitespace-nowrap p-3">{formatVnd(d.amount)}</td>
+                  <td className="whitespace-nowrap p-3">{d.source === "bank" ? "Tự động" : "Tự xác nhận"}</td>
                   <td className="p-3 text-right">
                     <button
                       type="button"
@@ -83,6 +88,8 @@ export function DonationsAdmin() {
           </table>
         </div>
       )}
+
+      <BankTransfersPanel />
     </div>
   );
 }

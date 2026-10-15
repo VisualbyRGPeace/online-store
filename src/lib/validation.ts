@@ -119,3 +119,17 @@ export const resourceSchema = z
       ctx.addIssue({ code: "custom", path: ["price"], message: "Giá phải là số nguyên từ 1 VND trở lên" });
     }
   });
+
+// ---- automatic payments ----
+export const paymentSettingsSchema = z
+  .object({
+    payment_mode: z.enum(["manual", "auto"]),
+    bank_name: z.string().max(40, "Tên ngân hàng tối đa 40 ký tự").regex(/^[A-Za-z0-9 ._-]*$/, "Tên ngân hàng chỉ gồm chữ không dấu, số và khoảng trắng"),
+    bank_account: z.string().max(24, "Số tài khoản tối đa 24 số").regex(/^[0-9]*$/, "Số tài khoản chỉ gồm chữ số"),
+    bank_account_name: z.string().max(100, "Tên chủ tài khoản tối đa 100 ký tự"),
+  })
+  .superRefine((v, ctx) => {
+    if (v.payment_mode !== "auto") return;
+    if (!v.bank_name) ctx.addIssue({ code: "custom", path: ["bank_name"], message: "Vui lòng nhập tên ngân hàng" });
+    if (v.bank_account.length < 4) ctx.addIssue({ code: "custom", path: ["bank_account"], message: "Vui lòng nhập số tài khoản (ít nhất 4 số)" });
+  });
