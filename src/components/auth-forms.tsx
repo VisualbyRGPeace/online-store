@@ -26,7 +26,7 @@ export function LoginForm() {
     setErrors({});
     setMessage(null);
     setBusy(true);
-    const result = await signIn(parsed.data.email, parsed.data.password);
+    const result = await signIn(parsed.data.identifier, parsed.data.password);
     setBusy(false);
     if (!result.ok) return setMessage(result.message);
     router.push(next ?? "/");
@@ -36,7 +36,7 @@ export function LoginForm() {
     <AuthCard title="Đăng nhập">
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         {message && <FormMessage kind="error">{message}</FormMessage>}
-        <Field label="Email" name="email" type="email" autoComplete="email" error={errors.email} />
+        <Field label="Tên đăng nhập hoặc email" name="identifier" autoComplete="username" error={errors.identifier} />
         <Field label="Mật khẩu" name="password" type="password" autoComplete="current-password" error={errors.password} />
         <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
           {busy ? "Đang đăng nhập..." : "Đăng nhập"}
@@ -56,7 +56,6 @@ export function RegisterForm() {
   const next = safeNext(useSearchParams().get("next"));
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -66,36 +65,24 @@ export function RegisterForm() {
     setErrors({});
     setMessage(null);
     setBusy(true);
-    const result = await signUp(parsed.data.full_name, parsed.data.email, parsed.data.password);
+    const result = await signUp(parsed.data.username, parsed.data.password);
     setBusy(false);
     if (!result.ok) return setMessage(result.message);
-    if (result.needsEmailConfirmation) return setSent(true);
     router.push(next ?? "/");
-  }
-
-  if (sent) {
-    return (
-      <AuthCard title="Kiểm tra email của bạn">
-        <FormMessage kind="success">
-          Nếu email hợp lệ, chúng tôi đã gửi liên kết xác nhận. Hãy mở email và bấm vào liên kết để hoàn tất đăng ký.
-        </FormMessage>
-        <p className="mt-4 text-sm"><Link href="/login/" className={linkClass}>Về trang đăng nhập</Link></p>
-      </AuthCard>
-    );
   }
 
   return (
     <AuthCard title="Tạo tài khoản">
       <form onSubmit={onSubmit} noValidate className="space-y-4">
         {message && <FormMessage kind="error">{message}</FormMessage>}
-        <Field label="Họ và tên" name="full_name" autoComplete="name" maxLength={100} error={errors.full_name} />
-        <Field label="Email" name="email" type="email" autoComplete="email" error={errors.email} />
+        <Field label="Tên đăng nhập" name="username" autoComplete="username" maxLength={30} error={errors.username} />
         <Field label="Mật khẩu (tối thiểu 8 ký tự)" name="password" type="password" autoComplete="new-password" error={errors.password} />
         <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
           {busy ? "Đang tạo tài khoản..." : "Đăng ký"}
         </button>
       </form>
       <p className="mt-5 text-sm text-slate-600">
+        <span className="mt-4 block text-xs leading-5 text-slate-500">Admin cần tắt xác nhận email trong Supabase. Tài khoản này không có email khôi phục, hãy ghi nhớ mật khẩu.</span>
         Đã có tài khoản? <Link href={next ? `/login/?next=${encodeURIComponent(next)}` : "/login/"} className={linkClass}>Đăng nhập</Link>
       </p>
     </AuthCard>
@@ -130,6 +117,7 @@ export function ForgotPasswordForm() {
           </button>
         </form>
       )}
+      <p className="mt-4 text-xs leading-5 text-slate-500">Tài khoản tạo bằng tên đăng nhập không có email để nhận liên kết đặt lại mật khẩu.</p>
       <p className="mt-4 text-sm"><Link href="/login/" className={linkClass}>Về trang đăng nhập</Link></p>
     </AuthCard>
   );
