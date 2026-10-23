@@ -5,12 +5,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/hooks/use-auth";
 import { getProfile } from "@/services/account-service";
-import { getIncenseOfferingEnabled, lightIncense, listBurningIncense, type BurningIncense } from "@/services/incense-service";
+import { blessIncense, getIncenseOfferingEnabled, getIncensePermissions, lightIncense, listBurningIncense, type BurningIncense } from "@/services/incense-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 
-function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }) {
+function IncenseStick({ incense, now, canBless, blessingBusy, onBless }: { incense: BurningIncense; now: number; canBless: boolean; blessingBusy: boolean; onBless: (id: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const expires = new Date(incense.expires_at).getTime();
   const minutes = Math.max(0, Math.ceil((expires - now) / 60000));
@@ -116,19 +116,38 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
   return (
     <div className="incense-item group relative flex h-[360px] w-24 shrink-0 items-end justify-center sm:h-[432px] sm:w-[115px]">
       <canvas ref={canvasRef} width={320} height={1200} className="h-[360px] w-24 sm:h-[432px] sm:w-[115px]" aria-hidden="true" />
+      {incense.blessing_count > 0 && (
+        <div className="pointer-events-none absolute left-1/2 top-[35%] z-20 h-20 w-20 -translate-x-1/2" aria-label={`${incense.blessing_count} lượt ban phước`}>
+          <span className="absolute left-1/2 top-0 -translate-x-1/2 animate-[spin_5s_linear_infinite] [transform-origin:50%_40px]" aria-hidden="true">💛</span>
+          {incense.blessing_count > 1 && <span className="absolute left-1/2 top-0 -translate-x-1/2 animate-[spin_5s_linear_infinite] [transform-origin:50%_40px] [animation-delay:-2.5s]" aria-hidden="true">💛</span>}
+        </div>
+      )}
+      {canBless && (
+        <div className="group/blessing absolute left-1/2 top-[35%] z-30 h-10 w-10 -translate-x-1/2">
+          <button type="button" disabled={blessingBusy} onClick={() => onBless(incense.id)} className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full bg-white/90 px-1 text-xl shadow transition hover:scale-110 disabled:opacity-50" aria-label={`Ban phước cho nhang của ${incense.donor_name}`}>
+            {blessingBusy ? "…" : "💛"}
+          </button>
+          <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max -translate-x-1/2 rounded-lg bg-stone-900 px-3 py-1.5 text-xs text-white opacity-0 shadow transition group-hover/blessing:opacity-100">
+            Thích Khoai Tây đã ban phước · {incense.blessing_count}
+          </span>
+        </div>
+      )}
       <div className="pointer-events-none absolute bottom-[82%] left-1/2 z-20 w-56 -translate-x-1/2 translate-y-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-center opacity-0 shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
         <p className="text-sm font-semibold text-stone-900">{incense.donor_name}</p>
         <p className="mt-1 text-xs uppercase tracking-wide text-stone-400">Khẩn cầu</p>
         <p className="mt-1 text-sm leading-6 text-stone-600">{incense.message_text}</p>
         <p className="mt-2 text-[11px] text-stone-400">Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút</p>
       </div>
-      <button type="button" className="absolute inset-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" aria-label={`Nhang do ${incense.donor_name} cúng dường. Khẩn cầu: ${incense.message_text}`} />
+      <button type="button" className="absolute inset-0 z-10 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" aria-label={`Nhang do ${incense.donor_name} cúng dường. Khẩn cầu: ${incense.message_text}`} />
     </div>
   );
 }
 export function IncenseView() {
   const { loading: authLoading, user } = useAuth();
   const [incense, setIncense] = useState<BurningIncense[]>([]);
+  const [canDonate, setCanDonate] = useState(false);
+  const [canBless, setCanBless] = useState(false);
+  const [blessingBusy, setBlessingBusy] = useState<string | null>(null);
   const [acceptingIncense, setAcceptingIncense] = useState<boolean | null>(null);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [donorName, setDonorName] = useState("");
@@ -174,9 +193,10 @@ export function IncenseView() {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [incenseResult, availabilityResult] = await Promise.allSettled([
+      const [incenseResult, availabilityResult, permissionsResult] = await Promise.allSettled([
         listBurningIncense(),
         getIncenseOfferingEnabled(),
+        getIncensePermissions(),
       ]);
       if (!alive) return;
       if (incenseResult.status === "fulfilled") {
@@ -193,6 +213,14 @@ export function IncenseView() {
         setAcceptingIncense(false);
         setAvailabilityError("Chưa thể kiểm tra trạng thái nhận cúng dường.");
       }
+      if (permissionsResult.status === "fulfilled") {
+        setCanDonate(permissionsResult.value.canDonate);
+        setCanBless(permissionsResult.value.canBless);
+      } else {
+        setCanDonate(true);
+        setCanBless(false);
+        setAvailabilityError("Cần chạy mã SQL quyền ban phước trong Supabase.");
+      }
       setLoading(false);
     };
     void load();
@@ -201,10 +229,29 @@ export function IncenseView() {
     return () => { alive = false; window.clearInterval(poll); window.clearInterval(clock); };
   }, []);
 
+  async function giveBlessing(offeringId: string) {
+    if (!canBless || blessingBusy) return;
+    setBlessingBusy(offeringId);
+    setError(null);
+    try {
+      await blessIncense(offeringId);
+      await refresh();
+    } catch (err) {
+      console.error(err);
+      setError("Chưa ban phước được. Hãy kiểm tra cấu hình Supabase.");
+    } finally {
+      setBlessingBusy(null);
+    }
+  }
+
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+    if (!canDonate || user.email?.toLowerCase() === "hdt10102002@gmail.com") {
+      setError("Tài khoản này không được phép cúng dường.");
+      return;
+    }
     if (acceptingIncense !== true) {
       setError("Hiện đang tạm ngưng nhận cúng dường.");
       return;
@@ -226,6 +273,9 @@ export function IncenseView() {
       if (message.includes("incense_closed")) {
         setAcceptingIncense(false);
         setError("Hiện đang tạm ngưng nhận cúng dường.");
+      } else if (message.includes("incense_donation_not_allowed")) {
+        setCanDonate(false);
+        setError("Tài khoản này không được phép cúng dường.");
       } else {
         setError(message.includes("invalid_prayer") ? "Khẩn cầu cần từ 2 đến 240 ký tự." : message.includes("npc_message_unavailable") ? "Hiện chưa có thông điệp hiển thị. Vui lòng quay lại sau." : "Chưa cúng dường được. Vui lòng thử lại.");
       }
@@ -264,7 +314,7 @@ export function IncenseView() {
           <div className="mb-16 h-56 w-full animate-pulse rounded-2xl bg-stone-50" aria-busy="true" />
         ) : (
           <div className="relative z-10 flex min-h-72 w-full items-end justify-center gap-1 overflow-x-auto pb-8 pt-36 sm:gap-3 sm:pt-40" aria-label={`${active.length} nén nhang đang cháy`}>
-            {active.map((item) => <IncenseStick key={item.id} incense={item} now={now} />)}
+            {active.map((item) => <IncenseStick key={item.id} incense={item} now={now} canBless={canBless} blessingBusy={blessingBusy === item.id} onBless={giveBlessing} />)}
             {active.length === 0 && <div className="absolute bottom-0 left-1/2 h-px w-4/5 -translate-x-1/2 bg-stone-200" />}
           </div>
         )}
@@ -273,7 +323,9 @@ export function IncenseView() {
       </section>
 
       <div className="mt-8 flex justify-center">
-        {acceptingIncense === false ? (
+        {!authLoading && user && (!canDonate || user.email?.toLowerCase() === "hdt10102002@gmail.com") ? (
+          <p role="status" className="rounded-full border border-stone-200 px-6 py-3 text-sm text-stone-500">Tài khoản này không được phép cúng dường.</p>
+        ) : acceptingIncense === false ? (
           <p role="status" className="rounded-full border border-stone-200 px-6 py-3 text-sm text-stone-500">Hiện đang tạm ngưng nhận cúng dường.</p>
         ) : acceptingIncense === null ? (
           <button type="button" disabled className="rounded-full bg-stone-900 px-7 py-3 text-sm font-medium text-white opacity-50">Đang kiểm tra…</button>
