@@ -13,6 +13,7 @@ const links = [
   ["/admin/products/", "Tài nguyên"],
   ["/admin/categories/", "Danh mục"],
   ["/admin/donations/", PAID_LABEL],
+  ["/admin/incense-messages/", "Lời nguyện"],
   ["/admin/customers/", "Thành viên"],
 ] as const;
 // Orders (/admin/orders/) and settings (/admin/settings/) still exist for when paid sales are switched on.
