@@ -217,9 +217,9 @@ export function IncenseView() {
         setCanDonate(permissionsResult.value.canDonate);
         setCanBless(permissionsResult.value.canBless);
       } else {
-        setCanDonate(false);
+        setCanDonate(true);
         setCanBless(false);
-        setAvailabilityError("Cần cập nhật cấu hình Supabase để dùng quyền ban phước.");
+        setAvailabilityError("Cần chạy mã SQL quyền ban phước trong Supabase.");
       }
       setLoading(false);
     };
@@ -248,7 +248,7 @@ export function IncenseView() {
     e.preventDefault();
     setError(null);
     setSuccess(false);
-    if (!canDonate) {
+    if (!canDonate || user.email?.toLowerCase() === "hdt10102002@gmail.com") {
       setError("Tài khoản này không được phép cúng dường.");
       return;
     }
@@ -323,7 +323,7 @@ export function IncenseView() {
       </section>
 
       <div className="mt-8 flex justify-center">
-        {!authLoading && user && !canDonate ? (
+        {!authLoading && user && (!canDonate || user.email?.toLowerCase() === "hdt10102002@gmail.com") ? (
           <p role="status" className="rounded-full border border-stone-200 px-6 py-3 text-sm text-stone-500">Tài khoản này không được phép cúng dường.</p>
         ) : acceptingIncense === false ? (
           <p role="status" className="rounded-full border border-stone-200 px-6 py-3 text-sm text-stone-500">Hiện đang tạm ngưng nhận cúng dường.</p>
