@@ -82,7 +82,7 @@ export function RegisterForm() {
         </button>
       </form>
       <p className="mt-5 text-sm text-slate-600">
-        <span className="mt-4 block text-xs leading-5 text-slate-500">Tài khoản này không có email khôi phục. Hãy ghi nhớ mật khẩu của bạn.</span>
+        <span className="mt-4 block text-xs leading-5 text-slate-500">Admin cần tắt xác nhận email trong Supabase. Tài khoản này không có email khôi phục, hãy ghi nhớ mật khẩu.</span>
         Đã có tài khoản? <Link href={next ? `/login/?next=${encodeURIComponent(next)}` : "/login/"} className={linkClass}>Đăng nhập</Link>
       </p>
     </AuthCard>
