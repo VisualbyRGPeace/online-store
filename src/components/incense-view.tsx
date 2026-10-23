@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/hooks/use-auth";
 import { getProfile } from "@/services/account-service";
@@ -11,15 +11,44 @@ const BURN_MS = 4 * 60 * 60 * 1000;
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 
 function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const expires = new Date(incense.expires_at).getTime();
   const remaining = Math.max(0, Math.min(1, (expires - now) / BURN_MS));
   const minutes = Math.max(0, Math.ceil((expires - now) / 60000));
+  const tipY = 581 - 497 * remaining;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, 320, 800);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, 320, 800);
+
+    // Warm glow behind the red burning tip.
+    const glow = ctx.createRadialGradient(134, tipY - 6, 1, 134, tipY - 6, 28);
+    glow.addColorStop(0, "rgba(255, 72, 25, 0.34)");
+    glow.addColorStop(1, "rgba(255, 72, 25, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(102, tipY - 36, 64, 64);
+
+    // The exact proportions and colors from the supplied 320 x 800 drawing.
+    ctx.fillStyle = "#5f4720";
+    if (tipY < 581) ctx.fillRect(128, tipY, 12, 581 - tipY);
+    ctx.fillStyle = "#a8782f";
+    ctx.fillRect(131, 581, 6, 184);
+    ctx.fillStyle = "#d2d2d2";
+    ctx.fillRect(128, tipY - 17, 12, 5);
+    ctx.fillStyle = "#ee2a2f";
+    ctx.fillRect(128, tipY - 12, 12, 12);
+  }, [tipY]);
 
   return (
-    <div className="incense-item group relative flex h-64 w-12 shrink-0 items-end justify-center sm:h-72">
-      <div className="absolute bottom-0 h-[78%] w-[3px] rounded-t-sm bg-[#604a2c]" style={{ height: `calc(78% * ${remaining})` }} />
-      <div className="incense-ember absolute z-10 h-2.5 w-2.5 rounded-full bg-red-500" style={{ bottom: `calc(78% * ${remaining})` }} />
-      <div className="incense-smoke absolute z-10 h-10 w-3 rounded-full bg-gradient-to-t from-stone-400/30 to-transparent blur-sm" style={{ bottom: `calc(78% * ${remaining} + 8px)` }} aria-hidden />
+    <div className="incense-item group relative flex h-60 w-24 shrink-0 items-end justify-center sm:h-72 sm:w-[115px]">
+      <canvas ref={canvasRef} width={320} height={800} className="h-60 w-24 sm:h-72 sm:w-[115px]" aria-hidden="true" />
+      <span className="incense-ember pointer-events-none absolute left-1/2 z-10 h-2 w-2 -translate-x-1/2 rounded-full bg-red-500" style={{ top: `${(tipY / 800) * 100}%` }} aria-hidden="true" />
+      <span className="incense-smoke pointer-events-none absolute left-1/2 z-10 h-9 w-3 -translate-x-1/2 rounded-full bg-gradient-to-t from-stone-400/30 to-transparent blur-sm" style={{ top: `calc(${(tipY / 800) * 100}% - 1.25rem)` }} aria-hidden="true" />
       <div className="pointer-events-none absolute bottom-[82%] left-1/2 z-20 w-56 -translate-x-1/2 translate-y-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-center opacity-0 shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
         <p className="text-sm font-semibold text-stone-900">{incense.donor_name}</p>
         <p className="mt-1 text-xs uppercase tracking-wide text-stone-400">Khẩn cầu</p>
@@ -30,7 +59,6 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
     </div>
   );
 }
-
 export function IncenseView() {
   const { loading: authLoading, user } = useAuth();
   const [incense, setIncense] = useState<BurningIncense[]>([]);
