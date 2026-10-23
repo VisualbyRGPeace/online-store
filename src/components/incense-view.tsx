@@ -13,41 +13,106 @@ const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-s
 function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const expires = new Date(incense.expires_at).getTime();
-  const remaining = Math.max(0, Math.min(1, (expires - now) / BURN_MS));
   const minutes = Math.max(0, Math.ceil((expires - now) / 60000));
-  const tipY = 581 - 497 * remaining;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, 320, 800);
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, 320, 800);
+    type SmokeParticle = { x: number; y: number; vx: number; vy: number; radius: number; life: number; maxLife: number; phase: number };
+    const smoke: SmokeParticle[] = [];
+    let frame = 0;
 
-    // Warm glow behind the red burning tip.
-    const glow = ctx.createRadialGradient(134, tipY - 6, 1, 134, tipY - 6, 28);
-    glow.addColorStop(0, "rgba(255, 72, 25, 0.34)");
-    glow.addColorStop(1, "rgba(255, 72, 25, 0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(102, tipY - 36, 64, 64);
+    function flicker(t: number) {
+      return 0.65
+        + 0.18 * Math.sin(t * 0.006)
+        + 0.1 * Math.sin(t * 0.017 + 1.3)
+        + 0.07 * Math.sin(t * 0.041 + 2.1)
+        + (Math.random() - 0.5) * 0.08;
+    }
 
-    // The exact proportions and colors from the supplied 320 x 800 drawing.
-    ctx.fillStyle = "#5f4720";
-    if (tipY < 581) ctx.fillRect(128, tipY, 12, 581 - tipY);
-    ctx.fillStyle = "#a8782f";
-    ctx.fillRect(131, 581, 6, 184);
-    ctx.fillStyle = "#d2d2d2";
-    ctx.fillRect(128, tipY - 17, 12, 5);
-    ctx.fillStyle = "#ee2a2f";
-    ctx.fillRect(128, tipY - 12, 12, 12);
-  }, [tipY]);
+    function draw(t: number) {
+      const f = Math.max(0.25, Math.min(1, flicker(t)));
+      const remaining = Math.max(0, Math.min(1, (expires - Date.now()) / BURN_MS));
+      const redTop = 72 + (581 - 84) * (1 - remaining);
+      const stickTop = redTop + 12;
+
+      ctx.clearRect(0, 0, 320, 800);
+      ctx.fillStyle = "#120c08";
+      ctx.fillRect(0, 0, 320, 800);
+
+      // Chập chờn ánh đỏ quanh đầu nhang.
+      const glowRadius = 70 + f * 40;
+      const glow = ctx.createRadialGradient(134, redTop + 6, 2, 134, redTop + 6, glowRadius);
+      glow.addColorStop(0, `rgba(255,110,50,${0.55 * f})`);
+      glow.addColorStop(0.4, `rgba(255,60,30,${0.22 * f})`);
+      glow.addColorStop(1, "rgba(255,60,30,0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, 320, 400);
+
+      // Chân tre và thân nhang ngắn dần về phía chân nhang trong 4 giờ.
+      ctx.fillStyle = "#a8782f";
+      ctx.fillRect(131, 581, 6, 184);
+      ctx.fillStyle = "#5f4720";
+      if (stickTop < 581) ctx.fillRect(128, stickTop, 12, 581 - stickTop);
+
+      // Than hồng đỏ và lõi sáng rung nhẹ.
+      const red = 200 + 55 * f;
+      const green = 25 + 70 * f;
+      const blue = 20 + 20 * f;
+      ctx.fillStyle = `rgb(${red | 0},${green | 0},${blue | 0})`;
+      ctx.fillRect(128, redTop, 12, 12);
+      ctx.fillStyle = `rgba(255,${180 + (60 * f) | 0},120,${0.5 * f})`;
+      ctx.fillRect(131, redTop, 6, 6);
+
+      // Tàn tro xám phía trên than.
+      ctx.fillStyle = "#c9c4ba";
+      ctx.fillRect(128, redTop - 6, 12, 6);
+      ctx.fillStyle = "#9d988e";
+      ctx.fillRect(130, redTop - 8, 7, 2);
+
+      if (Math.random() < 0.22) {
+        smoke.push({
+          x: 134,
+          y: redTop - 6,
+          vx: 0,
+          vy: -(0.5 + Math.random() * 0.25),
+          radius: 2 + Math.random() * 2,
+          life: 0,
+          maxLife: 260 + Math.random() * 120,
+          phase: Math.random() * 6.28,
+        });
+      }
+
+      for (let i = smoke.length - 1; i >= 0; i--) {
+        const particle = smoke[i];
+        particle.life++;
+        particle.phase += 0.03;
+        particle.x += Math.sin(particle.phase) * 0.45 + particle.life * 0.0012;
+        particle.y += particle.vy;
+        particle.radius += 0.07;
+        const progress = particle.life / particle.maxLife;
+        if (progress >= 1) {
+          smoke.splice(i, 1);
+          continue;
+        }
+        ctx.fillStyle = `rgba(225,220,212,${0.22 * Math.sin(Math.PI * progress)})`;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      frame = window.requestAnimationFrame(draw);
+    }
+
+    frame = window.requestAnimationFrame(draw);
+    return () => window.cancelAnimationFrame(frame);
+  }, [expires]);
 
   return (
     <div className="incense-item group relative flex h-60 w-24 shrink-0 items-end justify-center sm:h-72 sm:w-[115px]">
       <canvas ref={canvasRef} width={320} height={800} className="h-60 w-24 sm:h-72 sm:w-[115px]" aria-hidden="true" />
-      <span className="incense-smoke pointer-events-none absolute left-1/2 z-10 h-9 w-3 -translate-x-1/2 rounded-full bg-gradient-to-t from-stone-400/30 to-transparent blur-sm" style={{ top: `calc(${(tipY / 800) * 100}% - 1.25rem)` }} aria-hidden="true" />
       <div className="pointer-events-none absolute bottom-[82%] left-1/2 z-20 w-56 -translate-x-1/2 translate-y-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-center opacity-0 shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
         <p className="text-sm font-semibold text-stone-900">{incense.donor_name}</p>
         <p className="mt-1 text-xs uppercase tracking-wide text-stone-400">Khẩn cầu</p>
@@ -151,7 +216,7 @@ export function IncenseView() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-8 sm:pt-8">
-      <section className="relative flex min-h-[620px] flex-col items-center justify-end overflow-hidden sm:min-h-[720px]" aria-label="Bàn hương cúng dường">
+      <section className="relative flex min-h-[620px] flex-col items-center justify-end overflow-hidden bg-[#120c08] sm:min-h-[720px]" aria-label="Bàn hương cúng dường">
         <img
           src={BUDDHA_IMAGE}
           alt="Phật"
@@ -166,7 +231,7 @@ export function IncenseView() {
         )}
         {error && <div className="absolute left-0 right-0 top-0 mx-auto max-w-md"><FormMessage kind="error">{error}</FormMessage></div>}
         {loading ? (
-          <div className="mb-16 h-56 w-full animate-pulse rounded-2xl bg-stone-50" aria-busy="true" />
+          <div className="mb-16 h-56 w-full animate-pulse rounded-2xl bg-[#120c08]" aria-busy="true" />
         ) : (
           <div className="relative z-10 flex min-h-72 w-full items-end justify-center gap-1 overflow-x-auto pb-8 sm:gap-3" aria-label={`${active.length} nén nhang đang cháy`}>
             {active.map((item) => <IncenseStick key={item.id} incense={item} now={now} />)}
