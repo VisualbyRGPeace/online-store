@@ -243,7 +243,7 @@ export function IncenseView() {
         {loading ? (
           <div className="mb-16 h-56 w-full animate-pulse rounded-2xl bg-stone-50" aria-busy="true" />
         ) : (
-          <div className="relative z-10 flex min-h-72 w-full items-end justify-center gap-1 overflow-x-auto pb-8 sm:gap-3" aria-label={`${active.length} nén nhang đang cháy`}>
+          <div className="relative z-10 flex min-h-72 w-full items-end justify-center gap-1 overflow-x-auto pb-8 pt-36 sm:gap-3 sm:pt-40" aria-label={`${active.length} nén nhang đang cháy`}>
             {active.map((item) => <IncenseStick key={item.id} incense={item} now={now} />)}
             {active.length === 0 && <div className="absolute bottom-0 left-1/2 h-px w-4/5 -translate-x-1/2 bg-stone-200" />}
           </div>
