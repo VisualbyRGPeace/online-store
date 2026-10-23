@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/hooks/use-auth";
 import { getProfile } from "@/services/account-service";
-import { lightIncense, listBurningIncense, type BurningIncense } from "@/services/incense-service";
+import { getIncenseOfferingEnabled, lightIncense, listBurningIncense, type BurningIncense } from "@/services/incense-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
@@ -128,7 +128,7 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
 }
 export function IncenseView() {
   const { loading: authLoading, user } = useAuth();
-  const [incense, setIncense] = useState<BurningIncense[]>([]);
+  const [incense, setIncense] = useState<BurningIncense[]>([]);\n  const [acceptingIncense, setAcceptingIncense] = useState<boolean | null>(null);\n  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [donorName, setDonorName] = useState("");
   const [nameLoading, setNameLoading] = useState(false);
   const [prayer, setPrayer] = useState("");
@@ -172,17 +172,26 @@ export function IncenseView() {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      try {
-        const nextIncense = await listBurningIncense();
-        if (!alive) return;
-        setIncense(nextIncense);
-        if (nextIncense[0]?.npc_message_text) setNpcMessage(nextIncense[0].npc_message_text);
+      const [incenseResult, availabilityResult] = await Promise.allSettled([
+        listBurningIncense(),
+        getIncenseOfferingEnabled(),
+      ]);
+      if (!alive) return;
+      if (incenseResult.status === "fulfilled") {
+        setIncense(incenseResult.value);
+        if (incenseResult.value[0]?.npc_message_text) setNpcMessage(incenseResult.value[0].npc_message_text);
         setError(null);
-      } catch {
-        if (alive) setError("Không tải được bàn hương. Vui lòng thử lại.");
-      } finally {
-        if (alive) setLoading(false);
+      } else {
+        setError("Không tải được bàn hương. Vui lòng thử lại.");
       }
+      if (availabilityResult.status === "fulfilled") {
+        setAcceptingIncense(availabilityResult.value);
+        setAvailabilityError(null);
+      } else {
+        setAcceptingIncense(false);
+        setAvailabilityError("Chưa thể kiểm tra trạng thái nhận cúng dường.");
+      }
+      setLoading(false);
     };
     void load();
     const poll = window.setInterval(() => void load(), 15000);
@@ -194,6 +203,10 @@ export function IncenseView() {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+    if (acceptingIncense !== true) {
+      setError("Hiện đang tạm ngưng nhận cúng dường.");
+      return;
+    }
     if (!user) {
       setError("Vui lòng đăng nhập để cúng dường.");
       return;
@@ -208,7 +221,12 @@ export function IncenseView() {
       if (ownOffering?.npc_message_text) setNpcMessage(ownOffering.npc_message_text);
     } catch (err) {
       const message = (err as { message?: string } | null)?.message ?? "";
-      setError(message.includes("invalid_prayer") ? "Khẩn cầu cần từ 2 đến 240 ký tự." : message.includes("npc_message_unavailable") ? "Hiện chưa có thông điệp hiển thị. Vui lòng quay lại sau." : "Chưa cúng dường được. Vui lòng thử lại.");
+      if (message.includes("incense_closed")) {
+        setAcceptingIncense(false);
+        setError("Hiện đang tạm ngưng nhận cúng dường.");
+      } else {
+        setError(message.includes("invalid_prayer") ? "Khẩn cầu cần từ 2 đến 240 ký tự." : message.includes("npc_message_unavailable") ? "Hiện chưa có thông điệp hiển thị. Vui lòng quay lại sau." : "Chưa cúng dường được. Vui lòng thử lại.");
+      }
       await refresh().catch(() => undefined);
     } finally {
       setBusy(false);
@@ -248,11 +266,16 @@ export function IncenseView() {
             {active.length === 0 && <div className="absolute bottom-0 left-1/2 h-px w-4/5 -translate-x-1/2 bg-stone-200" />}
           </div>
         )}
+        {availabilityError && <div className="absolute left-0 right-0 top-0 mx-auto max-w-md"><FormMessage kind="error">{availabilityError}</FormMessage></div>}
         {success && <div className="absolute bottom-0 left-0 right-0 mx-auto max-w-md"><FormMessage kind="success">Nén nhang đã được thắp.</FormMessage></div>}
       </section>
 
       <div className="mt-8 flex justify-center">
-        {!authLoading && !user ? (
+        {acceptingIncense === false ? (
+          <p role="status" className="rounded-full border border-stone-200 px-6 py-3 text-sm text-stone-500">Hiện đang tạm ngưng nhận cúng dường.</p>
+        ) : acceptingIncense === null ? (
+          <button type="button" disabled className="rounded-full bg-stone-900 px-7 py-3 text-sm font-medium text-white opacity-50">Đang kiểm tra…</button>
+        ) : !authLoading && !user ? (
           <Link href="/login/?next=%2Fincense%2F" className="rounded-full bg-stone-900 px-7 py-3 text-sm font-medium text-white transition hover:bg-stone-700">
             Đăng nhập để cúng dường
           </Link>
@@ -268,7 +291,7 @@ export function IncenseView() {
         )}
       </div>
 
-      {formOpen && user && (
+      {formOpen && acceptingIncense && user && (
         <form onSubmit={submit} className="mx-auto mt-5 grid w-full max-w-xl gap-3 rounded-2xl border border-stone-200 bg-white p-4 sm:grid-cols-[1fr_auto] sm:items-end">
           <div className="space-y-3">
             <p className="text-sm text-stone-500">Người cúng</p>
