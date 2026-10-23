@@ -60,22 +60,28 @@ body {
   mask-image: radial-gradient(ellipse at 70% 40%, #000 25%, transparent 75%);
 }
 
-/* Cúng dường: flat 2D cartoon style (solid colours, no gradients, no blur, minimal motion). */
+/* Cúng dường: black & white, with polished silver / black lacquer materials. */
+.bg-silver { background-image: linear-gradient(180deg, #ececec 0%, #b5b5b5 50%, #7d7d7d 100%); }
+.bg-silver-h { background-image: linear-gradient(90deg, #6b6b6b 0%, #d9d9d9 28%, #fafafa 50%, #bdbdbd 72%, #6b6b6b 100%); }
+.bg-lacquer { background-color: #0a0a0a; background-image: linear-gradient(180deg, #2c2c2c 0%, #101010 55%, #000 100%); }
+.bg-ash { background-image: linear-gradient(180deg, #b0b0b0 0%, #dedede 100%); }
+
 @keyframes buddha-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  50% { transform: translateY(-6px); }
 }
-.buddha-float { animation: buddha-float 5s ease-in-out infinite; }
+.buddha-float {
+  animation: buddha-float 5s ease-in-out infinite;
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, .16));
+}
 
 @keyframes halo-pulse {
-  0%, 100% { transform: scale(.96); }
-  50% { transform: scale(1.04); }
+  0%, 100% { opacity: .75; transform: scale(.97); }
+  50% { opacity: 1; transform: scale(1.04); }
 }
-.halo-pulse {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: halo-pulse 5s ease-in-out infinite;
-}
+.halo-pulse { animation: halo-pulse 6s ease-in-out infinite; }
+/* Soft grey aura; fades to transparent well inside its box, so it is never cut off. */
+.stage-glow { background: radial-gradient(circle, rgba(0, 0, 0, .07), rgba(0, 0, 0, .03) 45%, transparent 68%); }
 
 /* A newly lit stick drops in softly. */
 @keyframes incense-rise {
