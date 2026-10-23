@@ -15,6 +15,7 @@ export type BurningIncense = {
   npc_message_text: string;
   lit_at: string;
   expires_at: string;
+  blessing_count: number;
 };
 
 export type AdminIncenseOffering = Pick<BurningIncense, "id" | "donor_name" | "message_text" | "lit_at" | "expires_at">;
@@ -27,7 +28,18 @@ export async function listBurningIncense(): Promise<BurningIncense[]> {
     .gt("expires_at", new Date().toISOString())
     .order("lit_at", { ascending: false });
   if (error) throw error;
-  return (data ?? []) as BurningIncense[];
+  const offerings = (data ?? []) as Omit<BurningIncense, "blessing_count">[];
+  if (!offerings.length) return [];
+  const { data: blessings, error: blessingError } = await createClient()
+    .from("incense_blessings")
+    .select("offering_id")
+    .in("offering_id", offerings.map((item) => item.id));
+  if (blessingError) throw blessingError;
+  const counts = new Map<string, number>();
+  for (const row of (blessings ?? []) as { offering_id: string }[]) {
+    counts.set(row.offering_id, (counts.get(row.offering_id) ?? 0) + 1);
+  }
+  return offerings.map((item) => ({ ...item, blessing_count: counts.get(item.id) ?? 0 }));
 }
 
 export async function getIncenseOfferingEnabled(): Promise<boolean> {
@@ -94,5 +106,20 @@ export async function setIncenseMessageActive(id: string, isActive: boolean): Pr
 
 export async function deleteIncenseMessage(id: string): Promise<void> {
   const { error } = await createClient().from("incense_messages").delete().eq("id", id);
+  if (error) throw error;
+}
+
+
+export type IncensePermissions = { canDonate: boolean; canBless: boolean };
+
+export async function getIncensePermissions(): Promise<IncensePermissions> {
+  const { data, error } = await createClient().rpc("incense_permissions");
+  if (error) throw error;
+  const permissions = data as { can_donate?: boolean; can_bless?: boolean } | null;
+  return { canDonate: Boolean(permissions?.can_donate), canBless: Boolean(permissions?.can_bless) };
+}
+
+export async function blessIncense(offeringId: string): Promise<void> {
+  const { error } = await createClient().rpc("bless_incense", { p_offering_id: offeringId });
   if (error) throw error;
 }
