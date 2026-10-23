@@ -730,7 +730,7 @@ export function IncenseView() {
         {loading ? (
           <div className="mx-auto mt-8 h-48 w-full max-w-md animate-pulse rounded-2xl bg-neutral-100" aria-busy="true" />
         ) : (
-          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-1 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
+          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-3 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
             <div className="relative mx-auto flex w-max min-w-[16rem] items-end justify-center gap-3 px-8 sm:min-w-[24rem] sm:gap-5">
               {active.length === 0 && <div className="h-[180px]" aria-hidden />}
               {active.map((item) => (
@@ -743,9 +743,11 @@ export function IncenseView() {
                   onHover={setHoverId}
                 />
               ))}
-              <div className="pointer-events-none absolute inset-x-3 bottom-0 z-20 h-4 rounded-full border-2 border-[#c9a24a] bg-neutral-900" aria-hidden>
-                <span className="absolute inset-x-5 top-[3px] h-px bg-[#c9a24a]" />
-              </div>
+              {/* Censer: gold-rimmed opening filled with ash (behind the sticks), black lacquer bowl (in front), gold feet. */}
+              <span className="pointer-events-none absolute inset-x-2 bottom-3 z-0 h-4 rounded-full border-2 border-[#c9a24a] bg-[#d9d2c3]" aria-hidden />
+              <span className="pointer-events-none absolute inset-x-2.5 bottom-0 z-20 h-5 rounded-b-3xl border-2 border-t-0 border-[#c9a24a] bg-neutral-950" aria-hidden />
+              <span className="pointer-events-none absolute -bottom-1.5 left-[18%] z-10 h-2 w-4 rounded-b-lg bg-[#c9a24a]" aria-hidden />
+              <span className="pointer-events-none absolute -bottom-1.5 right-[18%] z-10 h-2 w-4 rounded-b-lg bg-[#c9a24a]" aria-hidden />
             </div>
           </div>
         )}
