@@ -41,7 +41,7 @@ export function LoginDialog({ open, onClose, onSuccess }: { open: boolean; onClo
     setErrors({});
     setMessage(null);
     setBusy(true);
-    const result = await signIn(parsed.data.email, parsed.data.password);
+    const result = await signIn(parsed.data.identifier, parsed.data.password);
     setBusy(false);
     if (!result.ok) return setMessage(result.message);
     onSuccess();
@@ -65,7 +65,7 @@ export function LoginDialog({ open, onClose, onSuccess }: { open: boolean; onClo
 
         <form onSubmit={submit} noValidate className="mt-6 space-y-4">
           {message && <FormMessage kind="error">{message}</FormMessage>}
-          <Field label="Email" name="email" type="email" autoComplete="email" autoFocus error={errors.email} />
+          <Field label="Tên đăng nhập hoặc email" name="identifier" autoComplete="username" autoFocus error={errors.identifier} />
           <Field label="Mật khẩu" name="password" type="password" autoComplete="current-password" error={errors.password} />
           <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
             {busy ? "Đang đăng nhập..." : "Đăng nhập và tải"}
