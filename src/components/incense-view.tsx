@@ -54,7 +54,7 @@ function getSprites() {
     smoke: makeSprite(64, [[0, "rgba(110,110,110,1)"], [0.5, "rgba(110,110,110,.4)"], [1, "rgba(110,110,110,0)"]]),
     glow: makeSprite(64, [[0, "rgba(255,176,90,1)"], [0.35, "rgba(255,130,50,.45)"], [1, "rgba(255,100,30,0)"]]),
     ember: makeSprite(32, [[0, "rgba(255,244,196,1)"], [0.3, "rgba(255,190,90,1)"], [0.65, "rgba(232,89,26,.95)"], [1, "rgba(232,89,26,0)"]]),
-    spark: makeSprite(32, [[0, "rgba(120,120,120,1)"], [0.4, "rgba(120,120,120,.4)"], [1, "rgba(120,120,120,0)"]]),
+    spark: makeSprite(32, [[0, "rgba(255,206,84,1)"], [0.4, "rgba(255,190,60,.42)"], [1, "rgba(255,190,60,0)"]]),
   };
   return sprites;
 }
@@ -179,21 +179,21 @@ const IncenseStick = memo(function IncenseStick({
     const stopObserving = observeCanvasSize(cv, LH / LW, (cssW, dpr) => { drawScale = (cssW / LW) * dpr; });
 
     // Materials, created once: black lacquer, polished silver trim, ash.
-    const lacquer = ctx.createLinearGradient(CX - 3, 0, CX + 3, 0);
+    const lacquer = ctx.createLinearGradient(CX - 3.7, 0, CX + 3.7, 0);
     lacquer.addColorStop(0, "#050505");
     lacquer.addColorStop(0.35, "#3c3c3c");
     lacquer.addColorStop(0.62, "#161616");
     lacquer.addColorStop(1, "#000000");
-    const gold = ctx.createLinearGradient(CX - 3.2, 0, CX + 3.2, 0); // silver trim
+    const gold = ctx.createLinearGradient(CX - 3.9, 0, CX + 3.9, 0); // silver trim
     gold.addColorStop(0, "#6b6b6b");
     gold.addColorStop(0.38, "#f2f2f2");
     gold.addColorStop(0.66, "#a8a8a8");
     gold.addColorStop(1, "#555555");
-    const rod = ctx.createLinearGradient(CX - 1.8, 0, CX + 1.8, 0);
+    const rod = ctx.createLinearGradient(CX - 2.2, 0, CX + 2.2, 0);
     rod.addColorStop(0, "#666666");
     rod.addColorStop(0.45, "#e8e8e8");
     rod.addColorStop(1, "#8a8a8a");
-    const ashGrad = ctx.createLinearGradient(CX - 3.2, 0, CX + 3.2, 0);
+    const ashGrad = ctx.createLinearGradient(CX - 3.9, 0, CX + 3.9, 0);
     ashGrad.addColorStop(0, "#999999");
     ashGrad.addColorStop(0.45, "#e9e9e9");
     ashGrad.addColorStop(1, "#a0a0a0");
@@ -221,21 +221,21 @@ const IncenseStick = memo(function IncenseStick({
 
       // Silver rod at the base.
       ctx.fillStyle = rod;
-      ctx.fillRect(CX - 1.8, BAMBOO_TOP - 2, 3.6, BASE - BAMBOO_TOP + 2);
+      ctx.fillRect(CX - 2.2, BAMBOO_TOP - 2, 4.4, BASE - BAMBOO_TOP + 2);
 
       // Lacquered body (shortens as it burns) with a soft sheen and two silver bands.
       if (ey + 4 < BAMBOO_TOP) {
         ctx.fillStyle = lacquer;
-        ctx.fillRect(CX - 3, ey + 4, 6, BAMBOO_TOP - ey - 2);
+        ctx.fillRect(CX - 3.7, ey + 4, 7.4, BAMBOO_TOP - ey - 2);
         ctx.fillStyle = "rgba(255,255,255,.2)";
-        ctx.fillRect(CX - 1.9, ey + 8, 0.9, Math.max(0, BAMBOO_TOP - ey - 12));
+        ctx.fillRect(CX - 2.4, ey + 8, 1.1, Math.max(0, BAMBOO_TOP - ey - 12));
         if (ey + 8 < BAMBOO_TOP - 22) {
           ctx.fillStyle = gold;
-          ctx.fillRect(CX - 3.2, BAMBOO_TOP - 20, 6.4, 3.4);
+          ctx.fillRect(CX - 3.9, BAMBOO_TOP - 20, 7.8, 3.8);
         }
         if (ey + 8 < BAMBOO_TOP - 30) {
           ctx.fillStyle = gold;
-          ctx.fillRect(CX - 3.1, BAMBOO_TOP - 27, 6.2, 1.3);
+          ctx.fillRect(CX - 3.8, BAMBOO_TOP - 28, 7.6, 1.4);
         }
       }
 
@@ -243,15 +243,15 @@ const IncenseStick = memo(function IncenseStick({
       const ashLen = 14 + 6 * (1 - remaining);
       ctx.fillStyle = ashGrad;
       ctx.beginPath();
-      ctx.moveTo(CX - 3.2, ey);
-      ctx.lineTo(CX - 2.4, ey - ashLen + 2);
-      ctx.quadraticCurveTo(CX, ey - ashLen - 1.5, CX + 2.4, ey - ashLen + 2);
-      ctx.lineTo(CX + 3.2, ey);
+      ctx.moveTo(CX - 3.9, ey);
+      ctx.lineTo(CX - 3, ey - ashLen + 2);
+      ctx.quadraticCurveTo(CX, ey - ashLen - 1.8, CX + 3, ey - ashLen + 2);
+      ctx.lineTo(CX + 3.9, ey);
       ctx.closePath();
       ctx.fill();
 
       // Glowing ember.
-      const emberSize = (15 + 4 * flick) * (0.4 + 0.6 * ignite);
+      const emberSize = (17 + 4 * flick) * (0.4 + 0.6 * ignite);
       ctx.drawImage(emberImg, CX - emberSize / 2, ey + 1.5 - emberSize / 2, emberSize, emberSize);
 
       // Smoke: soft sprites that widen, sway and fade as they rise (and fade out before the canvas edge).
@@ -278,7 +278,7 @@ const IncenseStick = memo(function IncenseStick({
       // Blessed sticks get a few silver glints around the tip.
       if (blessedRef.current && sparks.length < 10 && Math.random() < 0.07 * dt) {
         const side = Math.random() < 0.5 ? -1 : 1;
-        sparks.push({ x: CX + side * (8 + Math.random() * 14), y: ey - 6 + (Math.random() - 0.5) * 26, life: 0, max: 50 + Math.random() * 40, size: 2.4 + Math.random() * 2.2, vy: -0.12 - Math.random() * 0.1 });
+        sparks.push({ x: CX + side * (10 + Math.random() * 17), y: ey - 6 + (Math.random() - 0.5) * 26, life: 0, max: 50 + Math.random() * 40, size: 2.4 + Math.random() * 2.2, vy: -0.12 - Math.random() * 0.1 });
       }
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i];
@@ -288,10 +288,15 @@ const IncenseStick = memo(function IncenseStick({
         const progress = s.life / s.max;
         if (progress >= 1) { sparks.splice(i, 1); continue; }
         const k = Math.sin(progress * Math.PI);
+        const r = (s.size * 1.3 + Math.sin(s.life * 0.25)) * k + 0.5;
         ctx.globalAlpha = k;
-        ctx.drawImage(sparkImg, s.x - s.size * 2, s.y - s.size * 2, s.size * 4, s.size * 4);
-        ctx.fillStyle = "#262626";
-        twinkle(ctx, s.x, s.y, s.size * 0.75 * k + 0.4);
+        ctx.drawImage(sparkImg, s.x - r * 2.2, s.y - r * 2.2, r * 4.4, r * 4.4); // warm halo
+        ctx.globalAlpha = Math.min(1, k * 1.4);
+        ctx.fillStyle = "#f0b429"; // gold star
+        twinkle(ctx, s.x, s.y, r * 1.5);
+        ctx.fill();
+        ctx.fillStyle = "#fff6d6"; // bright core
+        twinkle(ctx, s.x, s.y, r * 0.75);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -346,7 +351,7 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
       </div>
       <p className="mt-1.5 text-xs text-neutral-400">
         Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
-        {incense.blessing_count > 0 && <> · ✦ {incense.blessing_count}</>}
+        {incense.blessing_count > 0 && <> · <span className="text-[#e0a21c]">✦</span> {incense.blessing_count}</>}
       </p>
       {canBless && (
         <button
@@ -355,7 +360,7 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
           onClick={() => onBless(incense.id)}
           className="mt-3 rounded-full bg-black px-4 py-1.5 text-xs font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50"
         >
-          {busy ? "Đang ban phước…" : "✦ Ban phước"}
+          {busy ? "Đang ban phước…" : (<><span className="text-[#f0b429]">✦</span> Ban phước</>)}
         </button>
       )}
     </div>
@@ -689,7 +694,7 @@ export function IncenseView() {
         {loading ? (
           <div className="mx-auto mt-8 h-48 w-full max-w-md animate-pulse rounded-2xl bg-neutral-100" aria-busy="true" />
         ) : (
-          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-5 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
+          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-8 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
             <div className="relative mx-auto flex w-max min-w-[16rem] items-end justify-center gap-3 px-8 sm:min-w-[24rem] sm:gap-5">
               {active.length === 0 && <div className="h-[180px]" aria-hidden />}
               {active.map((item) => (
@@ -702,15 +707,17 @@ export function IncenseView() {
                   onHover={setHoverId}
                 />
               ))}
-              {/* Censer: silver rim around ash (behind the sticks), black bowl with silver edge (in front), silver feet. */}
-              <span className="pointer-events-none absolute inset-x-2 bottom-3 z-0 h-4 rounded-full bg-silver-h p-[2px]" aria-hidden>
-                <span className="block h-full w-full rounded-full bg-ash" />
+              {/* Censer: soft ground shadow, silver handles, silver-rimmed ash bed (behind the sticks), black lacquer bowl with silver edge (in front), plinth. */}
+              <span className="pointer-events-none absolute inset-x-8 -bottom-3 z-0 h-3 rounded-full bg-black/15 blur-md" aria-hidden />
+              <span className="pointer-events-none absolute bottom-2 left-0 z-10 h-6 w-6 rounded-full border-[3px] border-neutral-400" aria-hidden />
+              <span className="pointer-events-none absolute bottom-2 right-0 z-10 h-6 w-6 rounded-full border-[3px] border-neutral-400" aria-hidden />
+              <span className="pointer-events-none absolute inset-x-3 bottom-[18px] z-0 h-5 rounded-full bg-silver-h p-[2.5px]" aria-hidden>
+                <span className="block h-full w-full rounded-full bg-ash shadow-[inset_0_3px_5px_rgba(0,0,0,.28)]" />
               </span>
-              <span className="pointer-events-none absolute inset-x-2.5 bottom-0 z-20 h-5 rounded-b-3xl bg-silver-h p-[2px] pt-0 shadow-[0_10px_16px_-8px_rgba(0,0,0,.45)]" aria-hidden>
-                <span className="block h-full w-full rounded-b-[22px] bg-lacquer" />
+              <span className="pointer-events-none absolute inset-x-4 bottom-[3px] z-20 h-[27px] rounded-b-[26px] bg-silver-h p-[2px] pt-0 shadow-[0_12px_18px_-10px_rgba(0,0,0,.5)]" aria-hidden>
+                <span className="block h-full w-full rounded-b-[24px] bg-lacquer" />
               </span>
-              <span className="pointer-events-none absolute -bottom-1.5 left-[18%] z-10 h-2 w-4 rounded-b-lg bg-silver" aria-hidden />
-              <span className="pointer-events-none absolute -bottom-1.5 right-[18%] z-10 h-2 w-4 rounded-b-lg bg-silver" aria-hidden />
+              <span className="pointer-events-none absolute inset-x-12 -bottom-1 z-10 h-2 rounded-b-xl bg-silver" aria-hidden />
             </div>
           </div>
         )}
