@@ -47,7 +47,6 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
   return (
     <div className="incense-item group relative flex h-60 w-24 shrink-0 items-end justify-center sm:h-72 sm:w-[115px]">
       <canvas ref={canvasRef} width={320} height={800} className="h-60 w-24 sm:h-72 sm:w-[115px]" aria-hidden="true" />
-      <span className="incense-ember pointer-events-none absolute left-1/2 z-10 h-2 w-2 -translate-x-1/2 rounded-full bg-red-500" style={{ top: `${(tipY / 800) * 100}%` }} aria-hidden="true" />
       <span className="incense-smoke pointer-events-none absolute left-1/2 z-10 h-9 w-3 -translate-x-1/2 rounded-full bg-gradient-to-t from-stone-400/30 to-transparent blur-sm" style={{ top: `calc(${(tipY / 800) * 100}% - 1.25rem)` }} aria-hidden="true" />
       <div className="pointer-events-none absolute bottom-[82%] left-1/2 z-20 w-56 -translate-x-1/2 translate-y-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-center opacity-0 shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
         <p className="text-sm font-semibold text-stone-900">{incense.donor_name}</p>
