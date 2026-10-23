@@ -273,6 +273,9 @@ export function IncenseView() {
       if (message.includes("incense_closed")) {
         setAcceptingIncense(false);
         setError("Hiện đang tạm ngưng nhận cúng dường.");
+      } else if (message.includes("incense_donation_not_allowed")) {
+        setCanDonate(false);
+        setError("Tài khoản này không được phép cúng dường.");
       } else {
         setError(message.includes("invalid_prayer") ? "Khẩn cầu cần từ 2 đến 240 ký tự." : message.includes("npc_message_unavailable") ? "Hiện chưa có thông điệp hiển thị. Vui lòng quay lại sau." : "Chưa cúng dường được. Vui lòng thử lại.");
       }
