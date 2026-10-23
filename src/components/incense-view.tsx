@@ -254,7 +254,7 @@ export function IncenseView() {
         </div>
         {npcMessage && (
           <div role="status" aria-live="polite" className="absolute right-1 top-[42%] z-10 w-52 rounded-2xl border border-stone-200 bg-white/95 px-4 py-3 text-sm leading-6 text-stone-700 shadow-md sm:right-[5%] sm:top-[35%] sm:w-64">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400">Phật</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400">Thích Khoai Tây</p>
             <p className="mt-1">{npcMessage}</p>
             <span className="absolute -bottom-1.5 left-6 h-3 w-3 rotate-45 border-b border-r border-stone-200 bg-white" aria-hidden />
           </div>
