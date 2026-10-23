@@ -59,3 +59,17 @@ body {
   -webkit-mask-image: radial-gradient(ellipse at 70% 40%, #000 25%, transparent 75%);
   mask-image: radial-gradient(ellipse at 70% 40%, #000 25%, transparent 75%);
 }
+
+
+/* Gentle movement for the four-hour virtual incense flame and smoke. */
+@keyframes incense-flicker {
+  0%, 100% { transform: translateX(-50%) rotate(45deg) scale(1); opacity: .92; }
+  50% { transform: translateX(-48%) rotate(40deg) scale(.88, 1.08); opacity: .72; }
+}
+@keyframes incense-drift {
+  0% { transform: translate(-50%, 5px) scale(.75); opacity: 0; }
+  35% { opacity: .55; }
+  100% { transform: translate(-70%, -10px) scale(1.2); opacity: 0; }
+}
+.incense-flame { transform-origin: 50% 100%; animation: incense-flicker 1.15s ease-in-out infinite; }
+.incense-smoke { animation: incense-drift 2.8s ease-out infinite; }
