@@ -22,7 +22,7 @@ export function IncenseMessagesAdmin() {
       .then((rows) => { if (active) setMessages(rows); })
       .catch((err) => {
         console.error(err);
-        if (active) setError("Chưa tải được danh sách lời nguyện.");
+        if (active) setError("Chưa tải được danh sách thông điệp.");
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -37,10 +37,10 @@ export function IncenseMessagesAdmin() {
       await addIncenseMessage(content);
       setContent("");
       await refresh();
-      setNotice("Đã thêm lời nguyện.");
+      setNotice("Đã thêm thông điệp.");
     } catch (err) {
       console.error(err);
-      setError("Chưa thêm được lời nguyện. Hãy kiểm tra nội dung và thử lại.");
+      setError("Chưa thêm được thông điệp. Hãy kiểm tra nội dung và thử lại.");
     } finally {
       setBusy(false);
     }
@@ -53,35 +53,35 @@ export function IncenseMessagesAdmin() {
       await refresh();
     } catch (err) {
       console.error(err);
-      setError("Chưa cập nhật được trạng thái lời nguyện.");
+      setError("Chưa cập nhật được trạng thái thông điệp.");
     }
   }
 
   async function remove(message: IncenseMessage) {
-    if (!window.confirm("Xóa lời nguyện này? Nén nhang đang cháy vẫn giữ nguyên lời nguyện đã lưu.")) return;
+    if (!window.confirm("Xóa thông điệp này? Nhang đang cháy vẫn giữ nguyên câu thoại đã lưu.")) return;
     setError(null);
     try {
       await deleteIncenseMessage(message.id);
       await refresh();
     } catch (err) {
       console.error(err);
-      setError("Chưa xóa được lời nguyện.");
+      setError("Chưa xóa được thông điệp.");
     }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Quản lý lời nguyện</h1>
-        <p className="mt-1 text-sm text-slate-500">Thêm không giới hạn lời nguyện để khách chọn khi thắp nhang. Lời đã lưu trên nén nhang sẽ không đổi nếu bạn chỉnh danh sách.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Quản lý thông điệp</h1>
+        <p className="mt-1 text-sm text-slate-500">Thêm các câu thoại hiển thị ngẫu nhiên cạnh hình Phật sau khi có người cúng dường. Thông điệp đã gắn với nhang đang cháy sẽ không đổi.</p>
       </div>
 
       <form onSubmit={add} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <label htmlFor="incense-message" className="block text-sm font-medium text-slate-700">Lời nguyện mới</label>
-        <textarea id="incense-message" required minLength={2} maxLength={240} rows={3} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Ví dụ: Nguyện cầu bình an và sức khỏe cho mọi người." className="mt-2 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm leading-6 outline-none focus:border-black focus:ring-4 focus:ring-black/10" />
+        <label htmlFor="incense-message" className="block text-sm font-medium text-slate-700">Thông điệp mới</label>
+        <textarea id="incense-message" required minLength={2} maxLength={240} rows={3} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Ví dụ: Ta đã nhận lời khẩn cầu của con." className="mt-2 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm leading-6 outline-none focus:border-black focus:ring-4 focus:ring-black/10" />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <span className="text-xs text-slate-400">{content.length}/240 ký tự</span>
-          <button type="submit" disabled={busy || content.trim().length < 2} className={primaryButton}>{busy ? "Đang lưu..." : "Thêm lời nguyện"}</button>
+          <button type="submit" disabled={busy || content.trim().length < 2} className={primaryButton}>{busy ? "Đang lưu..." : "Thêm thông điệp"}</button>
         </div>
       </form>
 
@@ -90,13 +90,13 @@ export function IncenseMessagesAdmin() {
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2 className="font-semibold">Danh sách lời nguyện</h2>
-          <span className="text-xs text-slate-500">{messages.length} lời</span>
+          <h2 className="font-semibold">Danh sách thông điệp</h2>
+          <span className="text-xs text-slate-500">{messages.length} thông điệp</span>
         </div>
         {loading ? (
           <div className="h-28 animate-pulse bg-slate-100" aria-busy="true" />
         ) : messages.length === 0 ? (
-          <p className="p-6 text-sm text-slate-500">Chưa có lời nguyện.</p>
+          <p className="p-6 text-sm text-slate-500">Chưa có thông điệp.</p>
         ) : (
           <ul className="divide-y divide-slate-200">
             {messages.map((message) => (
