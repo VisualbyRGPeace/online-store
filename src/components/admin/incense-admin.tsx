@@ -5,7 +5,7 @@ import { useQuery } from "@/hooks/use-query";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { FormMessage } from "@/components/ui/form";
 import { deleteAdminIncense, listAdminIncense } from "@/services/incense-service";
-import { formatDateTime } from "@/utils/labels";
+import { formatDateTime } from "@/utils/labels";\nimport { IncenseOfferingControl } from "@/components/admin/incense-offering-control";
 
 export function IncenseAdmin() {
   const [page, setPage] = useState(1);
@@ -41,7 +41,7 @@ export function IncenseAdmin() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Quản lý nhang</h1>
-        <p className="mt-1 text-sm text-slate-500">Xem người cúng, lời khẩn cầu, thời điểm thắp và trạng thái từng nén nhang.</p>
+        <p className="mt-1 text-sm text-slate-500">Xem người cúng, lời khẩn cầu, thời điểm thắp và trạng thái từng nén nhang.</p>\n        <div className="mt-5"><IncenseOfferingControl /></div>
       </div>
       {error && <FormMessage kind="error">{error}</FormMessage>}
       {state.status === "loading" && <div className="h-40 animate-pulse rounded-2xl bg-slate-200" aria-busy="true" />}
