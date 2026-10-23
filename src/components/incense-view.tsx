@@ -44,8 +44,8 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
       // Chập chờn ánh đỏ quanh đầu nhang.
       const glowRadius = 70 + f * 40;
       const glow = ctx.createRadialGradient(134, redTop + 6, 2, 134, redTop + 6, glowRadius);
-      glow.addColorStop(0, `rgba(255,110,50,${0.55 * f})`);
-      glow.addColorStop(0.4, `rgba(255,60,30,${0.22 * f})`);
+      glow.addColorStop(0, `rgba(255,110,50,${0.4 * f})`);
+      glow.addColorStop(0.4, `rgba(255,60,30,${0.14 * f})`);
       glow.addColorStop(1, "rgba(255,60,30,0)");
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, 320, 400);
@@ -97,7 +97,7 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
           smoke.splice(i, 1);
           continue;
         }
-        ctx.fillStyle = `rgba(115,105,95,${0.2 * Math.sin(Math.PI * progress)})`;
+        ctx.fillStyle = `rgba(130,125,118,${0.22 * Math.sin(Math.PI * progress) * 1.3})`;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         ctx.fill();
