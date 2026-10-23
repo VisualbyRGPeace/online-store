@@ -117,6 +117,7 @@ export function ForgotPasswordForm() {
           </button>
         </form>
       )}
+      <p className="mt-4 text-xs leading-5 text-slate-500">Tài khoản tạo bằng tên đăng nhập không có email để nhận liên kết đặt lại mật khẩu.</p>
       <p className="mt-4 text-sm"><Link href="/login/" className={linkClass}>Về trang đăng nhập</Link></p>
     </AuthCard>
   );
