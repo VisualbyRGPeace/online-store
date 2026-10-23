@@ -43,8 +43,8 @@ begin
 end
 $$;
 
-revoke all on function public.incense_permissions() from public, anon;
-grant execute on function public.incense_permissions() to authenticated;
+revoke all on function public.incense_permissions() from public;
+grant execute on function public.incense_permissions() to anon, authenticated;
 
 create or replace function public.bless_incense(p_offering_id uuid)
 returns uuid
