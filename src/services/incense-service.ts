@@ -30,6 +30,24 @@ export async function listBurningIncense(): Promise<BurningIncense[]> {
   return (data ?? []) as BurningIncense[];
 }
 
+export async function getIncenseOfferingEnabled(): Promise<boolean> {
+  const { data, error } = await createClient()
+    .from("shop_settings")
+    .select("accepting_incense")
+    .eq("id", true)
+    .single();
+  if (error) throw error;
+  return Boolean((data as { accepting_incense: boolean }).accepting_incense);
+}
+
+export async function setIncenseOfferingEnabled(enabled: boolean): Promise<void> {
+  const { error } = await createClient()
+    .from("shop_settings")
+    .update({ accepting_incense: enabled })
+    .eq("id", true);
+  if (error) throw error;
+}
+
 export async function lightIncense(prayer: string): Promise<string> {
   const { data, error } = await createClient().rpc("light_incense", {
     p_prayer: prayer.trim(),
