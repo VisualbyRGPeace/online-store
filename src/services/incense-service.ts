@@ -17,6 +17,9 @@ export type BurningIncense = {
   expires_at: string;
 };
 
+export type AdminIncenseOffering = Pick<BurningIncense, "id" | "donor_name" | "message_text" | "lit_at" | "expires_at">;
+export type AdminIncensePage = { items: AdminIncenseOffering[]; total: number; pageSize: number };
+
 export async function listBurningIncense(): Promise<BurningIncense[]> {
   const { data, error } = await createClient()
     .from("incense_offerings")
@@ -33,6 +36,23 @@ export async function lightIncense(prayer: string): Promise<string> {
   });
   if (error) throw error;
   return data as string;
+}
+
+export async function listAdminIncense(page: number): Promise<AdminIncensePage> {
+  const pageSize = 50;
+  const from = (page - 1) * pageSize;
+  const { data, error, count } = await createClient()
+    .from("incense_offerings")
+    .select("id,donor_name,message_text,lit_at,expires_at", { count: "exact" })
+    .order("lit_at", { ascending: false })
+    .range(from, from + pageSize - 1);
+  if (error) throw error;
+  return { items: (data ?? []) as AdminIncenseOffering[], total: count ?? 0, pageSize };
+}
+
+export async function deleteAdminIncense(id: string): Promise<void> {
+  const { error } = await createClient().from("incense_offerings").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function listAllIncenseMessages(): Promise<IncenseMessage[]> {
