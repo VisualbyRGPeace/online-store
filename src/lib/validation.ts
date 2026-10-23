@@ -18,7 +18,9 @@ const loginIdentifier = z.string().trim().min(3, "Nhập tên đăng nhập ho�
 
 export const loginSchema = z.object({ identifier: loginIdentifier, password: z.string().min(1, "Vui lòng nhập mật khẩu") });
 
-export const registerSchema = z.object({ username, password });
+export const registerSchema = z
+  .object({ username, password, confirm: z.string() })
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Mật khẩu nhập lại không khớp" });
 
 export const forgotSchema = z.object({ email });
 

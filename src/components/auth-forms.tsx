@@ -77,6 +77,7 @@ export function RegisterForm() {
         {message && <FormMessage kind="error">{message}</FormMessage>}
         <Field label="Tên đăng nhập" name="username" autoComplete="username" maxLength={30} error={errors.username} />
         <Field label="Mật khẩu (tối thiểu 8 ký tự)" name="password" type="password" autoComplete="new-password" error={errors.password} />
+        <Field label="Xác nhận mật khẩu" name="confirm" type="password" autoComplete="new-password" error={errors.confirm} />
         <button type="submit" disabled={busy} className={`${primaryButton} w-full`}>
           {busy ? "Đang tạo tài khoản..." : "Đăng ký"}
         </button>
