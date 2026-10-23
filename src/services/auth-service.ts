@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { absoluteUrl } from "@/lib/site";
 
 export type Result = { ok: true } | { ok: false; message: string };
 
@@ -49,7 +50,7 @@ export async function signOut(): Promise<void> {
 
 export async function requestPasswordReset(email: string): Promise<Result> {
   const { error } = await createClient().auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password/`,
+    redirectTo: absoluteUrl("/reset-password/"),
   });
   if (error) console.error(error); // still report success to the user: no account enumeration
   return { ok: true };
