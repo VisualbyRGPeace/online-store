@@ -21,45 +21,32 @@ const SUGGESTIONS = ["Bình an cho gia đình", "Sức khỏe dồi dào", "Côn
 const WELCOME = "Hãy thắp một nén nhang và gửi lời nguyện của bạn.";
 
 const buttonDark =
-  "inline-flex items-center justify-center rounded-full bg-black px-7 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-full border border-[#c9a24a] bg-neutral-950 px-7 py-3 text-sm font-medium tracking-wide text-[#f6e9c0] transition hover:bg-neutral-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50";
+
+// ---------------------------------------------------------------------------------------------
+// Flat 2D cartoon palette (solid fills + one dark outline colour, no gradients, no blur)
+// ---------------------------------------------------------------------------------------------
+const INK = "#1f1f1f";
+const COLOR = {
+  body: "#7a1d24",
+  bodyLight: "#a8323b",
+  bamboo: "#d4af5a",
+  band: "#d4af5a",
+  ash: "#d9d2c3",
+  ember: "#f08a24",
+  core: "#ffe08a",
+  ray: "#e0b14a",
+  spark: "#d9b04a",
+};
 
 // ---------------------------------------------------------------------------------------------
 // Canvas helpers
 // ---------------------------------------------------------------------------------------------
-/** Vietnamese text from the database may be decomposed (base letter + combining mark); NFC joins them. */
-const nfc = (text: string) => text.normalize("NFC");
-
 function reducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function makeSprite(size: number, stops: [number, string][]): HTMLCanvasElement {
-  const c = document.createElement("canvas");
-  c.width = size;
-  c.height = size;
-  const g = c.getContext("2d");
-  if (!g) return c;
-  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  for (const [offset, color] of stops) grad.addColorStop(offset, color);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, size, size);
-  return c;
-}
-
-// Soft sprites are drawn once and stamped with drawImage: much cheaper than a gradient per particle.
-// Every sprite fades to fully transparent before its edge, so nothing ever shows a hard cut.
-let sprites: { smoke: HTMLCanvasElement; glow: HTMLCanvasElement; ember: HTMLCanvasElement; spark: HTMLCanvasElement } | null = null;
-function getSprites() {
-  sprites ??= {
-    smoke: makeSprite(64, [[0, "rgba(110,110,110,1)"], [0.5, "rgba(110,110,110,.4)"], [1, "rgba(110,110,110,0)"]]),
-    glow: makeSprite(64, [[0, "rgba(255,176,90,1)"], [0.35, "rgba(255,130,50,.45)"], [1, "rgba(255,100,30,0)"]]),
-    ember: makeSprite(32, [[0, "rgba(255,244,196,1)"], [0.3, "rgba(255,190,90,1)"], [0.65, "rgba(232,89,26,.95)"], [1, "rgba(232,89,26,0)"]]),
-    spark: makeSprite(32, [[0, "rgba(255,206,84,1)"], [0.4, "rgba(255,190,60,.42)"], [1, "rgba(255,190,60,0)"]]),
-  };
-  return sprites;
-}
-
-/** One shared animation loop for every stick (capped at ~30fps). */
+/** One shared animation loop for every stick (capped at ~30fps, which also suits the cartoon look). */
 type TickFn = (time: number) => void;
 const tickers = new Set<TickFn>();
 let rafId = 0;
@@ -116,7 +103,12 @@ function observeCanvasSize(canvas: HTMLCanvasElement, aspect: number, onResize: 
   return () => ro.disconnect();
 }
 
-/** Four-point glint. */
+function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+}
+
+/** Four-point twinkle, drawn as one flat shape. */
 function twinkle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
   ctx.beginPath();
   ctx.moveTo(x, y - r);
@@ -128,15 +120,59 @@ function twinkle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number)
 }
 
 // ---------------------------------------------------------------------------------------------
-// One burning incense stick: black lacquered stick with silver bands, glowing red ember, soft smoke, silver glints when blessed
+// Cartoon Buddha (inline SVG: flat fills + outline, so it matches the incense and never fails to load)
 // ---------------------------------------------------------------------------------------------
-const LW = 96; // logical canvas width: wider than the stick so glow and smoke are never cut off
+function BuddhaArt() {
+  const skin = "#f8d9b0";
+  const hair = "#2b2b2b";
+  return (
+    <svg viewBox="0 0 240 230" className="pointer-events-none h-full w-full" role="img" aria-label="Tượng Phật ngồi thiền" strokeLinejoin="round" strokeLinecap="round">
+      <circle className="halo-pulse" cx="120" cy="96" r="84" fill="#fff1b8" />
+      <ellipse cx="120" cy="219" rx="84" ry="7" fill="#e5e5e5" />
+      <g className="buddha-float" stroke={INK} strokeWidth="4">
+        {/* lotus seat */}
+        <ellipse cx="50" cy="198" rx="26" ry="13" fill="#f6a9bd" transform="rotate(-12 50 198)" />
+        <ellipse cx="190" cy="198" rx="26" ry="13" fill="#f6a9bd" transform="rotate(12 190 198)" />
+        <ellipse cx="82" cy="204" rx="28" ry="14" fill="#f9c3d1" transform="rotate(-5 82 204)" />
+        <ellipse cx="158" cy="204" rx="28" ry="14" fill="#f9c3d1" transform="rotate(5 158 204)" />
+        <ellipse cx="120" cy="206" rx="30" ry="13" fill="#f6a9bd" />
+        {/* robe, crossed legs */}
+        <path d="M52 192 C52 128 82 104 120 104 C158 104 188 128 188 192 Z" fill="#f2a93b" />
+        <path d="M92 112 C104 150 134 176 170 186" fill="none" strokeWidth="3.5" />
+        <ellipse cx="120" cy="186" rx="74" ry="17" fill="#e8932a" />
+        {/* arms and hands */}
+        <ellipse cx="78" cy="150" rx="17" ry="38" transform="rotate(-25 78 150)" fill="#f7b84a" />
+        <ellipse cx="162" cy="150" rx="17" ry="38" transform="rotate(25 162 150)" fill="#f7b84a" />
+        <ellipse cx="120" cy="170" rx="28" ry="11" fill={skin} />
+        <path d="M104 171 Q120 177 136 171" fill="none" strokeWidth="3" />
+        {/* head */}
+        <ellipse cx="85" cy="78" rx="8" ry="17" fill={skin} />
+        <ellipse cx="155" cy="78" rx="8" ry="17" fill={skin} />
+        <circle cx="120" cy="40" r="12" fill={hair} />
+        <circle cx="120" cy="72" r="34" fill={skin} />
+        <path d="M87 64 C86 40 154 40 153 64 C146 54 132 50 120 50 C108 50 94 54 87 64 Z" fill={hair} strokeWidth="3.5" />
+        <circle cx="120" cy="25" r="4.5" fill="#ff8a3d" strokeWidth="3" />
+        {/* face */}
+        <circle cx="98" cy="88" r="5" fill="#f5a89a" stroke="none" />
+        <circle cx="142" cy="88" r="5" fill="#f5a89a" stroke="none" />
+        <circle cx="120" cy="66" r="2.6" fill="#e2553a" stroke="none" />
+        <path d="M101 76 Q107 82 113 76 M127 76 Q133 82 139 76 M112 90 Q120 97 128 90" fill="none" strokeWidth="3" />
+      </g>
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// One burning incense stick: flat cartoon stick, ember with rays, flat smoke puffs, gold twinkles when blessed
+// ---------------------------------------------------------------------------------------------
+const LW = 96; // logical canvas width: wider than the stick so smoke and rays are never cut off
 const LH = 420;
 const CX = LW / 2;
 const TOP0 = 170; // tip position when freshly lit
 const BURN_END = 330; // tip position when fully burned
 const BAMBOO_TOP = 335;
 const BASE = LH;
+const RAY_ANGLES = [-28, 8, 44].flatMap((a) => [(a * Math.PI) / 180, ((180 - a) * Math.PI) / 180]);
 
 type Smoke = { x0: number; y: number; vy: number; r0: number; life: number; max: number; phase: number; amp: number; drift: number };
 type Spark = { x: number; y: number; life: number; max: number; size: number; vy: number };
@@ -167,7 +203,6 @@ const IncenseStick = memo(function IncenseStick({
     if (!canvas || !context) return;
     const cv: HTMLCanvasElement = canvas;
     const ctx: CanvasRenderingContext2D = context;
-    const { smoke: smokeImg, glow: glowImg, ember: emberImg, spark: sparkImg } = getSprites();
     const reduce = reducedMotion();
     const born = performance.now();
     const isFresh = freshRef.current && !reduce;
@@ -178,87 +213,94 @@ const IncenseStick = memo(function IncenseStick({
 
     const stopObserving = observeCanvasSize(cv, LH / LW, (cssW, dpr) => { drawScale = (cssW / LW) * dpr; });
 
-    // Materials, created once: black lacquer, polished silver trim, ash.
-    const lacquer = ctx.createLinearGradient(CX - 3.7, 0, CX + 3.7, 0);
-    lacquer.addColorStop(0, "#050505");
-    lacquer.addColorStop(0.35, "#3c3c3c");
-    lacquer.addColorStop(0.62, "#161616");
-    lacquer.addColorStop(1, "#000000");
-    const gold = ctx.createLinearGradient(CX - 3.9, 0, CX + 3.9, 0); // silver trim
-    gold.addColorStop(0, "#6b6b6b");
-    gold.addColorStop(0.38, "#f2f2f2");
-    gold.addColorStop(0.66, "#a8a8a8");
-    gold.addColorStop(1, "#555555");
-    const rod = ctx.createLinearGradient(CX - 2.2, 0, CX + 2.2, 0);
-    rod.addColorStop(0, "#666666");
-    rod.addColorStop(0.45, "#e8e8e8");
-    rod.addColorStop(1, "#8a8a8a");
-    const ashGrad = ctx.createLinearGradient(CX - 3.9, 0, CX + 3.9, 0);
-    ashGrad.addColorStop(0, "#999999");
-    ashGrad.addColorStop(0.45, "#e9e9e9");
-    ashGrad.addColorStop(1, "#a0a0a0");
-
     const tick = (time: number) => {
       if (!onScreen.current) { last = 0; return; }
       if (reduce && last !== 0 && time - last < 1000) return; // reduced motion: redraw about once a second
       const dt = last ? Math.min(4, (time - last) / 16.67) : 1;
       last = time;
 
-      const flick = reduce ? 0.7 : Math.max(0.3, Math.min(1, 0.66 + 0.16 * Math.sin(time * 0.006) + 0.1 * Math.sin(time * 0.017 + 1.3) + (Math.random() - 0.5) * 0.06));
-      const ignite = isFresh ? Math.min(1, (time - born) / 1600) : 1;
+      const toggle = reduce ? 0 : Math.floor(time / 220) % 2; // two-frame cartoon flicker
+      const ignite = isFresh ? Math.min(1, (time - born) / 1400) : 1;
       const remaining = Math.max(0, Math.min(1, (expires - Date.now()) / BURN_MS));
       const ey = TOP0 + (BURN_END - TOP0) * (1 - remaining);
       const active = selectedRef.current;
 
       ctx.setTransform(drawScale, 0, 0, drawScale, 0, 0);
       ctx.clearRect(0, 0, LW, LH);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.3;
 
-      // Warm glow around the tip. Capped below the canvas width and faded to zero at its edge, so it is never cut.
-      const glowSize = Math.min(92, (44 + 26 * flick + (active ? 16 : 0)) * (1 + (1 - ignite) * 0.5));
-      ctx.globalAlpha = Math.min(1, (0.28 + 0.4 * flick) * (0.35 + 0.65 * ignite) + (active ? 0.14 : 0));
-      ctx.drawImage(glowImg, CX - glowSize / 2, ey + 1.5 - glowSize / 2, glowSize, glowSize);
-      ctx.globalAlpha = 1;
+      // Bamboo core.
+      ctx.fillStyle = COLOR.bamboo;
+      ctx.beginPath();
+      ctx.rect(CX - 1.8, BAMBOO_TOP - 2, 3.6, BASE - BAMBOO_TOP + 2);
+      ctx.fill();
+      ctx.stroke();
 
-      // Silver rod at the base.
-      ctx.fillStyle = rod;
-      ctx.fillRect(CX - 2.2, BAMBOO_TOP - 2, 4.4, BASE - BAMBOO_TOP + 2);
-
-      // Lacquered body (shortens as it burns) with a soft sheen and two silver bands.
+      // Incense body (shortens as it burns) with one flat highlight stripe.
       if (ey + 4 < BAMBOO_TOP) {
-        ctx.fillStyle = lacquer;
-        ctx.fillRect(CX - 3.7, ey + 4, 7.4, BAMBOO_TOP - ey - 2);
-        ctx.fillStyle = "rgba(255,255,255,.2)";
-        ctx.fillRect(CX - 2.4, ey + 8, 1.1, Math.max(0, BAMBOO_TOP - ey - 12));
+        ctx.fillStyle = COLOR.body;
+        ctx.beginPath();
+        ctx.rect(CX - 3, ey + 4, 6, BAMBOO_TOP - ey - 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = COLOR.bodyLight;
+        ctx.fillRect(CX - 1.7, ey + 8, 1.1, Math.max(0, BAMBOO_TOP - ey - 12));
+        // Gold band near the base.
         if (ey + 8 < BAMBOO_TOP - 22) {
-          ctx.fillStyle = gold;
-          ctx.fillRect(CX - 3.9, BAMBOO_TOP - 20, 7.8, 3.8);
-        }
-        if (ey + 8 < BAMBOO_TOP - 30) {
-          ctx.fillStyle = gold;
-          ctx.fillRect(CX - 3.8, BAMBOO_TOP - 28, 7.6, 1.4);
+          ctx.fillStyle = COLOR.band;
+          ctx.beginPath();
+          ctx.rect(CX - 3, BAMBOO_TOP - 20, 6, 4);
+          ctx.fill();
+          ctx.stroke();
         }
       }
 
       // Ash above the tip.
       const ashLen = 14 + 6 * (1 - remaining);
-      ctx.fillStyle = ashGrad;
+      ctx.fillStyle = COLOR.ash;
       ctx.beginPath();
-      ctx.moveTo(CX - 3.9, ey);
-      ctx.lineTo(CX - 3, ey - ashLen + 2);
-      ctx.quadraticCurveTo(CX, ey - ashLen - 1.8, CX + 3, ey - ashLen + 2);
-      ctx.lineTo(CX + 3.9, ey);
+      ctx.moveTo(CX - 3.2, ey);
+      ctx.lineTo(CX - 2.4, ey - ashLen + 2);
+      ctx.quadraticCurveTo(CX, ey - ashLen - 1.5, CX + 2.4, ey - ashLen + 2);
+      ctx.lineTo(CX + 3.2, ey);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
 
-      // Glowing ember.
-      const emberSize = (17 + 4 * flick) * (0.4 + 0.6 * ignite);
-      ctx.drawImage(emberImg, CX - emberSize / 2, ey + 1.5 - emberSize / 2, emberSize, emberSize);
+      // Ember: flat rays, flat orange dot, flat yellow core.
+      const ex = CX;
+      const eyc = ey + 1.5;
+      if (ignite > 0.6) {
+        ctx.strokeStyle = COLOR.ray;
+        ctx.lineWidth = 1.4;
+        const r1 = active ? 7.4 : 6.4;
+        RAY_ANGLES.forEach((a, i) => {
+          const len = (active ? 4.5 : 3) + ((i + toggle) % 2) * 1.6;
+          ctx.beginPath();
+          ctx.moveTo(ex + Math.cos(a) * r1, eyc + Math.sin(a) * r1);
+          ctx.lineTo(ex + Math.cos(a) * (r1 + len), eyc + Math.sin(a) * (r1 + len));
+          ctx.stroke();
+        });
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 1.3;
+      }
+      const er = (3.9 + toggle * 0.5) * (0.4 + 0.6 * ignite);
+      ctx.fillStyle = COLOR.ember;
+      circle(ctx, ex, eyc, er);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = COLOR.core;
+      circle(ctx, ex, eyc, er * 0.5);
+      ctx.fill();
 
-      // Smoke: soft sprites that widen, sway and fade as they rise (and fade out before the canvas edge).
-      if (!reduce && smoke.length < 28 && Math.random() < 0.1 * ignite * dt) {
+      // Smoke: a few flat grey puffs. Colour is blended toward the white page instead of using alpha or blur.
+      if (!reduce && smoke.length < 16 && Math.random() < 0.05 * ignite * dt) {
         smoke.push({
-          x0: CX, y: ey - ashLen - 2, vy: -(0.4 + Math.random() * 0.22), r0: 2.2 + Math.random() * 1.4, life: 0,
-          max: 300 + Math.random() * 140, phase: Math.random() * 6.28, amp: 2 + Math.random() * 2.6, drift: (Math.random() - 0.5) * 0.05,
+          x0: CX, y: ey - ashLen - 2, vy: -(0.45 + Math.random() * 0.15), r0: 2 + Math.random() * 0.8, life: 0,
+          max: 260 + Math.random() * 80, phase: Math.random() * 6.28, amp: 2 + Math.random() * 1.6, drift: (Math.random() - 0.5) * 0.02,
         });
       }
       for (let i = smoke.length - 1; i >= 0; i--) {
@@ -268,18 +310,21 @@ const IncenseStick = memo(function IncenseStick({
         p.y += p.vy * dt;
         const progress = p.life / p.max;
         if (progress >= 1 || p.y < -10) { smoke.splice(i, 1); continue; }
-        const r = p.r0 + progress * 10;
-        const x = p.x0 + p.drift * p.life + Math.sin(p.phase + p.life * 0.034) * p.amp * (0.3 + progress * 1.6);
-        const edgeFade = Math.max(0, Math.min(1, p.y / 70));
-        ctx.globalAlpha = 0.22 * Math.pow(Math.sin(Math.PI * progress), 1.2) * edgeFade;
-        ctx.drawImage(smokeImg, x - r, p.y - r, r * 2, r * 2);
+        const r = p.r0 + progress * 6.5;
+        const x = p.x0 + p.drift * p.life + Math.sin(p.phase + p.life * 0.03) * p.amp * (0.3 + progress * 1.2);
+        const strength = Math.sin(Math.PI * progress) * Math.max(0, Math.min(1, p.y / 60));
+        const v = Math.round(255 - 72 * strength);
+        ctx.fillStyle = `rgb(${v},${v - 3},${v - 9})`;
+        circle(ctx, x, p.y, r);
+        ctx.fill();
       }
 
-      // Blessed sticks get a few silver glints around the tip.
-      if (blessedRef.current && sparks.length < 10 && Math.random() < 0.07 * dt) {
+      // Blessed sticks get a few flat gold twinkles around the tip.
+      if (blessedRef.current && sparks.length < 8 && Math.random() < 0.05 * dt) {
         const side = Math.random() < 0.5 ? -1 : 1;
-        sparks.push({ x: CX + side * (10 + Math.random() * 17), y: ey - 6 + (Math.random() - 0.5) * 26, life: 0, max: 50 + Math.random() * 40, size: 2.4 + Math.random() * 2.2, vy: -0.12 - Math.random() * 0.1 });
+        sparks.push({ x: CX + side * (9 + Math.random() * 12), y: ey - 6 + (Math.random() - 0.5) * 24, life: 0, max: 40 + Math.random() * 30, size: 2.2 + Math.random() * 1.6, vy: -0.1 - Math.random() * 0.08 });
       }
+      ctx.fillStyle = COLOR.spark;
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i];
         if (!s) continue;
@@ -287,19 +332,9 @@ const IncenseStick = memo(function IncenseStick({
         s.y += s.vy * dt;
         const progress = s.life / s.max;
         if (progress >= 1) { sparks.splice(i, 1); continue; }
-        const k = Math.sin(progress * Math.PI);
-        const r = (s.size * 1.3 + Math.sin(s.life * 0.25)) * k + 0.5;
-        ctx.globalAlpha = k;
-        ctx.drawImage(sparkImg, s.x - r * 2.2, s.y - r * 2.2, r * 4.4, r * 4.4); // warm halo
-        ctx.globalAlpha = Math.min(1, k * 1.4);
-        ctx.fillStyle = "#f0b429"; // gold star
-        twinkle(ctx, s.x, s.y, r * 1.5);
-        ctx.fill();
-        ctx.fillStyle = "#fff6d6"; // bright core
-        twinkle(ctx, s.x, s.y, r * 0.75);
+        twinkle(ctx, s.x, s.y, s.size * Math.sin(progress * Math.PI) * 1.6);
         ctx.fill();
       }
-      ctx.globalAlpha = 1;
     };
 
     const unsubscribe = subscribeTick(tick);
@@ -322,7 +357,7 @@ const IncenseStick = memo(function IncenseStick({
       aria-label={`Nhang do ${incense.donor_name} cúng dường. Khẩn cầu: ${incense.message_text}`}
       className={`relative z-10 h-[341px] w-[52px] shrink-0 cursor-pointer rounded-full transition-transform duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/40 sm:h-[420px] sm:w-16 ${fresh ? "incense-rise" : ""} ${selected ? "-translate-y-1" : ""}`}
     >
-      {/* The canvas is 150% of the button width and centred, so glow and smoke have room on both sides. */}
+      {/* The canvas is 150% of the button width and centred, so smoke/rays have room on both sides. */}
       <canvas ref={canvasRef} className="pointer-events-none absolute left-1/2 top-0 h-full w-[150%] -translate-x-1/2" aria-hidden="true" />
     </button>
   );
@@ -344,23 +379,23 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
   const pct = Math.max(0, Math.min(100, (left / BURN_MS) * 100));
   return (
     <div className="fade-up flex min-h-[132px] flex-col items-center justify-center px-5 py-4 text-center">
-      <p className="text-sm font-semibold tracking-wide text-neutral-900">{nfc(incense.donor_name)}</p>
-      <p className="mt-1.5 max-w-md text-[15px] leading-6 text-neutral-600">“{nfc(incense.message_text)}”</p>
-      <div className="mt-3 h-1.5 w-full max-w-[200px] overflow-hidden rounded-full bg-neutral-200" aria-hidden>
-        <div className="h-full bg-neutral-900 transition-[width] duration-1000" style={{ width: `${pct}%` }} />
+      <p className="text-sm font-semibold tracking-wide text-neutral-900">{incense.donor_name}</p>
+      <p className="mt-1.5 max-w-md font-serif text-base italic leading-6 text-neutral-600">“{incense.message_text}”</p>
+      <div className="mt-3 h-3 w-full max-w-[200px] overflow-hidden rounded-full border-2 border-neutral-900 bg-white" aria-hidden>
+        <div className="h-full bg-[#c9a24a] transition-[width] duration-1000" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-1.5 text-xs text-neutral-400">
         Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
-        {incense.blessing_count > 0 && <> · <span className="text-[#e0a21c]">✦</span> {incense.blessing_count}</>}
+        {incense.blessing_count > 0 && <> · ✦ {incense.blessing_count}</>}
       </p>
       {canBless && (
         <button
           type="button"
           disabled={busy}
           onClick={() => onBless(incense.id)}
-          className="mt-3 rounded-full bg-black px-4 py-1.5 text-xs font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50"
+          className="mt-3 rounded-full border-2 border-neutral-900 bg-[#d8b45a] px-4 py-1.5 text-xs font-semibold text-neutral-900 shadow-[2px_2px_0_#171717] transition active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50"
         >
-          {busy ? "Đang ban phước…" : (<><span className="text-[#f0b429]">✦</span> Ban phước</>)}
+          {busy ? "Đang ban phước…" : "✦ Ban phước"}
         </button>
       )}
     </div>
@@ -407,7 +442,7 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
 
   return createPortal(
     <div
-      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/50 backdrop-blur-sm sm:place-items-center sm:p-4"
+      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
     >
       <form
@@ -419,12 +454,12 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
           if (trimmed.length < 2 || busy) return;
           if (await onSubmit(trimmed)) setPrayer("");
         }}
-        className="dialog-pop relative w-full max-w-md rounded-t-3xl border border-neutral-200 bg-white p-6 pb-8 shadow-2xl sm:rounded-3xl sm:pb-6"
+        className="dialog-pop relative w-full max-w-md rounded-t-3xl border-2 border-neutral-900 bg-white p-6 pb-8 sm:rounded-3xl sm:pb-6 sm:shadow-[6px_6px_0_#c9a24a]"
       >
         <button type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
           ×
         </button>
-        <h2 id="light-title" className="text-xl font-semibold tracking-wide">Thắp một nén nhang</h2>
+        <h2 id="light-title" className="font-serif text-xl font-semibold tracking-wide">Thắp một nén nhang</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Người cúng: <span className="font-medium text-neutral-900">{donorName}</span> · cháy trong 4 giờ
         </p>
@@ -653,8 +688,8 @@ export function IncenseView() {
     <div className="mx-auto max-w-3xl">
       <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Bàn hương cúng dường">
         <header className="text-center">
-          <h1 className="text-2xl font-semibold tracking-wide sm:text-3xl">Cúng dường</h1>
-          <div className="mx-auto mt-3 flex items-center justify-center gap-3 text-neutral-400" aria-hidden>
+          <h1 className="font-serif text-2xl font-semibold tracking-wide sm:text-3xl">Cúng dường</h1>
+          <div className="mx-auto mt-3 flex items-center justify-center gap-3 text-[#b8913a]" aria-hidden>
             <span className="h-px w-12 bg-current" />
             <span className="text-[10px]">◆</span>
             <span className="h-px w-12 bg-current" />
@@ -665,13 +700,14 @@ export function IncenseView() {
         </header>
 
         <div className="relative mx-auto mt-6 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
-          {/* Soft grey aura with two fine rings. */}
+          {/* Flat gold halo: solid cream disc with two thin gold rings (no gradient, no blur). */}
           <span className="pointer-events-none absolute left-1/2 top-[48%] aspect-square w-[82%] -translate-x-1/2 -translate-y-1/2" aria-hidden>
-            <span className="halo-pulse stage-glow absolute -inset-[24%] rounded-full" />
-            <span className="absolute inset-0 rounded-full border border-neutral-200" />
-            <span className="absolute inset-[8%] rounded-full border border-neutral-300" />
+            <span className="halo-pulse absolute inset-0 rounded-full border border-[#e3cf9a] bg-[#fcf6e4]" />
+            <span className="absolute inset-[8%] rounded-full border border-[#c9a24a]" />
           </span>
-          {!imageFailed && (
+          {imageFailed ? (
+            <BuddhaArt />
+          ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={BUDDHA_IMAGE}
@@ -683,9 +719,9 @@ export function IncenseView() {
           )}
         </div>
 
-        <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center text-[15px] leading-6 text-neutral-600" role="status" aria-live="polite">
-          {nfc(message)}
-          {npcMessage && <span className="mt-1 block font-sans text-[11px] uppercase tracking-widest text-neutral-400">Thích Khoai Tây</span>}
+        <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center font-serif text-base italic leading-6 text-neutral-600" role="status" aria-live="polite">
+          {message}
+          {npcMessage && <span className="mt-1 block font-sans text-[11px] not-italic uppercase tracking-widest text-[#a98532]">Thích Khoai Tây</span>}
         </p>
 
         {loadError && <p role="alert" className="mx-auto mt-4 max-w-md rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">{loadError}</p>}
@@ -694,7 +730,7 @@ export function IncenseView() {
         {loading ? (
           <div className="mx-auto mt-8 h-48 w-full max-w-md animate-pulse rounded-2xl bg-neutral-100" aria-busy="true" />
         ) : (
-          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-8 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
+          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-1 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
             <div className="relative mx-auto flex w-max min-w-[16rem] items-end justify-center gap-3 px-8 sm:min-w-[24rem] sm:gap-5">
               {active.length === 0 && <div className="h-[180px]" aria-hidden />}
               {active.map((item) => (
@@ -707,17 +743,9 @@ export function IncenseView() {
                   onHover={setHoverId}
                 />
               ))}
-              {/* Censer: soft ground shadow, silver handles, silver-rimmed ash bed (behind the sticks), black lacquer bowl with silver edge (in front), plinth. */}
-              <span className="pointer-events-none absolute inset-x-8 -bottom-3 z-0 h-3 rounded-full bg-black/15 blur-md" aria-hidden />
-              <span className="pointer-events-none absolute bottom-2 left-0 z-10 h-6 w-6 rounded-full border-[3px] border-neutral-400" aria-hidden />
-              <span className="pointer-events-none absolute bottom-2 right-0 z-10 h-6 w-6 rounded-full border-[3px] border-neutral-400" aria-hidden />
-              <span className="pointer-events-none absolute inset-x-3 bottom-[18px] z-0 h-5 rounded-full bg-silver-h p-[2.5px]" aria-hidden>
-                <span className="block h-full w-full rounded-full bg-ash shadow-[inset_0_3px_5px_rgba(0,0,0,.28)]" />
-              </span>
-              <span className="pointer-events-none absolute inset-x-4 bottom-[3px] z-20 h-[27px] rounded-b-[26px] bg-silver-h p-[2px] pt-0 shadow-[0_12px_18px_-10px_rgba(0,0,0,.5)]" aria-hidden>
-                <span className="block h-full w-full rounded-b-[24px] bg-lacquer" />
-              </span>
-              <span className="pointer-events-none absolute inset-x-12 -bottom-1 z-10 h-2 rounded-b-xl bg-silver" aria-hidden />
+              <div className="pointer-events-none absolute inset-x-3 bottom-0 z-20 h-4 rounded-full border-2 border-[#c9a24a] bg-neutral-900" aria-hidden>
+                <span className="absolute inset-x-5 top-[3px] h-px bg-[#c9a24a]" />
+              </div>
             </div>
           </div>
         )}
@@ -742,7 +770,7 @@ export function IncenseView() {
       {toast && (
         <div
           role={toast.kind === "error" ? "alert" : "status"}
-          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-sm shadow-xl ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
+          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full border-2 border-[#c9a24a] px-5 py-3 text-center text-sm shadow-[3px_3px_0_#171717] ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
         >
           {toast.text}
         </div>
