@@ -60,29 +60,21 @@ body {
   mask-image: radial-gradient(ellipse at 70% 40%, #000 25%, transparent 75%);
 }
 
-/* Cúng dường: minimal motion (soft Buddha glow, floating image, gentle fades). */
+/* Cúng dường: flat 2D cartoon style (solid colours, no gradients, no blur, minimal motion). */
 @keyframes buddha-float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  50% { transform: translateY(-5px); }
 }
-.buddha-float {
-  animation: buddha-float 5s ease-in-out infinite;
-  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .12));
-}
+.buddha-float { animation: buddha-float 5s ease-in-out infinite; }
 
-@keyframes glow-breathe {
-  0%, 100% { opacity: .7; transform: translate(-50%, -50%) scale(.96); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+@keyframes halo-pulse {
+  0%, 100% { transform: scale(.96); }
+  50% { transform: scale(1.04); }
 }
-.stage-glow {
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  width: 120%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(251, 191, 36, .2), transparent 62%);
-  animation: glow-breathe 6s ease-in-out infinite;
+.halo-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: halo-pulse 5s ease-in-out infinite;
 }
 
 /* A newly lit stick drops in softly. */

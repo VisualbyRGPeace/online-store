@@ -16,12 +16,26 @@ import {
 } from "@/services/incense-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
-const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 const SUGGESTIONS = ["Bình an cho gia đình", "Sức khỏe dồi dào", "Công việc thuận lợi", "Tâm luôn an tĩnh"];
 const WELCOME = "Hãy thắp một nén nhang và gửi lời nguyện của bạn.";
 
 const buttonDark =
-  "inline-flex items-center justify-center rounded-full bg-black px-7 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-full bg-black px-7 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50";
+
+// ---------------------------------------------------------------------------------------------
+// Flat 2D cartoon palette (solid fills + one dark outline colour, no gradients, no blur)
+// ---------------------------------------------------------------------------------------------
+const INK = "#1f1f1f";
+const COLOR = {
+  body: "#d9482e",
+  bodyLight: "#f07a5c",
+  bamboo: "#eab948",
+  ash: "#d8d3c9",
+  ember: "#ff8a3d",
+  core: "#ffd23f",
+  ray: "#ffb23f",
+  spark: "#ffc933",
+};
 
 // ---------------------------------------------------------------------------------------------
 // Canvas helpers
@@ -30,28 +44,31 @@ function reducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function makeSprite(size: number, stops: [number, string][]): HTMLCanvasElement {
-  const c = document.createElement("canvas");
-  c.width = size;
-  c.height = size;
-  const g = c.getContext("2d");
-  if (!g) return c;
-  const grad = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  for (const [offset, color] of stops) grad.addColorStop(offset, color);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, size, size);
-  return c;
+/** One shared animation loop for every stick (capped at ~30fps, which also suits the cartoon look). */
+type TickFn = (time: number) => void;
+const tickers = new Set<TickFn>();
+let rafId = 0;
+let lastFrame = 0;
+const FRAME_MS = 1000 / 30;
+
+function loop(time: number) {
+  rafId = requestAnimationFrame(loop);
+  if (time - lastFrame < FRAME_MS - 2) return;
+  lastFrame = time;
+  if (document.hidden) return;
+  tickers.forEach((fn) => fn(time));
 }
 
-// Soft sprites are drawn once and stamped with drawImage: much cheaper than a gradient per particle.
-let sprites: { smoke: HTMLCanvasElement; glow: HTMLCanvasElement; spark: HTMLCanvasElement } | null = null;
-function getSprites() {
-  sprites ??= {
-    smoke: makeSprite(64, [[0, "rgba(110,104,98,1)"], [0.5, "rgba(110,104,98,.4)"], [1, "rgba(110,104,98,0)"]]),
-    glow: makeSprite(64, [[0, "rgba(255,170,90,1)"], [0.35, "rgba(255,120,50,.5)"], [1, "rgba(255,90,30,0)"]]),
-    spark: makeSprite(32, [[0, "rgba(245,180,50,1)"], [0.4, "rgba(245,180,50,.45)"], [1, "rgba(245,180,50,0)"]]),
+function subscribeTick(fn: TickFn) {
+  tickers.add(fn);
+  if (tickers.size === 1) {
+    lastFrame = 0;
+    rafId = requestAnimationFrame(loop);
+  }
+  return () => {
+    tickers.delete(fn);
+    if (tickers.size === 0) cancelAnimationFrame(rafId);
   };
-  return sprites;
 }
 
 /** A ref that says whether the element is on screen, so off-screen canvases stop drawing. */
@@ -84,16 +101,76 @@ function observeCanvasSize(canvas: HTMLCanvasElement, aspect: number, onResize: 
   return () => ro.disconnect();
 }
 
+function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+}
+
+/** Four-point twinkle, drawn as one flat shape. */
+function twinkle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.quadraticCurveTo(x, y, x, y + r);
+  ctx.quadraticCurveTo(x, y, x - r, y);
+  ctx.quadraticCurveTo(x, y, x, y - r);
+  ctx.closePath();
+}
+
 // ---------------------------------------------------------------------------------------------
-// One burning incense stick: glowing tip, ash, smoke (and tiny gold sparks once blessed)
+// Cartoon Buddha (inline SVG: flat fills + outline, so it matches the incense and never fails to load)
 // ---------------------------------------------------------------------------------------------
-const LW = 64; // logical canvas size in units; CSS scales it
+function BuddhaArt() {
+  const skin = "#f8d9b0";
+  const hair = "#2b2b2b";
+  return (
+    <svg viewBox="0 0 240 230" className="pointer-events-none h-full w-full" role="img" aria-label="Tượng Phật ngồi thiền" strokeLinejoin="round" strokeLinecap="round">
+      <circle className="halo-pulse" cx="120" cy="96" r="84" fill="#fff1b8" />
+      <ellipse cx="120" cy="219" rx="84" ry="7" fill="#e5e5e5" />
+      <g className="buddha-float" stroke={INK} strokeWidth="4">
+        {/* lotus seat */}
+        <ellipse cx="50" cy="198" rx="26" ry="13" fill="#f6a9bd" transform="rotate(-12 50 198)" />
+        <ellipse cx="190" cy="198" rx="26" ry="13" fill="#f6a9bd" transform="rotate(12 190 198)" />
+        <ellipse cx="82" cy="204" rx="28" ry="14" fill="#f9c3d1" transform="rotate(-5 82 204)" />
+        <ellipse cx="158" cy="204" rx="28" ry="14" fill="#f9c3d1" transform="rotate(5 158 204)" />
+        <ellipse cx="120" cy="206" rx="30" ry="13" fill="#f6a9bd" />
+        {/* robe, crossed legs */}
+        <path d="M52 192 C52 128 82 104 120 104 C158 104 188 128 188 192 Z" fill="#f2a93b" />
+        <path d="M92 112 C104 150 134 176 170 186" fill="none" strokeWidth="3.5" />
+        <ellipse cx="120" cy="186" rx="74" ry="17" fill="#e8932a" />
+        {/* arms and hands */}
+        <ellipse cx="78" cy="150" rx="17" ry="38" transform="rotate(-25 78 150)" fill="#f7b84a" />
+        <ellipse cx="162" cy="150" rx="17" ry="38" transform="rotate(25 162 150)" fill="#f7b84a" />
+        <ellipse cx="120" cy="170" rx="28" ry="11" fill={skin} />
+        <path d="M104 171 Q120 177 136 171" fill="none" strokeWidth="3" />
+        {/* head */}
+        <ellipse cx="85" cy="78" rx="8" ry="17" fill={skin} />
+        <ellipse cx="155" cy="78" rx="8" ry="17" fill={skin} />
+        <circle cx="120" cy="40" r="12" fill={hair} />
+        <circle cx="120" cy="72" r="34" fill={skin} />
+        <path d="M87 64 C86 40 154 40 153 64 C146 54 132 50 120 50 C108 50 94 54 87 64 Z" fill={hair} strokeWidth="3.5" />
+        <circle cx="120" cy="25" r="4.5" fill="#ff8a3d" strokeWidth="3" />
+        {/* face */}
+        <circle cx="98" cy="88" r="5" fill="#f5a89a" stroke="none" />
+        <circle cx="142" cy="88" r="5" fill="#f5a89a" stroke="none" />
+        <circle cx="120" cy="66" r="2.6" fill="#e2553a" stroke="none" />
+        <path d="M101 76 Q107 82 113 76 M127 76 Q133 82 139 76 M112 90 Q120 97 128 90" fill="none" strokeWidth="3" />
+      </g>
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// One burning incense stick: flat cartoon stick, ember with rays, flat smoke puffs, gold twinkles when blessed
+// ---------------------------------------------------------------------------------------------
+const LW = 96; // logical canvas width: wider than the stick so smoke and rays are never cut off
 const LH = 420;
 const CX = LW / 2;
 const TOP0 = 170; // tip position when freshly lit
 const BURN_END = 330; // tip position when fully burned
 const BAMBOO_TOP = 335;
 const BASE = LH;
+const RAY_ANGLES = [-28, 8, 44].flatMap((a) => [(a * Math.PI) / 180, ((180 - a) * Math.PI) / 180]);
 
 type Smoke = { x0: number; y: number; vy: number; r0: number; life: number; max: number; phase: number; amp: number; drift: number };
 type Spark = { x: number; y: number; life: number; max: number; size: number; vy: number };
@@ -124,81 +201,96 @@ const IncenseStick = memo(function IncenseStick({
     if (!canvas || !context) return;
     const cv: HTMLCanvasElement = canvas;
     const ctx: CanvasRenderingContext2D = context;
-    const { smoke: smokeImg, glow: glowImg, spark: sparkImg } = getSprites();
     const reduce = reducedMotion();
     const born = performance.now();
     const isFresh = freshRef.current && !reduce;
     const smoke: Smoke[] = [];
     const sparks: Spark[] = [];
     let drawScale = 1;
-    let frame = 0;
     let last = 0;
 
     const stopObserving = observeCanvasSize(cv, LH / LW, (cssW, dpr) => { drawScale = (cssW / LW) * dpr; });
 
-    const body = ctx.createLinearGradient(CX - 3, 0, CX + 3, 0);
-    body.addColorStop(0, "#5b2a1a");
-    body.addColorStop(0.5, "#9a4a2a");
-    body.addColorStop(1, "#6a3020");
-    const bamboo = ctx.createLinearGradient(CX - 1.8, 0, CX + 1.8, 0);
-    bamboo.addColorStop(0, "#b98d45");
-    bamboo.addColorStop(0.5, "#e6cc8c");
-    bamboo.addColorStop(1, "#b58d45");
-
     const tick = (time: number) => {
-      frame = requestAnimationFrame(tick);
-      if (!onScreen.current || document.hidden) return;
-      const dt = Math.min(3, (time - last) / 16.67 || 1);
+      if (!onScreen.current) { last = 0; return; }
+      if (reduce && last !== 0 && time - last < 1000) return; // reduced motion: redraw about once a second
+      const dt = last ? Math.min(4, (time - last) / 16.67) : 1;
       last = time;
 
-      const flick = Math.max(0.3, Math.min(1, 0.66 + 0.16 * Math.sin(time * 0.006) + 0.1 * Math.sin(time * 0.017 + 1.3) + (Math.random() - 0.5) * 0.06));
-      const ignite = isFresh ? Math.min(1, (time - born) / 1600) : 1;
+      const toggle = reduce ? 0 : Math.floor(time / 220) % 2; // two-frame cartoon flicker
+      const ignite = isFresh ? Math.min(1, (time - born) / 1400) : 1;
       const remaining = Math.max(0, Math.min(1, (expires - Date.now()) / BURN_MS));
       const ey = TOP0 + (BURN_END - TOP0) * (1 - remaining);
       const active = selectedRef.current;
 
       ctx.setTransform(drawScale, 0, 0, drawScale, 0, 0);
       ctx.clearRect(0, 0, LW, LH);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.3;
 
-      // Soft warm glow around the tip; a newly lit stick flares up, then settles.
-      const glowSize = (56 + 30 * flick + (active ? 22 : 0)) * (1 + (1 - ignite) * 0.8);
-      ctx.globalAlpha = Math.min(1, (0.2 + 0.32 * flick) * (0.35 + 0.65 * ignite) + (active ? 0.14 : 0));
-      ctx.drawImage(glowImg, CX - glowSize / 2, ey - glowSize / 2 + 4, glowSize, glowSize);
-      ctx.globalAlpha = 1;
-
-      // Bamboo core and the incense body (shortens as it burns).
-      ctx.fillStyle = bamboo;
-      ctx.fillRect(CX - 1.8, BAMBOO_TOP - 2, 3.6, BASE - BAMBOO_TOP + 2);
-      if (ey + 4 < BAMBOO_TOP) {
-        ctx.fillStyle = body;
-        ctx.fillRect(CX - 3, ey + 4, 6, BAMBOO_TOP - ey - 2);
-      }
-
-      // Glowing tip.
-      ctx.fillStyle = `rgb(${200 + (55 * flick) | 0},${(70 + 110 * flick) | 0},${(28 + 34 * flick) | 0})`;
+      // Bamboo core.
+      ctx.fillStyle = COLOR.bamboo;
       ctx.beginPath();
-      ctx.ellipse(CX, ey + 2, 3.7, 4.2, 0, 0, Math.PI * 2);
+      ctx.rect(CX - 1.8, BAMBOO_TOP - 2, 3.6, BASE - BAMBOO_TOP + 2);
       ctx.fill();
+      ctx.stroke();
+
+      // Incense body (shortens as it burns) with one flat highlight stripe.
+      if (ey + 4 < BAMBOO_TOP) {
+        ctx.fillStyle = COLOR.body;
+        ctx.beginPath();
+        ctx.rect(CX - 3, ey + 4, 6, BAMBOO_TOP - ey - 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = COLOR.bodyLight;
+        ctx.fillRect(CX - 1.7, ey + 8, 1.1, Math.max(0, BAMBOO_TOP - ey - 12));
+      }
 
       // Ash above the tip.
       const ashLen = 14 + 6 * (1 - remaining);
-      const ash = ctx.createLinearGradient(0, ey - ashLen, 0, ey);
-      ash.addColorStop(0, "#c9c4bb");
-      ash.addColorStop(1, "#7f7a72");
-      ctx.fillStyle = ash;
+      ctx.fillStyle = COLOR.ash;
       ctx.beginPath();
-      ctx.moveTo(CX - 3.1, ey);
-      ctx.lineTo(CX - 2.1, ey - ashLen);
-      ctx.lineTo(CX + 2.1, ey - ashLen);
-      ctx.lineTo(CX + 3.1, ey);
+      ctx.moveTo(CX - 3.2, ey);
+      ctx.lineTo(CX - 2.4, ey - ashLen + 2);
+      ctx.quadraticCurveTo(CX, ey - ashLen - 1.5, CX + 2.4, ey - ashLen + 2);
+      ctx.lineTo(CX + 3.2, ey);
       ctx.closePath();
       ctx.fill();
+      ctx.stroke();
 
-      // Smoke: soft sprites that widen, sway and fade as they rise (and fade out before the canvas edge).
-      if (smoke.length < 110 && Math.random() < (reduce ? 0.05 : 0.34) * ignite * dt) {
+      // Ember: flat rays, flat orange dot, flat yellow core.
+      const ex = CX;
+      const eyc = ey + 1.5;
+      if (ignite > 0.6) {
+        ctx.strokeStyle = COLOR.ray;
+        ctx.lineWidth = 1.4;
+        const r1 = active ? 7.4 : 6.4;
+        RAY_ANGLES.forEach((a, i) => {
+          const len = (active ? 4.5 : 3) + ((i + toggle) % 2) * 1.6;
+          ctx.beginPath();
+          ctx.moveTo(ex + Math.cos(a) * r1, eyc + Math.sin(a) * r1);
+          ctx.lineTo(ex + Math.cos(a) * (r1 + len), eyc + Math.sin(a) * (r1 + len));
+          ctx.stroke();
+        });
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 1.3;
+      }
+      const er = (3.9 + toggle * 0.5) * (0.4 + 0.6 * ignite);
+      ctx.fillStyle = COLOR.ember;
+      circle(ctx, ex, eyc, er);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = COLOR.core;
+      circle(ctx, ex, eyc, er * 0.5);
+      ctx.fill();
+
+      // Smoke: a few flat grey puffs. Colour is blended toward the white page instead of using alpha or blur.
+      if (!reduce && smoke.length < 16 && Math.random() < 0.05 * ignite * dt) {
         smoke.push({
-          x0: CX, y: ey - ashLen - 2, vy: -(0.4 + Math.random() * 0.22), r0: 2.2 + Math.random() * 1.4, life: 0,
-          max: 300 + Math.random() * 140, phase: Math.random() * 6.28, amp: 2 + Math.random() * 2.6, drift: (Math.random() - 0.5) * 0.05,
+          x0: CX, y: ey - ashLen - 2, vy: -(0.45 + Math.random() * 0.15), r0: 2 + Math.random() * 0.8, life: 0,
+          max: 260 + Math.random() * 80, phase: Math.random() * 6.28, amp: 2 + Math.random() * 1.6, drift: (Math.random() - 0.5) * 0.02,
         });
       }
       for (let i = smoke.length - 1; i >= 0; i--) {
@@ -208,19 +300,21 @@ const IncenseStick = memo(function IncenseStick({
         p.y += p.vy * dt;
         const progress = p.life / p.max;
         if (progress >= 1 || p.y < -10) { smoke.splice(i, 1); continue; }
-        const r = p.r0 + progress * 13;
-        const x = p.x0 + p.drift * p.life + Math.sin(p.phase + p.life * 0.034) * p.amp * (0.3 + progress * 1.6);
-        const edgeFade = Math.max(0, Math.min(1, p.y / 70));
-        ctx.globalAlpha = 0.2 * Math.pow(Math.sin(Math.PI * progress), 1.2) * edgeFade;
-        ctx.drawImage(smokeImg, x - r, p.y - r, r * 2, r * 2);
+        const r = p.r0 + progress * 6.5;
+        const x = p.x0 + p.drift * p.life + Math.sin(p.phase + p.life * 0.03) * p.amp * (0.3 + progress * 1.2);
+        const strength = Math.sin(Math.PI * progress) * Math.max(0, Math.min(1, p.y / 60));
+        const v = Math.round(255 - 82 * strength);
+        ctx.fillStyle = `rgb(${v},${v - 2},${v - 5})`;
+        circle(ctx, x, p.y, r);
+        ctx.fill();
       }
 
-      // Blessed sticks get a few tiny gold sparkles around the tip.
-      if (blessedRef.current && sparks.length < 14 && Math.random() < (reduce ? 0.02 : 0.14) * dt) {
-        const a = Math.random() * Math.PI * 2;
-        const d = 8 + Math.random() * 16;
-        sparks.push({ x: CX + Math.cos(a) * d, y: ey - 4 + Math.sin(a) * d, life: 0, max: 50 + Math.random() * 40, size: 2.5 + Math.random() * 3, vy: -0.12 - Math.random() * 0.1 });
+      // Blessed sticks get a few flat gold twinkles around the tip.
+      if (blessedRef.current && sparks.length < 8 && Math.random() < 0.05 * dt) {
+        const side = Math.random() < 0.5 ? -1 : 1;
+        sparks.push({ x: CX + side * (9 + Math.random() * 12), y: ey - 6 + (Math.random() - 0.5) * 24, life: 0, max: 40 + Math.random() * 30, size: 2.2 + Math.random() * 1.6, vy: -0.1 - Math.random() * 0.08 });
       }
+      ctx.fillStyle = COLOR.spark;
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i];
         if (!s) continue;
@@ -228,15 +322,14 @@ const IncenseStick = memo(function IncenseStick({
         s.y += s.vy * dt;
         const progress = s.life / s.max;
         if (progress >= 1) { sparks.splice(i, 1); continue; }
-        ctx.globalAlpha = Math.sin(progress * Math.PI);
-        ctx.drawImage(sparkImg, s.x - s.size * 2, s.y - s.size * 2, s.size * 4, s.size * 4);
+        twinkle(ctx, s.x, s.y, s.size * Math.sin(progress * Math.PI) * 1.6);
+        ctx.fill();
       }
-      ctx.globalAlpha = 1;
     };
 
-    frame = requestAnimationFrame(tick);
+    const unsubscribe = subscribeTick(tick);
     return () => {
-      cancelAnimationFrame(frame);
+      unsubscribe();
       stopObserving();
     };
   }, [expires, onScreen]);
@@ -254,7 +347,8 @@ const IncenseStick = memo(function IncenseStick({
       aria-label={`Nhang do ${incense.donor_name} cúng dường. Khẩn cầu: ${incense.message_text}`}
       className={`relative z-10 h-[341px] w-[52px] shrink-0 cursor-pointer rounded-full transition-transform duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/40 sm:h-[420px] sm:w-16 ${fresh ? "incense-rise" : ""} ${selected ? "-translate-y-1" : ""}`}
     >
-      <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true" />
+      {/* The canvas is 150% of the button width and centred, so smoke/rays have room on both sides. */}
+      <canvas ref={canvasRef} className="pointer-events-none absolute left-1/2 top-0 h-full w-[150%] -translate-x-1/2" aria-hidden="true" />
     </button>
   );
 });
@@ -265,7 +359,7 @@ const IncenseStick = memo(function IncenseStick({
 function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningIncense | null; now: number; canBless: boolean; busy: boolean; onBless: (id: string) => void }) {
   if (!incense) {
     return (
-      <div className="flex min-h-[132px] items-center justify-center rounded-2xl bg-neutral-50 px-6 text-center text-sm text-neutral-400">
+      <div className="flex min-h-[132px] items-center justify-center px-6 text-center text-sm text-neutral-400">
         Chạm vào một nén nhang để đọc lời khẩn cầu.
       </div>
     );
@@ -274,24 +368,24 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
   const minutes = Math.ceil(left / 60000);
   const pct = Math.max(0, Math.min(100, (left / BURN_MS) * 100));
   return (
-    <div className="fade-up flex min-h-[132px] flex-col items-center justify-center rounded-2xl bg-neutral-50 px-5 py-4 text-center">
+    <div className="fade-up flex min-h-[132px] flex-col items-center justify-center px-5 py-4 text-center">
       <p className="text-sm font-semibold text-neutral-900">{incense.donor_name}</p>
       <p className="mt-1.5 max-w-md text-[15px] leading-6 text-neutral-600">“{incense.message_text}”</p>
-      <div className="mt-3 h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-neutral-200" aria-hidden>
-        <div className="h-full rounded-full bg-neutral-900 transition-[width] duration-1000" style={{ width: `${pct}%` }} />
+      <div className="mt-3 h-3 w-full max-w-[200px] overflow-hidden rounded-full border-2 border-neutral-900 bg-white" aria-hidden>
+        <div className="h-full bg-[#d9482e] transition-[width] duration-1000" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-1.5 text-xs text-neutral-400">
         Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
-        {incense.blessing_count > 0 && <> · 💛 {incense.blessing_count}</>}
+        {incense.blessing_count > 0 && <> · ✦ {incense.blessing_count}</>}
       </p>
       {canBless && (
         <button
           type="button"
           disabled={busy}
           onClick={() => onBless(incense.id)}
-          className="mt-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-900 disabled:opacity-50"
+          className="mt-3 rounded-full border-2 border-neutral-900 bg-[#ffd23f] px-4 py-1.5 text-xs font-semibold text-neutral-900 shadow-[2px_2px_0_#171717] transition active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50"
         >
-          {busy ? "Đang ban phước…" : "💛 Ban phước"}
+          {busy ? "Đang ban phước…" : "✦ Ban phước"}
         </button>
       )}
     </div>
@@ -338,7 +432,7 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
 
   return createPortal(
     <div
-      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 backdrop-blur-sm sm:place-items-center sm:p-4"
+      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
     >
       <form
@@ -350,7 +444,7 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
           if (trimmed.length < 2 || busy) return;
           if (await onSubmit(trimmed)) setPrayer("");
         }}
-        className="dialog-pop relative w-full max-w-md rounded-t-3xl bg-white p-6 pb-8 shadow-2xl sm:rounded-3xl sm:pb-6"
+        className="dialog-pop relative w-full max-w-md rounded-t-3xl border-2 border-neutral-900 bg-white p-6 pb-8 sm:rounded-3xl sm:pb-6 sm:shadow-[6px_6px_0_#171717]"
       >
         <button type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
           ×
@@ -420,7 +514,6 @@ export function IncenseView() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [imageFailed, setImageFailed] = useState(false);
   const knownIds = useRef<Set<string> | null>(null);
 
   // Every list update goes through here so newly appeared sticks get their "ignite" animation.
@@ -582,7 +675,7 @@ export function IncenseView() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <section className="rounded-3xl border border-neutral-200 bg-white px-4 pb-10 pt-10 sm:px-10" aria-label="Bàn hương cúng dường">
+      <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Bàn hương cúng dường">
         <header className="text-center">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Cúng dường</h1>
           <p className="mt-2 text-sm text-neutral-500" aria-live="polite">
@@ -591,17 +684,7 @@ export function IncenseView() {
         </header>
 
         <div className="relative mx-auto mt-6 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
-          <span className="stage-glow" aria-hidden />
-          {!imageFailed && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={BUDDHA_IMAGE}
-              alt="Tượng Phật"
-              decoding="async"
-              onError={() => setImageFailed(true)}
-              className="buddha-float pointer-events-none relative h-full w-full object-contain object-top"
-            />
-          )}
+          <BuddhaArt />
         </div>
 
         <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center text-[15px] leading-6 text-neutral-600" role="status" aria-live="polite">
@@ -615,8 +698,8 @@ export function IncenseView() {
         {loading ? (
           <div className="mx-auto mt-8 h-48 w-full max-w-md animate-pulse rounded-2xl bg-neutral-100" aria-busy="true" />
         ) : (
-          <div className="mt-2 overflow-x-auto overflow-y-hidden" aria-label={`${active.length} nén nhang đang cháy`}>
-            <div className="relative mx-auto flex w-max min-w-[16rem] items-end justify-center gap-3 px-4 sm:min-w-[24rem] sm:gap-5">
+          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-1 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
+            <div className="relative mx-auto flex w-max min-w-[16rem] items-end justify-center gap-3 px-8 sm:min-w-[24rem] sm:gap-5">
               {active.length === 0 && <div className="h-[180px]" aria-hidden />}
               {active.map((item) => (
                 <IncenseStick
@@ -628,7 +711,7 @@ export function IncenseView() {
                   onHover={setHoverId}
                 />
               ))}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1.5 rounded-full bg-neutral-900" aria-hidden />
+              <div className="pointer-events-none absolute inset-x-3 bottom-0 z-20 h-4 rounded-full border-2 border-neutral-900 bg-[#eab948]" aria-hidden />
             </div>
           </div>
         )}
@@ -636,7 +719,7 @@ export function IncenseView() {
         <div className="mx-auto mt-8 max-w-md">
           {!loading &&
             (active.length === 0 ? (
-              <div className="flex min-h-[132px] items-center justify-center rounded-2xl bg-neutral-50 px-6 text-center text-sm text-neutral-400">
+              <div className="flex min-h-[132px] items-center justify-center px-6 text-center text-sm text-neutral-400">
                 Hãy là người thắp nén nhang đầu tiên.
               </div>
             ) : (
@@ -653,7 +736,7 @@ export function IncenseView() {
       {toast && (
         <div
           role={toast.kind === "error" ? "alert" : "status"}
-          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-sm shadow-lg ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
+          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full border-2 border-neutral-900 px-5 py-3 text-center text-sm shadow-[3px_3px_0_#171717] ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
         >
           {toast.text}
         </div>
