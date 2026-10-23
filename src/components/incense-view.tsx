@@ -16,25 +16,27 @@ import {
 } from "@/services/incense-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
+const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 const SUGGESTIONS = ["Bình an cho gia đình", "Sức khỏe dồi dào", "Công việc thuận lợi", "Tâm luôn an tĩnh"];
 const WELCOME = "Hãy thắp một nén nhang và gửi lời nguyện của bạn.";
 
 const buttonDark =
-  "inline-flex items-center justify-center rounded-full bg-black px-7 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-full border border-[#c9a24a] bg-neutral-950 px-7 py-3 text-sm font-medium tracking-wide text-[#f6e9c0] transition hover:bg-neutral-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50";
 
 // ---------------------------------------------------------------------------------------------
 // Flat 2D cartoon palette (solid fills + one dark outline colour, no gradients, no blur)
 // ---------------------------------------------------------------------------------------------
 const INK = "#1f1f1f";
 const COLOR = {
-  body: "#d9482e",
-  bodyLight: "#f07a5c",
-  bamboo: "#eab948",
-  ash: "#d8d3c9",
-  ember: "#ff8a3d",
-  core: "#ffd23f",
-  ray: "#ffb23f",
-  spark: "#ffc933",
+  body: "#7a1d24",
+  bodyLight: "#a8323b",
+  bamboo: "#d4af5a",
+  band: "#d4af5a",
+  ash: "#d9d2c3",
+  ember: "#f08a24",
+  core: "#ffe08a",
+  ray: "#e0b14a",
+  spark: "#d9b04a",
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -246,6 +248,14 @@ const IncenseStick = memo(function IncenseStick({
         ctx.stroke();
         ctx.fillStyle = COLOR.bodyLight;
         ctx.fillRect(CX - 1.7, ey + 8, 1.1, Math.max(0, BAMBOO_TOP - ey - 12));
+        // Gold band near the base.
+        if (ey + 8 < BAMBOO_TOP - 22) {
+          ctx.fillStyle = COLOR.band;
+          ctx.beginPath();
+          ctx.rect(CX - 3, BAMBOO_TOP - 20, 6, 4);
+          ctx.fill();
+          ctx.stroke();
+        }
       }
 
       // Ash above the tip.
@@ -303,8 +313,8 @@ const IncenseStick = memo(function IncenseStick({
         const r = p.r0 + progress * 6.5;
         const x = p.x0 + p.drift * p.life + Math.sin(p.phase + p.life * 0.03) * p.amp * (0.3 + progress * 1.2);
         const strength = Math.sin(Math.PI * progress) * Math.max(0, Math.min(1, p.y / 60));
-        const v = Math.round(255 - 82 * strength);
-        ctx.fillStyle = `rgb(${v},${v - 2},${v - 5})`;
+        const v = Math.round(255 - 72 * strength);
+        ctx.fillStyle = `rgb(${v},${v - 3},${v - 9})`;
         circle(ctx, x, p.y, r);
         ctx.fill();
       }
@@ -369,10 +379,10 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
   const pct = Math.max(0, Math.min(100, (left / BURN_MS) * 100));
   return (
     <div className="fade-up flex min-h-[132px] flex-col items-center justify-center px-5 py-4 text-center">
-      <p className="text-sm font-semibold text-neutral-900">{incense.donor_name}</p>
-      <p className="mt-1.5 max-w-md text-[15px] leading-6 text-neutral-600">“{incense.message_text}”</p>
+      <p className="text-sm font-semibold tracking-wide text-neutral-900">{incense.donor_name}</p>
+      <p className="mt-1.5 max-w-md font-serif text-base italic leading-6 text-neutral-600">“{incense.message_text}”</p>
       <div className="mt-3 h-3 w-full max-w-[200px] overflow-hidden rounded-full border-2 border-neutral-900 bg-white" aria-hidden>
-        <div className="h-full bg-[#d9482e] transition-[width] duration-1000" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-[#c9a24a] transition-[width] duration-1000" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-1.5 text-xs text-neutral-400">
         Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
@@ -383,7 +393,7 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
           type="button"
           disabled={busy}
           onClick={() => onBless(incense.id)}
-          className="mt-3 rounded-full border-2 border-neutral-900 bg-[#ffd23f] px-4 py-1.5 text-xs font-semibold text-neutral-900 shadow-[2px_2px_0_#171717] transition active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50"
+          className="mt-3 rounded-full border-2 border-neutral-900 bg-[#d8b45a] px-4 py-1.5 text-xs font-semibold text-neutral-900 shadow-[2px_2px_0_#171717] transition active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50"
         >
           {busy ? "Đang ban phước…" : "✦ Ban phước"}
         </button>
@@ -444,12 +454,12 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
           if (trimmed.length < 2 || busy) return;
           if (await onSubmit(trimmed)) setPrayer("");
         }}
-        className="dialog-pop relative w-full max-w-md rounded-t-3xl border-2 border-neutral-900 bg-white p-6 pb-8 sm:rounded-3xl sm:pb-6 sm:shadow-[6px_6px_0_#171717]"
+        className="dialog-pop relative w-full max-w-md rounded-t-3xl border-2 border-neutral-900 bg-white p-6 pb-8 sm:rounded-3xl sm:pb-6 sm:shadow-[6px_6px_0_#c9a24a]"
       >
         <button type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
           ×
         </button>
-        <h2 id="light-title" className="text-xl font-semibold tracking-tight">Thắp một nén nhang</h2>
+        <h2 id="light-title" className="font-serif text-xl font-semibold tracking-wide">Thắp một nén nhang</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Người cúng: <span className="font-medium text-neutral-900">{donorName}</span> · cháy trong 4 giờ
         </p>
@@ -514,6 +524,7 @@ export function IncenseView() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
   const knownIds = useRef<Set<string> | null>(null);
 
   // Every list update goes through here so newly appeared sticks get their "ignite" animation.
@@ -677,19 +688,40 @@ export function IncenseView() {
     <div className="mx-auto max-w-3xl">
       <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Bàn hương cúng dường">
         <header className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Cúng dường</h1>
+          <h1 className="font-serif text-2xl font-semibold tracking-wide sm:text-3xl">Cúng dường</h1>
+          <div className="mx-auto mt-3 flex items-center justify-center gap-3 text-[#b8913a]" aria-hidden>
+            <span className="h-px w-12 bg-current" />
+            <span className="text-[10px]">◆</span>
+            <span className="h-px w-12 bg-current" />
+          </div>
           <p className="mt-2 text-sm text-neutral-500" aria-live="polite">
             {loading ? "Đang tải…" : active.length === 0 ? "Chưa có nén nhang nào đang cháy" : `${active.length} nén nhang đang cháy`}
           </p>
         </header>
 
         <div className="relative mx-auto mt-6 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
-          <BuddhaArt />
+          {/* Flat gold halo: solid cream disc with two thin gold rings (no gradient, no blur). */}
+          <span className="pointer-events-none absolute left-1/2 top-[48%] aspect-square w-[82%] -translate-x-1/2 -translate-y-1/2" aria-hidden>
+            <span className="halo-pulse absolute inset-0 rounded-full border border-[#e3cf9a] bg-[#fcf6e4]" />
+            <span className="absolute inset-[8%] rounded-full border border-[#c9a24a]" />
+          </span>
+          {imageFailed ? (
+            <BuddhaArt />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={BUDDHA_IMAGE}
+              alt="Tượng Phật"
+              decoding="async"
+              onError={() => setImageFailed(true)}
+              className="buddha-float pointer-events-none relative h-full w-full object-contain object-top"
+            />
+          )}
         </div>
 
-        <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center text-[15px] leading-6 text-neutral-600" role="status" aria-live="polite">
+        <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center font-serif text-base italic leading-6 text-neutral-600" role="status" aria-live="polite">
           {message}
-          {npcMessage && <span className="mt-1 block text-xs text-neutral-400">Thích Khoai Tây</span>}
+          {npcMessage && <span className="mt-1 block font-sans text-[11px] not-italic uppercase tracking-widest text-[#a98532]">Thích Khoai Tây</span>}
         </p>
 
         {loadError && <p role="alert" className="mx-auto mt-4 max-w-md rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">{loadError}</p>}
@@ -711,7 +743,9 @@ export function IncenseView() {
                   onHover={setHoverId}
                 />
               ))}
-              <div className="pointer-events-none absolute inset-x-3 bottom-0 z-20 h-4 rounded-full border-2 border-neutral-900 bg-[#eab948]" aria-hidden />
+              <div className="pointer-events-none absolute inset-x-3 bottom-0 z-20 h-4 rounded-full border-2 border-[#c9a24a] bg-neutral-900" aria-hidden>
+                <span className="absolute inset-x-5 top-[3px] h-px bg-[#c9a24a]" />
+              </div>
             </div>
           </div>
         )}
@@ -736,7 +770,7 @@ export function IncenseView() {
       {toast && (
         <div
           role={toast.kind === "error" ? "alert" : "status"}
-          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full border-2 border-neutral-900 px-5 py-3 text-center text-sm shadow-[3px_3px_0_#171717] ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
+          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full border-2 border-[#c9a24a] px-5 py-3 text-center text-sm shadow-[3px_3px_0_#171717] ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
         >
           {toast.text}
         </div>
