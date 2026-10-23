@@ -128,7 +128,9 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
 }
 export function IncenseView() {
   const { loading: authLoading, user } = useAuth();
-  const [incense, setIncense] = useState<BurningIncense[]>([]);\n  const [acceptingIncense, setAcceptingIncense] = useState<boolean | null>(null);\n  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [incense, setIncense] = useState<BurningIncense[]>([]);
+  const [acceptingIncense, setAcceptingIncense] = useState<boolean | null>(null);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [donorName, setDonorName] = useState("");
   const [nameLoading, setNameLoading] = useState(false);
   const [prayer, setPrayer] = useState("");
