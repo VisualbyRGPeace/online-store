@@ -73,3 +73,89 @@ body {
 }
 .incense-ember { animation: incense-ember-glow 1.1s ease-in-out infinite; }
 .incense-smoke { animation: incense-drift 3s ease-out infinite; }
+
+
+/* Buddha portrait: gentle levitation, passing light, and a turning halo. */
+@keyframes buddha-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes buddha-halo-glint {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes buddha-halo-orbit {
+  from { transform: rotateX(68deg) rotateZ(0deg); }
+  to { transform: rotateX(68deg) rotateZ(360deg); }
+}
+@keyframes buddha-halo-orbit-reverse {
+  from { transform: rotateX(68deg) rotateZ(45deg); }
+  to { transform: rotateX(68deg) rotateZ(-315deg); }
+}
+@keyframes buddha-light-sweep {
+  0%, 15% { transform: translateX(0) skewX(-22deg); opacity: 0; }
+  24% { opacity: .85; }
+  58% { transform: translateX(500%) skewX(-22deg); opacity: 0; }
+  100% { transform: translateX(500%) skewX(-22deg); opacity: 0; }
+}
+.buddha-portrait { isolation: isolate; }
+.buddha-float {
+  animation: buddha-float 4.6s ease-in-out infinite;
+  filter: drop-shadow(0 8px 18px rgba(145, 104, 40, .12));
+}
+.buddha-halo {
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  width: 94%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 220, 150, .3) 0%, rgba(255, 225, 170, .18) 43%, transparent 72%);
+  filter: drop-shadow(0 0 20px rgba(220, 169, 82, .22));
+}
+.buddha-halo::before {
+  content: "";
+  position: absolute;
+  inset: 3%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 20%, rgba(223, 177, 91, .9) 27%, transparent 34% 66%, rgba(245, 207, 130, .8) 72%, transparent 81% 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1px));
+  animation: buddha-halo-glint 16s linear infinite;
+}
+.buddha-halo-orbit {
+  position: absolute;
+  border: 1px solid rgba(219, 174, 92, .48);
+  border-left-color: rgba(244, 207, 132, .78);
+  border-right-color: rgba(244, 207, 132, .78);
+  border-radius: 50%;
+}
+.buddha-halo-orbit-one {
+  inset: 8%;
+  animation: buddha-halo-orbit 18s linear infinite;
+}
+.buddha-halo-orbit-two {
+  inset: 17%;
+  border-color: rgba(232, 192, 117, .42);
+  border-top-color: rgba(255, 224, 155, .82);
+  border-bottom-color: rgba(255, 224, 155, .82);
+  animation: buddha-halo-orbit-reverse 24s linear infinite;
+}
+.buddha-shine {
+  overflow: hidden;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 28%, transparent 79%);
+  mask-image: radial-gradient(ellipse at center, #000 28%, transparent 79%);
+}
+.buddha-shine::before {
+  content: "";
+  position: absolute;
+  top: -12%;
+  left: -32%;
+  width: 28%;
+  height: 124%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .82), rgba(255, 224, 154, .42), transparent);
+  filter: blur(1px);
+  mix-blend-mode: screen;
+  animation: buddha-light-sweep 7s ease-in-out infinite;
+}
