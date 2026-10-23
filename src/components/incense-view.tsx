@@ -10,6 +10,134 @@ import { blessIncense, getIncenseOfferingEnabled, getIncensePermissions, lightIn
 const BURN_MS = 4 * 60 * 60 * 1000;
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 
+function BlessingSparkles() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const ctx = context;
+    let width = 0;
+    let height = 0;
+    let frame = 0;
+    const stars: { x: number; y: number; size: number; life: number; maxLife: number; rotation: number; vx: number; vy: number; color: string }[] = [];
+    const colors = ["#fff6d6", "#ffe08a", "#ffffff", "#cfe8ff", "#ffd1ec"];
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function resize() {
+      const rect = canvas!.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = rect.width;
+      height = rect.height;
+      canvas!.width = Math.round(width * dpr);
+      canvas!.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function spawn(x?: number, y?: number, burst = false) {
+      if (x === undefined || y === undefined) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = Math.sqrt(Math.random());
+        x = width / 2 + Math.cos(angle) * radius * width * 0.42;
+        y = height / 2 + Math.sin(angle) * radius * height * 0.38;
+      }
+      if (stars.length > 140) stars.splice(0, stars.length - 140);
+      stars.push({
+        x, y,
+        size: burst ? 4 + Math.random() * 6 : 3 + Math.random() * 7,
+        life: 0,
+        maxLife: 45 + Math.random() * 55,
+        rotation: Math.random() * Math.PI,
+        vx: burst ? (Math.random() - 0.5) * 1.5 : 0,
+        vy: burst ? (Math.random() - 0.5) * 1.5 - 0.2 : -0.1,
+        color: colors[Math.floor(Math.random() * colors.length)] ?? "#fff6d6",
+      });
+    }
+
+    function drawStar(star: (typeof stars)[number], alpha: number) {
+      const radius = star.size * alpha;
+      ctx.save();
+      ctx.translate(star.x, star.y);
+      ctx.rotate(star.rotation + star.life * 0.02);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = star.color;
+      ctx.shadowColor = star.color;
+      ctx.shadowBlur = radius * 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const outer = i * Math.PI / 2;
+        const inner = outer + Math.PI / 4;
+        if (i === 0) ctx.moveTo(Math.cos(outer) * radius, Math.sin(outer) * radius);
+        else ctx.lineTo(Math.cos(outer) * radius, Math.sin(outer) * radius);
+        ctx.lineTo(Math.cos(inner) * radius * 0.22, Math.sin(inner) * radius * 0.22);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function pointerMove(event: PointerEvent) {
+      const rect = canvas!.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+      if (Math.random() < 0.5) {
+        spawn(event.clientX - rect.left + (Math.random() - 0.5) * 16, event.clientY - rect.top + (Math.random() - 0.5) * 16, true);
+      }
+    }
+
+    function pointerDown(event: PointerEvent) {
+      const rect = canvas!.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) return;
+      for (let i = 0; i < 14; i++) spawn(event.clientX - rect.left, event.clientY - rect.top, true);
+    }
+
+    function tick() {
+      ctx.clearRect(0, 0, width, height);
+      if (Math.random() < (reduceMotion ? 0.05 : 0.3)) spawn();
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const star = stars[i];
+        if (!star) continue;
+        star.life++;
+        star.x += star.vx;
+        star.y += star.vy;
+        const progress = star.life / star.maxLife;
+        if (progress >= 1) {
+          stars.splice(i, 1);
+          continue;
+        }
+        const nx = (star.x - width / 2) / (width * 0.42);
+        const ny = (star.y - height / 2) / (height * 0.38);
+        const falloff = Math.max(0, 1 - Math.hypot(nx, ny));
+        if (falloff > 0.01) drawStar(star, Math.sin(progress * Math.PI) * falloff);
+      }
+      frame = window.requestAnimationFrame(tick);
+    }
+
+    resize();
+    window.addEventListener("resize", resize);
+    window.addEventListener("pointermove", pointerMove);
+    window.addEventListener("pointerdown", pointerDown);
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("pointermove", pointerMove);
+      window.removeEventListener("pointerdown", pointerDown);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={160}
+      height={160}
+      className="pointer-events-none absolute z-20 h-40 w-40"
+      style={{ left: "41.875%", top: "33.17%", transform: "translate(-50%, -50%)" }}
+      aria-hidden="true"
+    />
+  );
+}
+
 function IncenseStick({ incense, now, canBless, blessingBusy, onBless }: { incense: BurningIncense; now: number; canBless: boolean; blessingBusy: boolean; onBless: (id: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const expires = new Date(incense.expires_at).getTime();
@@ -116,14 +244,7 @@ function IncenseStick({ incense, now, canBless, blessingBusy, onBless }: { incen
   return (
     <div className="incense-item group relative flex h-[360px] w-24 shrink-0 items-end justify-center sm:h-[432px] sm:w-[115px]">
       <canvas ref={canvasRef} width={320} height={1200} className="h-[360px] w-24 sm:h-[432px] sm:w-[115px]" aria-hidden="true" />
-      {incense.blessing_count > 0 && (
-        <div className="pointer-events-none absolute z-20 h-0 w-0" style={{ left: "41.875%", top: "33.17%" }} aria-label={`${incense.blessing_count} lượt ban phước`}>
-          <div className="absolute left-0 top-0 h-[76px] w-[76px] animate-[spin_7s_linear_infinite]" style={{ marginLeft: -38, marginTop: -38 }}>
-            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-lg drop-shadow-sm" aria-hidden="true">💛</span>
-            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-xs text-amber-400" aria-hidden="true">✦</span>
-          </div>
-        </div>
-      )}
+      {incense.blessing_count > 0 && <BlessingSparkles />}
       {incense.blessing_count > 0 && (
         <div
           className="absolute bottom-1 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200 bg-white/95 px-2.5 py-1 text-[10px] font-medium text-amber-800 shadow-sm"
