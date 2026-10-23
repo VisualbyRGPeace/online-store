@@ -39,7 +39,10 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
       const redTop = 72 + (581 - 84) * (1 - remaining);
       const stickTop = redTop + 12;
 
-      ctx.clearRect(0, 0, 320, 800);
+      // Canvas có thêm khoảng trống phía trên để khói không bị cắt ở mép.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, 320, 1200);
+      ctx.translate(0, 320);
 
       // Chập chờn ánh đỏ quanh đầu nhang.
       const glowRadius = 70 + f * 40;
@@ -111,8 +114,8 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
   }, [expires]);
 
   return (
-    <div className="incense-item group relative flex h-60 w-24 shrink-0 items-end justify-center sm:h-72 sm:w-[115px]">
-      <canvas ref={canvasRef} width={320} height={800} className="h-60 w-24 sm:h-72 sm:w-[115px]" aria-hidden="true" />
+    <div className="incense-item group relative flex h-[360px] w-24 shrink-0 items-end justify-center sm:h-[432px] sm:w-[115px]">
+      <canvas ref={canvasRef} width={320} height={1200} className="h-[360px] w-24 sm:h-[432px] sm:w-[115px]" aria-hidden="true" />
       <div className="pointer-events-none absolute bottom-[82%] left-1/2 z-20 w-56 -translate-x-1/2 translate-y-2 rounded-xl border border-stone-200 bg-white px-4 py-3 text-center opacity-0 shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
         <p className="text-sm font-semibold text-stone-900">{incense.donor_name}</p>
         <p className="mt-1 text-xs uppercase tracking-wide text-stone-400">Khẩn cầu</p>
@@ -216,7 +219,7 @@ export function IncenseView() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-8 sm:pt-8">
-      <section className="relative flex min-h-[620px] flex-col items-center justify-end overflow-hidden sm:min-h-[720px]" aria-label="Bàn hương cúng dường">
+      <section className="relative flex min-h-[620px] flex-col items-center justify-end sm:min-h-[720px]" aria-label="Bàn hương cúng dường">
         <div className="buddha-portrait absolute left-1/2 top-2 z-0 h-48 w-[min(72vw,18rem)] -translate-x-1/2 sm:top-4 sm:h-64 sm:w-[22rem]">
           <div className="buddha-halo" aria-hidden="true">
             <span className="buddha-halo-orbit buddha-halo-orbit-one" />
