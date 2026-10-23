@@ -40,14 +40,12 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
       const stickTop = redTop + 12;
 
       ctx.clearRect(0, 0, 320, 800);
-      ctx.fillStyle = "#120c08";
-      ctx.fillRect(0, 0, 320, 800);
 
       // Chập chờn ánh đỏ quanh đầu nhang.
       const glowRadius = 70 + f * 40;
       const glow = ctx.createRadialGradient(134, redTop + 6, 2, 134, redTop + 6, glowRadius);
-      glow.addColorStop(0, `rgba(255,110,50,${0.55 * f})`);
-      glow.addColorStop(0.4, `rgba(255,60,30,${0.22 * f})`);
+      glow.addColorStop(0, `rgba(255,110,50,${0.4 * f})`);
+      glow.addColorStop(0.4, `rgba(255,60,30,${0.14 * f})`);
       glow.addColorStop(1, "rgba(255,60,30,0)");
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, 320, 400);
@@ -99,7 +97,7 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
           smoke.splice(i, 1);
           continue;
         }
-        ctx.fillStyle = `rgba(225,220,212,${0.22 * Math.sin(Math.PI * progress)})`;
+        ctx.fillStyle = `rgba(130,125,118,${0.22 * Math.sin(Math.PI * progress) * 1.3})`;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -218,12 +216,19 @@ export function IncenseView() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-8 sm:pt-8">
-      <section className="relative flex min-h-[620px] flex-col items-center justify-end overflow-hidden bg-[#120c08] sm:min-h-[720px]" aria-label="Bàn hương cúng dường">
-        <img
-          src={BUDDHA_IMAGE}
-          alt="Phật"
-          className="pointer-events-none absolute top-2 h-48 max-w-[72vw] object-contain object-top sm:top-4 sm:h-64"
-        />
+      <section className="relative flex min-h-[620px] flex-col items-center justify-end overflow-hidden sm:min-h-[720px]" aria-label="Bàn hương cúng dường">
+        <div className="buddha-portrait absolute left-1/2 top-2 z-0 h-48 w-[min(72vw,18rem)] -translate-x-1/2 sm:top-4 sm:h-64 sm:w-[22rem]">
+          <div className="buddha-halo" aria-hidden="true">
+            <span className="buddha-halo-orbit buddha-halo-orbit-one" />
+            <span className="buddha-halo-orbit buddha-halo-orbit-two" />
+          </div>
+          <img
+            src={BUDDHA_IMAGE}
+            alt="Phật"
+            className="buddha-float pointer-events-none relative z-10 h-full w-full object-contain object-top"
+          />
+          <span className="buddha-shine pointer-events-none absolute inset-0 z-20" aria-hidden="true" />
+        </div>
         {npcMessage && (
           <div role="status" aria-live="polite" className="absolute right-1 top-[42%] z-10 w-52 rounded-2xl border border-stone-200 bg-white/95 px-4 py-3 text-sm leading-6 text-stone-700 shadow-md sm:right-[5%] sm:top-[35%] sm:w-64">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400">Phật</p>
@@ -233,7 +238,7 @@ export function IncenseView() {
         )}
         {error && <div className="absolute left-0 right-0 top-0 mx-auto max-w-md"><FormMessage kind="error">{error}</FormMessage></div>}
         {loading ? (
-          <div className="mb-16 h-56 w-full animate-pulse rounded-2xl bg-[#120c08]" aria-busy="true" />
+          <div className="mb-16 h-56 w-full animate-pulse rounded-2xl bg-stone-50" aria-busy="true" />
         ) : (
           <div className="relative z-10 flex min-h-72 w-full items-end justify-center gap-1 overflow-x-auto pb-8 sm:gap-3" aria-label={`${active.length} nén nhang đang cháy`}>
             {active.map((item) => <IncenseStick key={item.id} incense={item} now={now} />)}
