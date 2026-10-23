@@ -17,8 +17,9 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx) return;
+    const context = canvas?.getContext("2d");
+    if (!context) return;
+    const ctx: CanvasRenderingContext2D = context;
 
     type SmokeParticle = { x: number; y: number; vx: number; vy: number; radius: number; life: number; maxLife: number; phase: number };
     const smoke: SmokeParticle[] = [];
@@ -87,6 +88,7 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
 
       for (let i = smoke.length - 1; i >= 0; i--) {
         const particle = smoke[i];
+        if (!particle) continue;
         particle.life++;
         particle.phase += 0.03;
         particle.x += Math.sin(particle.phase) * 0.45 + particle.life * 0.0012;
