@@ -23,12 +23,9 @@ function IncenseStick({ incense, now }: { incense: BurningIncense; now: number }
         Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
       </span>
       <span className="relative mb-1 block h-32 w-5">
-        <span className="absolute inset-x-1 bottom-0 h-full overflow-hidden rounded-t-sm rounded-b-md bg-[#b9824e] shadow-inner">
-          <span className="absolute inset-x-0 bottom-0 bg-[#4b3024] transition-[height] duration-1000" style={{ height: `${(1 - remaining) * 100}%` }} />
-          <span className="absolute inset-x-0 top-0 h-2 bg-[#30231c]" />
-        </span>
-        <span className="incense-flame absolute -top-5 left-1/2 h-5 w-3 -translate-x-1/2 rounded-[100%_0_100%_100%] rotate-45 bg-gradient-to-br from-yellow-200 via-orange-400 to-red-500 shadow-[0_0_16px_5px_rgba(251,146,60,.4)]" aria-hidden />
-        <span className="incense-smoke absolute -top-9 left-1/2 h-7 w-3 -translate-x-1/2 rounded-full bg-gradient-to-t from-stone-400/30 to-transparent blur-[2px]" aria-hidden />
+        <span className="absolute inset-x-1 bottom-0 rounded-b-md rounded-t-sm bg-[#b9824e] shadow-inner transition-[height] duration-1000" style={{ height: `${remaining * 100}%` }} />
+        <span className="incense-flame absolute left-1/2 h-5 w-3 -translate-x-1/2 rounded-[100%_0_100%_100%] rotate-45 bg-gradient-to-br from-yellow-200 via-orange-400 to-red-500 shadow-[0_0_16px_5px_rgba(251,146,60,.4)]" style={{ bottom: `${remaining * 100}%` }} aria-hidden />
+        <span className="incense-smoke absolute left-1/2 h-7 w-3 -translate-x-1/2 rounded-full bg-gradient-to-t from-stone-400/30 to-transparent blur-[2px]" style={{ bottom: `calc(${remaining * 100}% + 1rem)` }} aria-hidden />
       </span>
       <span className="text-sm font-semibold text-stone-800">{incense.donor_name}</span>
       <span className="mt-1 line-clamp-2 text-xs leading-5 text-stone-600">{incense.message_text}</span>
@@ -53,7 +50,7 @@ export function IncenseView() {
     const [nextMessages, nextIncense] = await Promise.all([listActiveIncenseMessages(), listBurningIncense()]);
     setMessages(nextMessages);
     setIncense(nextIncense);
-    setMessageId((current) => current || nextMessages[0]?.id || "");
+    setMessageId((current) => nextMessages.some((message) => message.id === current) ? current : nextMessages[0]?.id || "");
   }, []);
 
   useEffect(() => {
@@ -159,7 +156,7 @@ export function IncenseView() {
             </label>
             {success && <FormMessage kind="success">Nén nhang đã được thắp. Nguyện lành theo làn hương.</FormMessage>}
             {error && <FormMessage kind="error">{error}</FormMessage>}
-            <button type="submit" disabled={busy || !messageId || loading} className={`${primaryButton} w-full rounded-xl bg-amber-700 hover:bg-amber-800 disabled:opacity-50`}>
+            <button type="submit" disabled={busy || !messageId || loading} className={`${primaryButton} w-full rounded-xl !bg-amber-700 hover:!bg-amber-800 disabled:opacity-50`}>
               {busy ? "Đang thắp nhang..." : "🪔  Thắp nhang"}
             </button>
             {!messages.length && !loading && <p className="text-xs leading-5 text-amber-800">Quản trị viên chưa thêm lời nguyện. Vui lòng quay lại sau.</p>}
