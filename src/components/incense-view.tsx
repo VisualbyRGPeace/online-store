@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/hooks/use-auth";
 import { getProfile } from "@/services/account-service";
-import { blessIncense, getIncenseOfferingEnabled, getIncensePermissions, lightIncense, listBurningIncense, type BurningIncense } from "@/services/incense-service";
+import { blessIncense, getIncenseOfferingEnabled, getIncensePermissions, lightIncense, listBurningIncense, subscribeToIncenseBlessings, type BurningIncense } from "@/services/incense-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
@@ -124,6 +124,15 @@ function IncenseStick({ incense, now, canBless, blessingBusy, onBless }: { incen
           </div>
         </div>
       )}
+      {incense.blessing_count > 0 && (
+        <div
+          className="absolute bottom-1 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200 bg-white/95 px-2.5 py-1 text-[10px] font-medium text-amber-800 shadow-sm"
+          title={`Thích Khoai Tây đã ban phước · ${incense.blessing_count} lượt`}
+          aria-label={`Đã ban phước ${incense.blessing_count} lượt`}
+        >
+          💛 Đã ban phước × {incense.blessing_count}
+        </div>
+      )}
       {canBless && (
         <div className="group/blessing absolute z-30 h-10 w-10" style={{ left: "calc(41.875% + 58px)", top: "33.17%", transform: "translate(-50%, -50%)" }}>
           <button type="button" disabled={blessingBusy} onClick={() => onBless(incense.id)} className="absolute inset-0 rounded-full border border-amber-200 bg-white px-1 text-xl shadow-md transition hover:scale-110 hover:border-amber-400 disabled:opacity-50" aria-label={`Ban phước cho nhang của ${incense.donor_name}`}>
@@ -170,6 +179,8 @@ export function IncenseView() {
     if (nextIncense[0]?.npc_message_text) setNpcMessage(nextIncense[0].npc_message_text);
     return nextIncense;
   }, []);
+
+  useEffect(() => subscribeToIncenseBlessings(() => { void refresh().catch(() => undefined); }), [refresh]);
 
   useEffect(() => {
     if (!user) {
