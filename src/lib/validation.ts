@@ -10,7 +10,7 @@ const text = (label: string, max: number) =>
 const username = z.string()
   .min(3, "Tên đăng nhập cần ít nhất 3 ký tự")
   .max(30, "Tên đăng nhập tối đa 30 ký tự")
-  .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "Dùng chữ không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang");
+  .regex(/^[a-zA-Z0-9]+(?:[._-][a-zA-Z0-9]+)*$/, "Dùng chữ không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang");
 
 const loginIdentifier = z.string().trim().min(3, "Nhập tên đăng nhập hoặc email").max(254)
   .refine((value) => value.includes("@") ? email.safeParse(value).success : username.safeParse(value).success,
