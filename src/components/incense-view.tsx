@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FormMessage, primaryButton } from "@/components/ui/form";
-import { addIncenseMessage, lightIncense, listActiveIncenseMessages, listBurningIncense, type BurningIncense, type IncenseMessage } from "@/services/incense-service";
+import { lightIncense, listActiveIncenseMessages, listBurningIncense, type BurningIncense, type IncenseMessage } from "@/services/incense-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
 
@@ -61,7 +61,7 @@ export function IncenseView() {
         if (!alive) return;
         setMessages(nextMessages);
         setIncense(nextIncense);
-        setMessageId((current) => current || nextMessages[0]?.id || "");
+        setMessageId((current) => nextMessages.some((message) => message.id === current) ? current : nextMessages[0]?.id || "");
         setError(null);
       } catch {
         if (alive) setError("Chưa tải được bàn thắp nhang. Vui lòng thử tải lại trang.");
