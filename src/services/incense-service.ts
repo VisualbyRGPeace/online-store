@@ -123,3 +123,13 @@ export async function blessIncense(offeringId: string): Promise<void> {
   const { error } = await createClient().rpc("bless_incense", { p_offering_id: offeringId });
   if (error) throw error;
 }
+
+
+export function subscribeToIncenseBlessings(onInsert: () => void): () => void {
+  const client = createClient();
+  const channel = client
+    .channel("public-incense-blessing-updates")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "incense_blessings" }, onInsert)
+    .subscribe();
+  return () => { void client.removeChannel(channel); };
+}
