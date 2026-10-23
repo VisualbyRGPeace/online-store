@@ -123,7 +123,7 @@ function IncenseStick({ incense, now, canBless, blessingBusy, onBless }: { incen
         </div>
       )}
       {canBless && (
-        <div className="group/blessing absolute left-1/2 top-[35%] z-30 h-10 w-10 -translate-x-1/2">
+        <div className="group/blessing absolute left-[calc(50%+28px)] top-[35%] z-30 h-10 w-10 -translate-x-1/2">
           <button type="button" disabled={blessingBusy} onClick={() => onBless(incense.id)} className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full bg-white/90 px-1 text-xl shadow transition hover:scale-110 disabled:opacity-50" aria-label={`Ban phước cho nhang của ${incense.donor_name}`}>
             {blessingBusy ? "…" : "💛"}
           </button>
