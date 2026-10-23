@@ -117,14 +117,16 @@ function IncenseStick({ incense, now, canBless, blessingBusy, onBless }: { incen
     <div className="incense-item group relative flex h-[360px] w-24 shrink-0 items-end justify-center sm:h-[432px] sm:w-[115px]">
       <canvas ref={canvasRef} width={320} height={1200} className="h-[360px] w-24 sm:h-[432px] sm:w-[115px]" aria-hidden="true" />
       {incense.blessing_count > 0 && (
-        <div className="pointer-events-none absolute z-20 h-20 w-20 -translate-x-1/2" style={{ left: "calc(50% - 8px)", top: "calc(33.17% - 40px)" }} aria-label={`${incense.blessing_count} lượt ban phước`}>
-          <span className="absolute left-1/2 top-0 -translate-x-1/2 animate-[spin_5s_linear_infinite] [transform-origin:50%_40px]" aria-hidden="true">💛</span>
-          {incense.blessing_count > 1 && <span className="absolute left-1/2 top-0 -translate-x-1/2 animate-[spin_5s_linear_infinite] [transform-origin:50%_40px] [animation-delay:-2.5s]" aria-hidden="true">💛</span>}
+        <div className="pointer-events-none absolute z-20 h-0 w-0" style={{ left: "41.875%", top: "33.17%" }} aria-label={`${incense.blessing_count} lượt ban phước`}>
+          <div className="absolute left-0 top-0 h-[76px] w-[76px] animate-[spin_7s_linear_infinite]" style={{ marginLeft: -38, marginTop: -38 }}>
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-lg drop-shadow-sm" aria-hidden="true">💛</span>
+            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-xs text-amber-400" aria-hidden="true">✦</span>
+          </div>
         </div>
       )}
       {canBless && (
-        <div className="group/blessing absolute left-[calc(50%+64px)] top-[31%] z-30 h-10 w-10 -translate-x-1/2">
-          <button type="button" disabled={blessingBusy} onClick={() => onBless(incense.id)} className="absolute left-1/2 top-0 -translate-x-1/2 rounded-full bg-white/90 px-1 text-xl shadow transition hover:scale-110 disabled:opacity-50" aria-label={`Ban phước cho nhang của ${incense.donor_name}`}>
+        <div className="group/blessing absolute z-30 h-10 w-10" style={{ left: "calc(41.875% + 58px)", top: "33.17%", transform: "translate(-50%, -50%)" }}>
+          <button type="button" disabled={blessingBusy} onClick={() => onBless(incense.id)} className="absolute inset-0 rounded-full border border-amber-200 bg-white px-1 text-xl shadow-md transition hover:scale-110 hover:border-amber-400 disabled:opacity-50" aria-label={`Ban phước cho nhang của ${incense.donor_name}`}>
             {blessingBusy ? "…" : "💛"}
           </button>
           <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-full border border-stone-200 bg-white/95 px-2 py-0.5 text-[10px] text-stone-600 shadow-sm">Hãy ban phước</span>
