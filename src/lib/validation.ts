@@ -7,9 +7,18 @@ const phone = z.string().regex(/^\+?[0-9]{9,15}$/, "Số điện thoại không 
 const text = (label: string, max: number) =>
   z.string().min(1, `Vui lòng nhập ${label}`).max(max, `${label} tối đa ${max} ký tự`);
 
-export const loginSchema = z.object({ email, password: z.string().min(1, "Vui lòng nhập mật khẩu") });
+const username = z.string()
+  .min(3, "Tên đăng nhập cần ít nhất 3 ký tự")
+  .max(30, "Tên đăng nhập tối đa 30 ký tự")
+  .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, "Dùng chữ không dấu, số, dấu chấm, gạch dưới hoặc gạch ngang");
 
-export const registerSchema = z.object({ full_name: text("họ tên", 100), email, password });
+const loginIdentifier = z.string().trim().min(3, "Nhập tên đăng nhập hoặc email").max(254)
+  .refine((value) => value.includes("@") ? email.safeParse(value).success : username.safeParse(value).success,
+    "Tên đăng nhập hoặc email không hợp lệ");
+
+export const loginSchema = z.object({ identifier: loginIdentifier, password: z.string().min(1, "Vui lòng nhập mật khẩu") });
+
+export const registerSchema = z.object({ username, password });
 
 export const forgotSchema = z.object({ email });
 
