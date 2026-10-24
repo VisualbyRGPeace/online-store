@@ -4,8 +4,9 @@ import Link from "next/link";
 export const metadata: Metadata = { title: "Tiện ích" };
 
 const tools = [
-  { href: "/utilities/qr/", name: "Tạo mã QR", description: "Tạo và tải mã QR dạng SVG." },
-  { href: "/utilities/prompts/", name: "Thư viện prompt", description: "Khám phá, dùng nhanh và chia sẻ prompt." },
+  { href: "/utilities/qr/", name: "Tạo mã QR", description: "Tạo và tải mã QR dạng SVG.", icon: "QR" },
+  { href: "/utilities/prompts/", name: "Thư viện prompt", description: "Khám phá, dùng nhanh và chia sẻ prompt.", icon: "Aa" },
+  { href: "/utilities/video-to-gif/", name: "Video thành GIF", description: "Cắt vuông, chèn chữ và nén GIF dưới 1 MB.", icon: "GIF" },
 ];
 
 export default function UtilitiesPage() {
@@ -19,7 +20,7 @@ export default function UtilitiesPage() {
         {tools.map((tool) => (
           <Link key={tool.href} href={tool.href} className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-md">
             <div className="mb-8 grid h-11 w-11 place-items-center rounded-2xl bg-slate-100 text-sm font-semibold text-slate-700">
-              {tool.name === "Tạo mã QR" ? "QR" : "Aa"}
+              {tool.icon}
             </div>
             <h2 className="font-semibold text-slate-950">{tool.name}</h2>
             <p className="mt-1 text-sm text-slate-500">{tool.description}</p>
