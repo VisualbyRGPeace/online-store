@@ -143,6 +143,8 @@ export function VideoToGifUtility() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const maxSeconds = Math.max(0.1, Math.min(6, videoDuration || 6));
+  const minSeconds = Math.min(0.5, maxSeconds);
 
   useEffect(() => () => { if (source) URL.revokeObjectURL(source); }, [source]);
   useEffect(() => () => { if (gif) URL.revokeObjectURL(gif); }, [gif]);
@@ -202,7 +204,7 @@ export function VideoToGifUtility() {
       setStart(Math.min(nextStart, Math.max(0, videoDuration - seconds)));
     } else {
       const end = (event.clientX - rect.left) / rect.width * videoDuration;
-      setSeconds(Math.max(0.5, Math.min(6, videoDuration - start, end - start)));
+      setSeconds(Math.max(minSeconds, Math.min(maxSeconds, videoDuration - start, end - start)));
     }
   }
 
@@ -404,15 +406,40 @@ export function VideoToGifUtility() {
                       type="button"
                       aria-label={mode === "start" ? "Điểm bắt đầu đoạn video" : "Điểm kết thúc đoạn video"}
                       onPointerDown={event => { event.preventDefault(); beginTimeline(event, mode); }}
-                      className="absolute inset-y-0 z-10 w-3 -translate-x-1/2 cursor-ew-resize rounded-md border border-white bg-slate-950 shadow"
+                      className="absolute inset-y-0 z-10 w-8 -translate-x-1/2 cursor-ew-resize"
                       style={{ left: `${videoDuration ? (start + (mode === "end" ? seconds : 0)) / videoDuration * 100 : 0}%` }}
-                    />
+                    >
+                      <span className="absolute left-1/2 top-0 flex h-6 w-7 -translate-x-1/2 items-center justify-center gap-1 rounded-b-lg border border-white bg-slate-950 shadow-md">
+                        <span className="h-3 w-0.5 rounded bg-white/90" />
+                        <span className="h-3 w-0.5 rounded bg-white/90" />
+                        <span className="h-3 w-0.5 rounded bg-white/90" />
+                      </span>
+                      <span className="absolute bottom-0 left-1/2 top-5 w-1 -translate-x-1/2 rounded-full bg-slate-950" />
+                    </button>
                   ))}
                   <div className="absolute inset-x-2 bottom-1 flex justify-between text-[10px] font-medium text-slate-700">
                     <span>{formatTime(start)}</span><span>{formatTime(start + seconds)}</span>
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">Kéo hai tay nắm để chọn đoạn; kéo vùng sáng để di chuyển.</p>
+                <label className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
+                  <span>Thời lượng</span>
+                  <input
+                    type="number"
+                    min={minSeconds}
+                    max={maxSeconds}
+                    step="0.1"
+                    value={seconds.toFixed(1)}
+                    onChange={event => {
+                      const parsed = Number(event.target.value);
+                      if (!Number.isFinite(parsed)) return;
+                      const next = Math.max(minSeconds, Math.min(maxSeconds, parsed));
+                      setSeconds(next);
+                      setStart(current => Math.min(current, Math.max(0, videoDuration - next)));
+                    }}
+                    className="w-24 rounded-lg border border-slate-200 bg-white px-3 py-2 text-center font-normal outline-none focus:border-slate-400"
+                  />
+                  <span className="font-normal text-slate-500">giây · tối đa {maxSeconds.toFixed(1)} giây</span>
+                </label>
               </div>
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-slate-800">Chữ trên GIF
