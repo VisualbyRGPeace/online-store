@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
+import TimelineTrimmer from "./timeline-trimmer";
 
 type CropBox = { x: number; y: number; size: number };
 type CaptionPosition = { x: number; y: number };
@@ -123,8 +124,6 @@ export function VideoToGifUtility() {
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const cropFrameRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
-  const timelineDrag = useRef<{ mode: "start" | "end" | "move"; x: number; start: number } | null>(null);
   const cropDrag = useRef<{ mode: "move" | "resize"; edge: "nw" | "ne" | "sw" | "se"; x: number; y: number; box: CropBox } | null>(null);
   const captionDragging = useRef(false);
   const [source, setSource] = useState("");
@@ -213,44 +212,13 @@ export function VideoToGifUtility() {
     }
   }
 
-  function scrubPreview(clientX: number) {
-    const track = timelineRef.current;
+  function scrubPreview(time: number) {
     const preview = previewVideoRef.current;
-    if (!track || !preview || !videoDuration) return;
-    const rect = track.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    if (!preview || !videoDuration) return;
     preview.pause();
     setPreviewPlaying(false);
-    const target = Math.min(videoDuration - 0.02, ratio * videoDuration);
+    const target = Math.max(0, Math.min(videoDuration - 0.02, time));
     if (Math.abs(preview.currentTime - target) > 0.04) preview.currentTime = target;
-  }
-
-  function beginTimeline(event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: "start" | "end" | "move") {
-    timelineRef.current?.setPointerCapture(event.pointerId);
-    scrubPreview(event.clientX);
-    timelineDrag.current = { mode, x: event.clientX, start };
-  }
-
-  function moveTimeline(event: PointerEvent<HTMLDivElement>) {
-    const drag = timelineDrag.current;
-    const track = timelineRef.current;
-    if (!drag || !track || !videoDuration) return;
-    scrubPreview(event.clientX);
-    const rect = track.getBoundingClientRect();
-    const delta = (event.clientX - drag.x) / rect.width * videoDuration;
-    if (drag.mode === "move") {
-      setStart(Math.min(Math.max(0, drag.start + delta), Math.max(0, videoDuration - seconds)));
-    } else if (drag.mode === "start") {
-      const nextStart = Math.max(0, Math.min(videoDuration - 0.5, (event.clientX - rect.left) / rect.width * videoDuration));
-      setStart(Math.min(nextStart, Math.max(0, videoDuration - seconds)));
-    } else {
-      const end = (event.clientX - rect.left) / rect.width * videoDuration;
-      setSeconds(Math.max(minSeconds, Math.min(maxSeconds, videoDuration - start, end - start)));
-    }
-  }
-
-  function endTimeline() {
-    timelineDrag.current = null;
   }
 
   function beginCrop(event: PointerEvent<HTMLDivElement | HTMLSpanElement>, mode: "move" | "resize", edge: "nw" | "ne" | "sw" | "se" = "se") {
@@ -434,47 +402,19 @@ export function VideoToGifUtility() {
                 <div className="flex items-center justify-between text-sm font-medium text-slate-800">
                   <span>Đoạn video</span><span className="text-xs text-slate-500">{seconds.toFixed(1)} giây</span>
                 </div>
-                <div
-                  ref={timelineRef}
-                  className="relative h-[76px] select-none touch-none overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-inner"
-                  onPointerMove={moveTimeline}
-                  onPointerUp={endTimeline}
-                  onPointerCancel={endTimeline}
-                >
-                  <div className="absolute inset-x-0 top-0 h-[54px] bg-slate-100 bg-repeat-x" style={{ backgroundImage: filmstrip ? `url(${filmstrip})` : undefined, backgroundSize: "auto 54px" }} />
-                  <div className="absolute inset-y-0 left-0 bg-slate-900/50" style={{ width: `${videoDuration ? start / videoDuration * 100 : 0}%` }} />
-                  <div className="absolute inset-y-0 right-0 bg-slate-900/50" style={{ width: `${videoDuration ? Math.max(0, (videoDuration - start - seconds) / videoDuration * 100) : 0}%` }} />
-                  <div
-                    className="absolute inset-y-0 flex cursor-grab items-start justify-center border-x-2 border-slate-950 bg-white/20 active:cursor-grabbing"
-                    style={{ left: `${videoDuration ? start / videoDuration * 100 : 0}%`, width: `${videoDuration ? seconds / videoDuration * 100 : 100}%` }}
-                    onPointerDown={event => beginTimeline(event, "move")}
-                  >
-                    <span className="absolute left-1/2 top-0 flex h-7 w-12 -translate-x-1/2 flex-col items-center justify-center gap-1 rounded-b-xl bg-slate-950 shadow-md">
-                      <span className="h-0.5 w-6 rounded-full bg-white" />
-                      <span className="h-0.5 w-6 rounded-full bg-white" />
-                    </span>
-                  </div>
-                  {(["start", "end"] as const).map(mode => (
-                    <button
-                      key={mode}
-                      type="button"
-                      aria-label={mode === "start" ? "Điểm bắt đầu đoạn video" : "Điểm kết thúc đoạn video"}
-                      onPointerDown={event => { event.preventDefault(); beginTimeline(event, mode); }}
-                      className="absolute inset-y-0 z-10 w-8 -translate-x-1/2 cursor-ew-resize"
-                      style={{ left: `${videoDuration ? (start + (mode === "end" ? seconds : 0)) / videoDuration * 100 : 0}%` }}
-                    >
-                      <span className="absolute left-1/2 top-0 flex h-6 w-7 -translate-x-1/2 items-center justify-center gap-1 rounded-b-lg border border-white bg-slate-950 shadow-md">
-                        <span className="h-3 w-0.5 rounded bg-white/90" />
-                        <span className="h-3 w-0.5 rounded bg-white/90" />
-                        <span className="h-3 w-0.5 rounded bg-white/90" />
-                      </span>
-                      <span className="absolute bottom-0 left-1/2 top-5 w-1 -translate-x-1/2 rounded-full bg-slate-950" />
-                    </button>
-                  ))}
-                  <div className="absolute inset-x-2 bottom-1 flex justify-between text-[10px] font-medium text-slate-700">
-                    <span>{formatTime(start)}</span><span>{formatTime(start + seconds)}</span>
-                  </div>
-                </div>
+                <TimelineTrimmer
+                  videoDuration={videoDuration}
+                  start={start}
+                  seconds={seconds}
+                  minSeconds={minSeconds}
+                  maxSeconds={maxSeconds}
+                  filmstrip={filmstrip}
+                  onScrub={scrubPreview}
+                  onChange={({ start: nextStart, seconds: nextSeconds }) => {
+                    setStart(nextStart);
+                    setSeconds(nextSeconds);
+                  }}
+                />
                 <label className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
                   <span>Thời lượng</span>
                   <input
