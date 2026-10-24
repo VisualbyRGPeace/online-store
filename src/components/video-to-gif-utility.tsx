@@ -145,7 +145,7 @@ export function VideoToGifUtility() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const maxSeconds = Math.max(0.1, Math.min(6, videoDuration || 6));
-  const minSeconds = Math.min(0.5, maxSeconds);
+  const minSeconds = Math.min(3, maxSeconds);
 
   useEffect(() => () => { if (source) URL.revokeObjectURL(source); }, [source]);
   useEffect(() => () => { if (gif) URL.revokeObjectURL(gif); }, [gif]);
@@ -405,10 +405,15 @@ export function VideoToGifUtility() {
                   <div className="absolute inset-y-0 left-0 bg-slate-900/50" style={{ width: `${videoDuration ? start / videoDuration * 100 : 0}%` }} />
                   <div className="absolute inset-y-0 right-0 bg-slate-900/50" style={{ width: `${videoDuration ? Math.max(0, (videoDuration - start - seconds) / videoDuration * 100) : 0}%` }} />
                   <div
-                    className="absolute inset-y-0 cursor-grab border-x-2 border-slate-950 bg-white/20 active:cursor-grabbing"
+                    className="absolute inset-y-0 flex cursor-grab items-start justify-center border-x-2 border-slate-950 bg-white/20 active:cursor-grabbing"
                     style={{ left: `${videoDuration ? start / videoDuration * 100 : 0}%`, width: `${videoDuration ? seconds / videoDuration * 100 : 100}%` }}
                     onPointerDown={event => beginTimeline(event, "move")}
-                  />
+                  >
+                    <span className="absolute left-1/2 top-0 flex h-7 w-12 -translate-x-1/2 flex-col items-center justify-center gap-1 rounded-b-xl bg-slate-950 shadow-md">
+                      <span className="h-0.5 w-6 rounded-full bg-white" />
+                      <span className="h-0.5 w-6 rounded-full bg-white" />
+                    </span>
+                  </div>
                   {(["start", "end"] as const).map(mode => (
                     <button
                       key={mode}
