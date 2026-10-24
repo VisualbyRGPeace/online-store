@@ -28,6 +28,9 @@ export function Header() {
           <Link href="/products/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
             Tài nguyên
           </Link>
+          <Link href="/utilities/qr/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
+            Tiện ích
+          </Link>
           {!loading &&
             (user ? (
               <Link href="/account/" className="rounded-lg bg-black px-3.5 py-2 text-white transition hover:bg-slate-700">
