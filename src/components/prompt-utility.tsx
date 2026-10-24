@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@/hooks/use-query";
 import { getMyRole } from "@/services/admin-order-service";
@@ -29,21 +29,73 @@ function fillPrompt(text: string, values: Record<string, string>): string {
   return text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, name: string) => values[name.trim()]?.trim() || match);
 }
 
-function PromptImagePreview({ src, alt, className }: { src: string; alt: string; className: string }) {
+function PromptImageHoverZoom({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [point, setPoint] = useState<{ x: number; y: number; backgroundSize: string; backgroundPosition: string } | null>(null);
+  const lensSize = 96;
+  const zoom = 2.4;
+
+  function updateZoom(clientX: number, clientY: number) {
+    const image = imageRef.current;
+    if (!image || !image.naturalWidth || !image.naturalHeight) return;
+    const rect = image.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    const scale = Math.max(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
+    const renderedWidth = image.naturalWidth * scale;
+    const renderedHeight = image.naturalHeight * scale;
+    const cropX = (renderedWidth - rect.width) / 2;
+    const cropY = (renderedHeight - rect.height) / 2;
+
+    setPoint({
+      x,
+      y,
+      backgroundSize: `${renderedWidth * zoom}px ${renderedHeight * zoom}px`,
+      backgroundPosition: `${lensSize / 2 - (x + cropX) * zoom}px ${lensSize / 2 - (y + cropY) * zoom}px`,
+    });
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLImageElement>) {
+    if (event.pointerType === "mouse") updateZoom(event.clientX, event.clientY);
+  }
+
+  function focusImage() {
+    const image = imageRef.current;
+    if (!image) return;
+    const rect = image.getBoundingClientRect();
+    updateZoom(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }
+
   return (
-    <div className="group/prompt-image relative z-0 shrink-0 hover:z-30 focus-within:z-30">
+    <div className="relative z-0 inline-block shrink-0 hover:z-30 focus-within:z-30">
       <img
+        ref={imageRef}
         src={src}
         alt={alt}
         tabIndex={0}
-        className={`${className} cursor-zoom-in transition-transform duration-200 group-hover/prompt-image:scale-[1.03] focus:scale-[1.03]`}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={() => setPoint(null)}
+        onFocus={focusImage}
+        onBlur={() => setPoint(null)}
+        className={`${className} block cursor-zoom-in`}
       />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-full z-50 mt-3 hidden w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl group-hover/prompt-image:block group-focus-within/prompt-image:block sm:left-full sm:top-1/2 sm:ml-3 sm:mt-0 sm:translate-x-0 sm:-translate-y-1/2"
-      >
-        <img src={src} alt="" className="max-h-[70vh] w-full rounded-xl bg-slate-50 object-contain" />
-      </div>
+      {point && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white"
+          style={{
+            left: point.x,
+            top: point.y,
+            width: lensSize,
+            height: lensSize,
+            backgroundImage: `url("${src}")`,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: point.backgroundSize,
+            backgroundPosition: point.backgroundPosition,
+            boxShadow: "0 4px 20px rgba(15, 23, 42, 0.3)",
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -250,7 +302,7 @@ export function PromptUtility() {
       {selected && (
         <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-7">
           <div className="mb-4 flex items-start gap-3">
-            {selected.image_path && <PromptImagePreview src={communityPromptImageUrl(selected.image_path)} alt={`Xem chi tiết ảnh minh họa: ${selected.title}`} className="h-28 w-28 rounded-xl object-cover" />}
+            {selected.image_path && <PromptImageHoverZoom src={communityPromptImageUrl(selected.image_path)} alt={`Xem chi tiết ảnh minh họa: ${selected.title}`} className="h-28 w-28 rounded-xl object-cover" />}
             <div className="min-w-0 flex-1">
               <h2 className="font-semibold">{selected.title}</h2>
               <p className="mt-1 text-xs text-slate-500">by Nghệ nhân {selected.creator_name}</p>
@@ -288,7 +340,7 @@ export function PromptUtility() {
                 <article key={prompt.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-start gap-3">
                     {prompt.image_path ? (
-                      <PromptImagePreview src={communityPromptImageUrl(prompt.image_path)} alt={`Xem chi tiết ảnh minh họa: ${prompt.title}`} className="h-28 w-28 rounded-xl bg-slate-100 object-cover" />
+                      <PromptImageHoverZoom src={communityPromptImageUrl(prompt.image_path)} alt={`Xem chi tiết ảnh minh họa: ${prompt.title}`} className="h-28 w-28 rounded-xl bg-slate-100 object-cover" />
                     ) : (
                       <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500">Aa</span>
                     )}
