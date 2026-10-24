@@ -1,17 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
+import { useAuth } from "@/hooks/use-auth";
+import { recordQrGeneration } from "@/services/qr-history-service";
 
 export function QrUtility() {
   const [value, setValue] = useState("");
   const [svg, setSvg] = useState("");
+  const [generatedFor, setGeneratedFor] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     const text = value.trim();
     if (!text) {
       setSvg("");
+      setGeneratedFor("");
       setError("");
       return;
     }
@@ -28,6 +36,7 @@ export function QrUtility() {
         });
         if (current) {
           setSvg(result);
+          setGeneratedFor(text);
           setError("");
         }
       } catch {
@@ -44,15 +53,27 @@ export function QrUtility() {
     };
   }, [value]);
 
-  function downloadSvg() {
-    if (!svg) return;
-    const file = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(file);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "ma-qr.svg";
-    link.click();
-    URL.revokeObjectURL(url);
+  async function downloadSvg() {
+    if (!svg || saving) return;
+    setSaving(true);
+    setNotice("");
+    setError("");
+    try {
+      if (user) await recordQrGeneration(user.id, generatedFor);
+      const file = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "ma-qr.svg";
+      link.click();
+      URL.revokeObjectURL(url);
+      setNotice(user ? "Đã lưu vào lịch sử admin." : "Đã tải mã. Đăng nhập để lưu lịch sử.");
+    } catch (err) {
+      console.error(err);
+      setError("Chưa lưu được lịch sử. Mã chưa được tải, vui lòng thử lại.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -71,17 +92,23 @@ export function QrUtility() {
           className="w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
         />
         <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-          <span>{error || "Mã QR cập nhật tự động"}</span>
+          <span>{error || notice || "Mã QR cập nhật tự động"}</span>
           <span>{value.length}/4000</span>
         </div>
         <button
           type="button"
-          onClick={downloadSvg}
-          disabled={!svg}
+          onClick={() => void downloadSvg()}
+          disabled={!svg || generatedFor !== value.trim() || saving || loading}
           className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          Tải mã SVG
+          {saving ? "Đang lưu…" : "Tải mã SVG"}
         </button>
+        {user && <p className="mt-3 text-xs text-slate-500">Nội dung sẽ được lưu trong lịch sử quản trị khi tải mã.</p>}
+        {!loading && !user && (
+          <p className="mt-3 text-xs text-slate-500">
+            <Link href="/login/" className="font-medium text-slate-800 underline">Đăng nhập</Link> để lưu nội dung vào lịch sử quản trị.
+          </p>
+        )}
       </div>
 
       <aside className="flex min-h-[340px] flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
