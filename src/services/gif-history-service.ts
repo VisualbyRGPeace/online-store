@@ -66,7 +66,7 @@ export async function listAdminGifGenerationHistory(userId: string): Promise<Adm
   });
   if (error) throw error;
 
-  const rows = (data ?? []) as Omit<AdminGifHistoryRow, "preview_url">[];
+  const rows = ((data ?? []) as Omit<AdminGifHistoryRow, "preview_url">[]).slice(0, HISTORY_LIMIT);
   return Promise.all(rows.map(async (row) => {
     const { data: signed, error: signedError } = await supabase.storage
       .from("gif-history")
