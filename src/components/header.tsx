@@ -28,8 +28,11 @@ export function Header() {
           <Link href="/products/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
             Tài nguyên
           </Link>
-          <Link href="/utilities/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
-            Tiện ích
+          <Link href="/utilities/qr/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
+            <span className="sm:hidden">Tạo QR</span><span className="hidden sm:inline">Tạo mã QR</span>
+          </Link>
+          <Link href="/utilities/prompts/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
+            <span className="sm:hidden">Prompt</span><span className="hidden sm:inline">Lưu trữ prompt</span>
           </Link>
           {!loading &&
             (user ? (
