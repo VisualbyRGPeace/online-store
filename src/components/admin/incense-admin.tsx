@@ -68,7 +68,7 @@ export function IncenseAdmin() {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {state.data.items.map((item) => {
-                  const burning = new Date(item.expires_at).getTime() > now;
+                  const burning = new Date(item.expires_at).getTime() > now && (!item.extinguished_at || new Date(item.extinguished_at).getTime() + 60 * 60 * 1000 > now);
                   return (
                     <tr key={item.id}>
                       <td className="whitespace-nowrap p-3">{formatDateTime(item.lit_at)}</td>
