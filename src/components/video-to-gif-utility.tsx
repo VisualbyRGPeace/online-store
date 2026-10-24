@@ -117,13 +117,18 @@ function encode(frames: ImageData[], profile: (typeof PROFILES)[number], seconds
 }
 
 export function VideoToGifUtility() {
-  const videoRef = useRef<HTMLVideoElement>(null);\n  const previewRef = useRef<HTMLDivElement>(null);\n  const timelineRef = useRef<HTMLDivElement>(null);\n  const timelineDrag = useRef<{ mode: "start" | "end" | "move"; x: number; start: number } | null>(null);\n  const cropDrag = useRef<{ mode: "move" | "resize"; edge: "nw" | "ne" | "sw" | "se"; x: number; y: number; box: CropBox } | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const timelineDrag = useRef<{ mode: "start" | "end" | "move"; x: number; start: number } | null>(null);
+  const cropDrag = useRef<{ mode: "move" | "resize"; edge: "nw" | "ne" | "sw" | "se"; x: number; y: number; box: CropBox } | null>(null);
   const [source, setSource] = useState("");
   const [gif, setGif] = useState("");
   const [name, setName] = useState("video");
   const [dimensions, setDimensions] = useState<[number, number] | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
-  const [cropBox, setCropBox] = useState<CropBox>({ x: 0.15, y: 0.15, size: 0.7 });\n  const [filmstrip, setFilmstrip] = useState("");
+  const [cropBox, setCropBox] = useState<CropBox>({ x: 0.15, y: 0.15, size: 0.7 });
+  const [filmstrip, setFilmstrip] = useState("");
   const [start, setStart] = useState(0);
   const [seconds, setSeconds] = useState(3);
   const [caption, setCaption] = useState("");
