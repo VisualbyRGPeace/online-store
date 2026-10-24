@@ -9,6 +9,7 @@ import { recordQrGeneration } from "@/services/qr-history-service";
 export function QrUtility() {
   const [value, setValue] = useState("");
   const [svg, setSvg] = useState("");
+  const [generatedFor, setGeneratedFor] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saving, setSaving] = useState(false);
@@ -18,6 +19,7 @@ export function QrUtility() {
     const text = value.trim();
     if (!text) {
       setSvg("");
+      setGeneratedFor("");
       setError("");
       return;
     }
@@ -34,6 +36,7 @@ export function QrUtility() {
         });
         if (current) {
           setSvg(result);
+          setGeneratedFor(text);
           setError("");
         }
       } catch {
@@ -56,7 +59,7 @@ export function QrUtility() {
     setNotice("");
     setError("");
     try {
-      if (user) await recordQrGeneration(user.id, value.trim());
+      if (user) await recordQrGeneration(user.id, generatedFor);
       const file = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
       const url = URL.createObjectURL(file);
       const link = document.createElement("a");
@@ -95,11 +98,12 @@ export function QrUtility() {
         <button
           type="button"
           onClick={() => void downloadSvg()}
-          disabled={!svg || saving || loading}
+          disabled={!svg || generatedFor !== value.trim() || saving || loading}
           className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           {saving ? "Đang lưu…" : "Tải mã SVG"}
         </button>
+        {user && <p className="mt-3 text-xs text-slate-500">Nội dung sẽ được lưu trong lịch sử quản trị khi tải mã.</p>}
         {!loading && !user && (
           <p className="mt-3 text-xs text-slate-500">
             <Link href="/login/" className="font-medium text-slate-800 underline">Đăng nhập</Link> để lưu nội dung vào lịch sử quản trị.
