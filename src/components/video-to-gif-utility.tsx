@@ -126,6 +126,7 @@ export function VideoToGifUtility() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineDrag = useRef<{ mode: "start" | "end" | "move"; x: number; start: number } | null>(null);
   const cropDrag = useRef<{ mode: "move" | "resize"; edge: "nw" | "ne" | "sw" | "se"; x: number; y: number; box: CropBox } | null>(null);
+  const captionDragging = useRef(false);
   const [source, setSource] = useState("");
   const [gif, setGif] = useState("");
   const [name, setName] = useState("video");
@@ -259,10 +260,16 @@ export function VideoToGifUtility() {
   function beginCaptionDrag(event: PointerEvent<HTMLDivElement>) {
     event.preventDefault();
     event.stopPropagation();
+    captionDragging.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
+  function endCaptionDrag() {
+    captionDragging.current = false;
+  }
+
   function moveCaption(event: PointerEvent<HTMLDivElement>) {
+    if (!captionDragging.current) return;
     const frame = cropFrameRef.current?.getBoundingClientRect();
     if (!frame) return;
     setCaptionPosition({
@@ -364,6 +371,8 @@ export function VideoToGifUtility() {
                         style={{ left: `${captionPosition.x * 100}%`, top: `${captionPosition.y * 100}%`, fontSize: `${Math.max(12, (cropFrameRef.current?.clientWidth || 160) * captionSize / 100)}px`, WebkitTextStroke: "0.6px #000" }}
                         onPointerDown={beginCaptionDrag}
                         onPointerMove={moveCaption}
+                        onPointerUp={endCaptionDrag}
+                        onPointerCancel={endCaptionDrag}
                       >
                         {caption}
                       </div>
