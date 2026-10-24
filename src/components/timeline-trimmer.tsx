@@ -120,16 +120,16 @@ export default function TimelineTrimmer({
       />
 
       <div
-        className="absolute left-0 top-9 h-[76px] rounded-l-[3px] bg-white/80"
+        className="absolute left-0 top-7 h-[52px] rounded-l-[3px] bg-white/80"
         style={{ width: `${leftPct}%` }}
       />
       <div
-        className="absolute right-0 top-9 h-[76px] rounded-r-[3px] bg-white/80"
+        className="absolute right-0 top-7 h-[52px] rounded-r-[3px] bg-white/80"
         style={{ width: `${rightPct}%` }}
       />
 
       <div
-        className="absolute top-9 h-[76px] cursor-grab border-y border-neutral-950 shadow-[0_14px_30px_-14px_rgba(0,0,0,0.35)] active:cursor-grabbing"
+        className="absolute top-7 h-[52px] cursor-grab border-y border-neutral-950 shadow-[0_14px_30px_-14px_rgba(0,0,0,0.35)] active:cursor-grabbing"
         style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
         onPointerDown={(event) => beginTimeline(event, "move")}
       />
