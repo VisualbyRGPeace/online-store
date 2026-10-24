@@ -22,7 +22,7 @@ export function IncenseOfferingControl() {
 
   async function toggle() {
     if (enabled === null) return;
-    if (enabled && !window.confirm("Ngưng nhận cúng dường? Người dùng sẽ không thể thắp thêm nhang.")) return;
+    if (enabled && !window.confirm("Ngưng nhận cúng dường?")) return;
     setError(null);
     setBusy(true);
     try {
@@ -41,7 +41,7 @@ export function IncenseOfferingControl() {
       <div>
         <p className="font-medium text-slate-900">Nhận cúng dường</p>
         <p className="mt-1 text-sm text-slate-500">
-          {enabled === null ? "Đang tải trạng thái…" : enabled ? "Đang mở — người dùng có thể thắp nhang." : "Đang khóa — không nhận nhang mới."}
+          {enabled === null ? "Đang tải trạng thái…" : enabled ? "Đang mở" : "Đang khóa"}
         </p>
         {error && <div className="mt-3"><FormMessage kind="error">{error}</FormMessage></div>}
       </div>
