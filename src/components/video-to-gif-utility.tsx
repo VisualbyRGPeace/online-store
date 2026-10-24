@@ -57,7 +57,7 @@ function encode(frames: ImageData[], profile: (typeof PROFILES)[number], seconds
   const [size, fps, colors] = profile;
   const count = Math.max(1, Math.min(frames.length, Math.ceil(seconds * fps)));
   const chosen = Array.from({ length: count }, (_, i) =>
-    frames[Math.round(i * (frames.length - 1) / Math.max(1, count - 1))],
+    frames[Math.round(i * (frames.length - 1) / Math.max(1, count - 1))]!,
   );
   const sample: number[] = [];
   chosen.forEach((frame, fi) => {
@@ -153,7 +153,7 @@ export function VideoToGifUtility() {
       for (let i = 0; i < PROFILES.length; i++) {
         setStatus(`Tối ưu dung lượng ${i + 1}/${PROFILES.length}…`);
         await new Promise<void>(resolve => setTimeout(resolve, 0));
-        const profile = PROFILES[i];
+        const profile = PROFILES[i]!;
         const candidate = encode(frames, profile, length);
         if (candidate.size <= LIMIT) {
           result = candidate;
