@@ -16,21 +16,32 @@ export type BurningIncense = {
   lit_at: string;
   expires_at: string;
   blessing_count: number;
+  /** The signed-in user is the one who lit this stick. */
+  is_mine: boolean;
+  /** Set while the stick is put out (it stays listed until it burns out). */
+  extinguished_at: string | null;
+  extinguished_by_name: string | null;
 };
 
 export type AdminIncenseOffering = Pick<BurningIncense, "id" | "donor_name" | "message_text" | "lit_at" | "expires_at">;
 export type AdminIncensePage = { items: AdminIncenseOffering[]; total: number; pageSize: number };
 
 export async function listBurningIncense(): Promise<BurningIncense[]> {
-  const { data, error } = await createClient()
+  const client = createClient();
+  const { data, error } = await client
     .from("incense_offerings")
-    .select("id,donor_id,donor_name,message_text,npc_message_text,lit_at,expires_at")
+    .select("id,donor_id,donor_name,message_text,npc_message_text,lit_at,expires_at,extinguished_at,extinguished_by_name")
     .gt("expires_at", new Date().toISOString())
     .order("lit_at", { ascending: false });
   if (error) throw error;
-  const offerings = (data ?? []) as Omit<BurningIncense, "blessing_count">[];
+  const offerings = (data ?? []) as Omit<BurningIncense, "blessing_count" | "is_mine">[];
   if (!offerings.length) return [];
-  const { data: blessings, error: blessingError } = await createClient()
+
+  // Local session only (no network call): used to tell which sticks belong to the viewer.
+  const { data: sessionData } = await client.auth.getSession();
+  const userId = sessionData.session?.user.id ?? null;
+
+  const { data: blessings, error: blessingError } = await client
     .from("incense_blessings")
     .select("offering_id")
     .in("offering_id", offerings.map((item) => item.id));
@@ -39,7 +50,11 @@ export async function listBurningIncense(): Promise<BurningIncense[]> {
   for (const row of (blessings ?? []) as { offering_id: string }[]) {
     counts.set(row.offering_id, (counts.get(row.offering_id) ?? 0) + 1);
   }
-  return offerings.map((item) => ({ ...item, blessing_count: counts.get(item.id) ?? 0 }));
+  return offerings.map((item) => ({
+    ...item,
+    blessing_count: counts.get(item.id) ?? 0,
+    is_mine: userId !== null && item.donor_id === userId,
+  }));
 }
 
 export async function getIncenseOfferingEnabled(): Promise<boolean> {
@@ -124,12 +139,26 @@ export async function blessIncense(offeringId: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Put out a stick that someone else lit. The server refuses your own sticks, sticks already out and expired ones. */
+export async function extinguishIncense(id: string): Promise<void> {
+  const { error } = await createClient().rpc("extinguish_incense", { p_id: id });
+  if (error) throw error;
+}
 
-export function subscribeToIncenseBlessings(onInsert: () => void): () => void {
+/** Relight a stick that was put out. The server only allows the person who lit it. */
+export async function relightIncense(id: string): Promise<void> {
+  const { error } = await createClient().rpc("relight_incense", { p_id: id });
+  if (error) throw error;
+}
+
+
+/** Calls onChange when someone blesses a stick, or puts one out / relights it. */
+export function subscribeToIncenseBlessings(onChange: () => void): () => void {
   const client = createClient();
   const channel = client
     .channel("public-incense-blessing-updates")
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "incense_blessings" }, onInsert)
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "incense_blessings" }, onChange)
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "incense_offerings" }, onChange)
     .subscribe();
   return () => { void client.removeChannel(channel); };
 }
