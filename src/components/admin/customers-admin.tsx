@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@/hooks/use-query";
 import { listCustomers, setBan } from "@/services/admin-order-service";
+import { CustomerNameHistory } from "@/components/admin/customer-name-history";
 import { requestPasswordReset } from "@/services/auth-service";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { FormMessage } from "@/components/ui/form";
@@ -25,6 +26,7 @@ export function CustomersAdmin() {
   const [version, setVersion] = useState(0);
   const [message, setMessage] = useState<{ kind: "error" | "success"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const state = useQuery(`admin-customers:${version}`, listCustomers);
 
   async function run(work: () => Promise<string>) {
@@ -101,6 +103,7 @@ export function CustomersAdmin() {
                     <td className="p-3">
                       <div className="flex flex-wrap gap-x-3 gap-y-1">
                         <Link href={`/admin/customers/detail/?id=${c.id}`} className={action}>Lịch sử tải</Link>
+                        <button type="button" className={action} onClick={() => setHistoryCustomer(c)}>Lịch sử đổi tên</button>
                         {!isAdmin && (
                           <>
                             {banned ? (
@@ -141,6 +144,14 @@ export function CustomersAdmin() {
         Mật khẩu của thành viên được mã hóa và không ai xem được, kể cả quản trị viên. Khi thành viên quên mật khẩu, bấm
         “Gửi email đặt lại mật khẩu”. Kick khóa 24 giờ, Ban khóa vĩnh viễn; thành viên bị khóa không tải được tệp và bị đăng xuất.
       </p>
+      {historyCustomer && (
+        <CustomerNameHistory
+          userId={historyCustomer.id}
+          email={historyCustomer.email}
+          currentName={historyCustomer.full_name}
+          onClose={() => setHistoryCustomer(null)}
+        />
+      )}
     </div>
   );
 }

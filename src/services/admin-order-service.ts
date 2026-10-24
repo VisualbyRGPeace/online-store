@@ -60,3 +60,16 @@ export async function revokeDonation(id: number): Promise<void> {
   const { error } = await createClient().rpc("admin_revoke_donation", { p_id: id });
   if (error) throw error;
 }
+
+export type ProfileNameHistory = {
+  id: number;
+  previous_name: string | null;
+  new_name: string | null;
+  changed_at: string;
+};
+
+export async function listProfileNameHistory(userId: string): Promise<ProfileNameHistory[]> {
+  const { data, error } = await createClient().rpc("admin_list_profile_name_history", { p_user_id: userId });
+  if (error) throw error;
+  return (data ?? []) as ProfileNameHistory[];
+}
