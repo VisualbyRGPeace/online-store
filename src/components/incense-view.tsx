@@ -158,8 +158,8 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
   const viewBox = n === 0 ? `0 330 ${vbW} 390` : `0 -190 ${vbW} 890`;
 
   return (
-    <div className="overflow-x-auto" aria-label={`${n} lời cúng dường`}>
-      <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: `max(560px, min(100%, ${displayW}px))` }} role="group" aria-label="Bàn cúng dường">
+    <div className="overflow-hidden" aria-label={`${n} lời cúng dường`}>
+      <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: "100%", maxWidth: `${displayW}px` }} role="group" aria-label="Bàn cúng dường">
         <defs>
           <linearGradient id="incLacquer" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#3b3b41" /><stop offset=".18" stopColor="#1b1b1e" /><stop offset=".7" stopColor="#0a0a0b" /><stop offset="1" stopColor="#000" />
