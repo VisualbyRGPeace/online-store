@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 
 type CropBox = { x: number; y: number; size: number };
+type CaptionPosition = { x: number; y: number };
 
 const LIMIT = 1_000_000;
 const PROFILES = [
@@ -50,16 +51,16 @@ async function makeFilmstrip(src: string, duration: number) {
   video.load();
   return result;
 }
-function drawCaption(ctx: CanvasRenderingContext2D, text: string, size: number) {
+function drawCaption(ctx: CanvasRenderingContext2D, text: string, size: number, position: { x: number; y: number }, fontPercent: number) {
   if (!text.trim()) return;
   ctx.save();
-  const font = Math.max(9, Math.round(size * 0.075));
+  const font = Math.max(5, Math.round(size * fontPercent / 100));
   ctx.font = `bold ${font}px Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.lineJoin = "round";
   ctx.lineWidth = Math.max(2, size * 0.012);
-  ctx.strokeStyle = "rgba(0,0,0,.85)";
+  ctx.strokeStyle = "#000";
   ctx.fillStyle = "#fff";
   const lines: string[] = [];
   let line = "";
@@ -73,11 +74,12 @@ function drawCaption(ctx: CanvasRenderingContext2D, text: string, size: number) 
   }
   if (line && lines.length < 3) lines.push(line);
   const step = font * 1.15;
-  const centerY = size - Math.max(size * 0.1, step * lines.length * 0.55);
+  const centerX = position.x * size;
+  const centerY = position.y * size;
   lines.forEach((item, i) => {
     const y = centerY + (i - (lines.length - 1) / 2) * step;
-    ctx.strokeText(item, size / 2, y, size * 0.92);
-    ctx.fillText(item, size / 2, y, size * 0.92);
+    ctx.strokeText(item, centerX, y, size * 0.92);
+    ctx.fillText(item, centerX, y, size * 0.92);
   });
   ctx.restore();
 }
@@ -118,6 +120,8 @@ function encode(frames: ImageData[], profile: (typeof PROFILES)[number], seconds
 
 export function VideoToGifUtility() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const cropFrameRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const timelineDrag = useRef<{ mode: "start" | "end" | "move"; x: number; start: number } | null>(null);
@@ -132,6 +136,8 @@ export function VideoToGifUtility() {
   const [start, setStart] = useState(0);
   const [seconds, setSeconds] = useState(3);
   const [caption, setCaption] = useState("");
+  const [captionPosition, setCaptionPosition] = useState<CaptionPosition>({ x: 0.5, y: 0.84 });
+  const [captionSize, setCaptionSize] = useState(9);
   const [bytes, setBytes] = useState(0);
   const [quality, setQuality] = useState("");
   const [busy, setBusy] = useState(false);
@@ -165,8 +171,20 @@ export function VideoToGifUtility() {
     return `${minutes}:${seconds}`;
   }
 
+  function scrubPreview(clientX: number) {
+    const track = timelineRef.current;
+    const preview = previewVideoRef.current;
+    if (!track || !preview || !videoDuration) return;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    preview.pause();
+    const target = Math.min(videoDuration - 0.02, ratio * videoDuration);
+    if (Math.abs(preview.currentTime - target) > 0.04) preview.currentTime = target;
+  }
+
   function beginTimeline(event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: "start" | "end" | "move") {
     timelineRef.current?.setPointerCapture(event.pointerId);
+    scrubPreview(event.clientX);
     timelineDrag.current = { mode, x: event.clientX, start };
   }
 
@@ -174,6 +192,7 @@ export function VideoToGifUtility() {
     const drag = timelineDrag.current;
     const track = timelineRef.current;
     if (!drag || !track || !videoDuration) return;
+    scrubPreview(event.clientX);
     const rect = track.getBoundingClientRect();
     const delta = (event.clientX - drag.x) / rect.width * videoDuration;
     if (drag.mode === "move") {
@@ -235,6 +254,21 @@ export function VideoToGifUtility() {
     cropDrag.current = null;
   }
 
+  function beginCaptionDrag(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveCaption(event: PointerEvent<HTMLDivElement>) {
+    const frame = cropFrameRef.current?.getBoundingClientRect();
+    if (!frame) return;
+    setCaptionPosition({
+      x: Math.max(0.04, Math.min(0.96, (event.clientX - frame.left) / frame.width)),
+      y: Math.max(0.04, Math.min(0.96, (event.clientY - frame.top) / frame.height)),
+    });
+  }
+
   async function createGif() {
     const video = videoRef.current;
     if (!video || !dimensions) return;
@@ -255,7 +289,7 @@ export function VideoToGifUtility() {
         await seek(video, Math.min(videoDuration - 0.01, start + i / total * length));
         ctx.clearRect(0, 0, 160, 160);
         ctx.drawImage(video, sx, sy, side, side, 0, 0, 160, 160);
-        drawCaption(ctx, caption, 160);
+        drawCaption(ctx, caption, 160, captionPosition, captionSize);
         frames.push(ctx.getImageData(0, 0, 160, 160));
         setStatus(`Đọc khung hình ${i + 1}/${total}…`);
       }
@@ -311,16 +345,27 @@ export function VideoToGifUtility() {
               onPointerUp={endCrop}
               onPointerCancel={endCrop}
             >
-              <video src={source} muted playsInline loop autoPlay className="absolute inset-0 h-full w-full object-fill" />
+              <video ref={previewVideoRef} src={source} muted playsInline loop autoPlay className="absolute inset-0 h-full w-full object-fill" />
               {dimensions && (() => {
                 const side = Math.min(dimensions[0], dimensions[1]) * cropBox.size;
                 const handles = (["nw", "ne", "sw", "se"] as const);
                 return (
                   <div
-                    className="absolute touch-none border-2 border-white bg-[linear-gradient(to_right,transparent_33%,rgba(255,255,255,.35)_33%,rgba(255,255,255,.35)_34%,transparent_34%,transparent_66%,rgba(255,255,255,.35)_66%,rgba(255,255,255,.35)_67%,transparent_67%),linear-gradient(to_bottom,transparent_33%,rgba(255,255,255,.35)_33%,rgba(255,255,255,.35)_34%,transparent_34%,transparent_66%,rgba(255,255,255,.35)_66%,rgba(255,255,255,.35)_67%,transparent_67%)] shadow-[0_0_0_100vmax_rgba(2,6,23,0.4)]"
+                    ref={cropFrameRef}
+                    className="absolute touch-none border-2 border-white bg-[linear-gradient(to_right,transparent_33%,rgba(255,255,255,.4)_33%,rgba(255,255,255,.4)_34%,transparent_34%,transparent_66%,rgba(255,255,255,.4)_66%,rgba(255,255,255,.4)_67%,transparent_67%),linear-gradient(to_bottom,transparent_33%,rgba(255,255,255,.4)_33%,rgba(255,255,255,.4)_34%,transparent_34%,transparent_66%,rgba(255,255,255,.4)_66%,rgba(255,255,255,.4)_67%,transparent_67%)] shadow-[0_0_0_100vmax_rgba(15,23,42,0.32)]"
                     style={{ left: `${cropBox.x * 100}%`, top: `${cropBox.y * 100}%`, width: `${side / dimensions[0] * 100}%`, height: `${side / dimensions[1] * 100}%` }}
                     onPointerDown={event => beginCrop(event, "move")}
                   >
+                    {caption && (
+                      <div
+                        className="absolute z-20 max-w-[90%] touch-none -translate-x-1/2 -translate-y-1/2 cursor-move select-none whitespace-pre-wrap text-center font-bold leading-tight text-white [text-shadow:0_2px_5px_#000,1px_1px_3px_#000]"
+                        style={{ left: `${captionPosition.x * 100}%`, top: `${captionPosition.y * 100}%`, fontSize: `${Math.max(12, (cropFrameRef.current?.clientWidth || 160) * captionSize / 100)}px`, WebkitTextStroke: "0.6px #000" }}
+                        onPointerDown={beginCaptionDrag}
+                        onPointerMove={moveCaption}
+                      >
+                        {caption}
+                      </div>
+                    )}
                     {handles.map(edge => (
                       <span
                         key={edge}
@@ -332,7 +377,6 @@ export function VideoToGifUtility() {
                   </div>
                 );
               })()}
-              {caption && <div className="pointer-events-none absolute inset-x-3 bottom-4 z-10 text-center text-lg font-bold text-white [text-shadow:0_2px_5px_#000,1px_1px_3px_#000]">{caption}</div>}
             </div>
             {dimensions && <div className="mt-6 space-y-5">
               <div className="space-y-2">
@@ -341,16 +385,16 @@ export function VideoToGifUtility() {
                 </div>
                 <div
                   ref={timelineRef}
-                  className="relative h-[76px] select-none touch-none overflow-hidden rounded-xl bg-slate-900"
+                  className="relative h-[76px] select-none touch-none overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-inner"
                   onPointerMove={moveTimeline}
                   onPointerUp={endTimeline}
                   onPointerCancel={endTimeline}
                 >
-                  <div className="absolute inset-x-0 top-0 h-[54px] bg-slate-800 bg-repeat-x" style={{ backgroundImage: filmstrip ? `url(${filmstrip})` : undefined, backgroundSize: "auto 54px" }} />
-                  <div className="absolute inset-y-0 left-0 bg-slate-950/65" style={{ width: `${videoDuration ? start / videoDuration * 100 : 0}%` }} />
-                  <div className="absolute inset-y-0 right-0 bg-slate-950/65" style={{ width: `${videoDuration ? Math.max(0, (videoDuration - start - seconds) / videoDuration * 100) : 0}%` }} />
+                  <div className="absolute inset-x-0 top-0 h-[54px] bg-slate-100 bg-repeat-x" style={{ backgroundImage: filmstrip ? `url(${filmstrip})` : undefined, backgroundSize: "auto 54px" }} />
+                  <div className="absolute inset-y-0 left-0 bg-slate-900/50" style={{ width: `${videoDuration ? start / videoDuration * 100 : 0}%` }} />
+                  <div className="absolute inset-y-0 right-0 bg-slate-900/50" style={{ width: `${videoDuration ? Math.max(0, (videoDuration - start - seconds) / videoDuration * 100) : 0}%` }} />
                   <div
-                    className="absolute inset-y-0 border-x-2 border-cyan-300 bg-cyan-300/10 cursor-grab active:cursor-grabbing"
+                    className="absolute inset-y-0 cursor-grab border-x-2 border-slate-950 bg-white/20 active:cursor-grabbing"
                     style={{ left: `${videoDuration ? start / videoDuration * 100 : 0}%`, width: `${videoDuration ? seconds / videoDuration * 100 : 100}%` }}
                     onPointerDown={event => beginTimeline(event, "move")}
                   />
@@ -360,19 +404,26 @@ export function VideoToGifUtility() {
                       type="button"
                       aria-label={mode === "start" ? "Điểm bắt đầu đoạn video" : "Điểm kết thúc đoạn video"}
                       onPointerDown={event => { event.preventDefault(); beginTimeline(event, mode); }}
-                      className="absolute inset-y-0 z-10 w-3 -translate-x-1/2 cursor-ew-resize rounded bg-cyan-400 shadow"
+                      className="absolute inset-y-0 z-10 w-3 -translate-x-1/2 cursor-ew-resize rounded-md border border-white bg-slate-950 shadow"
                       style={{ left: `${videoDuration ? (start + (mode === "end" ? seconds : 0)) / videoDuration * 100 : 0}%` }}
                     />
                   ))}
-                  <div className="absolute inset-x-2 bottom-1 flex justify-between text-[10px] text-cyan-200">
+                  <div className="absolute inset-x-2 bottom-1 flex justify-between text-[10px] font-medium text-slate-700">
                     <span>{formatTime(start)}</span><span>{formatTime(start + seconds)}</span>
                   </div>
                 </div>
                 <p className="text-xs text-slate-500">Kéo hai tay nắm để chọn đoạn; kéo vùng sáng để di chuyển.</p>
               </div>
-              <label className="block text-sm font-medium text-slate-800">Chữ trên GIF
-                <input className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-slate-400" value={caption} maxLength={80} onChange={e => setCaption(e.target.value)} placeholder="Nhập chữ muốn chèn…" />
-              </label>
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-800">Chữ trên GIF
+                  <input className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-slate-400" value={caption} maxLength={80} onChange={e => setCaption(e.target.value)} placeholder="Nhập chữ muốn chèn…" />
+                </label>
+                <label className="block text-sm font-medium text-slate-800">
+                  Cỡ chữ · {captionSize}%
+                  <input className="mt-2 w-full accent-black" type="range" min="4" max="22" step="1" value={captionSize} onChange={e => setCaptionSize(Number(e.target.value))} />
+                </label>
+                <p className="text-xs text-slate-500">Kéo chữ trực tiếp trên khung crop để đổi vị trí.</p>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button type="button" onClick={createGif} disabled={busy} className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60">{busy ? "Đang tạo GIF…" : "Tạo GIF"}</button>
                 {status && <span className="text-sm text-slate-500">{status}</span>}
