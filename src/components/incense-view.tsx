@@ -16,6 +16,7 @@ import {
   subscribeToIncenseBlessings,
   type BurningIncense,
 } from "@/services/incense-service";
+import { getMeritBoxQr, type MeritBoxQr } from "@/services/merit-box-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
 
@@ -321,6 +322,128 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
 }
 
 // ---------------------------------------------------------------------------------------------
+// Merit box (Hòm công đức): tap it to see the QR code the admin manages
+// ---------------------------------------------------------------------------------------------
+function MeritBoxButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Mở hòm công đức để xem mã QR"
+      className="mb-btn mx-auto block w-[150px] rounded-2xl text-center transition-transform duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/40"
+    >
+      <svg viewBox="0 0 200 150" className="block h-auto w-full" aria-hidden>
+        <defs>
+          <linearGradient id="mbLacquer" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3b3b41" /><stop offset=".2" stopColor="#1b1b1e" /><stop offset=".75" stopColor="#0a0a0b" /><stop offset="1" stopColor="#000" />
+          </linearGradient>
+          <linearGradient id="mbGoldH" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#7a5524" /><stop offset=".25" stopColor="#e6bd77" /><stop offset=".5" stopColor="#fbe3b0" /><stop offset=".75" stopColor="#d2a35a" /><stop offset="1" stopColor="#7a5524" />
+          </linearGradient>
+          <radialGradient id="mbCoinFill" cx=".4" cy=".35" r=".8">
+            <stop offset="0" stopColor="#fbe3b0" /><stop offset=".6" stopColor="#d2a35a" /><stop offset="1" stopColor="#8a622b" />
+          </radialGradient>
+          {/* Tall filter region so the soft shadow is not cut off. */}
+          <filter id="mbSoft" x="-10%" y="-400%" width="120%" height="900%"><feGaussianBlur stdDeviation="6" /></filter>
+        </defs>
+        <ellipse cx="100" cy="138" rx="70" ry="7" fill="#000" opacity=".2" filter="url(#mbSoft)" />
+        <ellipse cx="54" cy="133" rx="10" ry="4" fill="url(#mbGoldH)" />
+        <ellipse cx="146" cy="133" rx="10" ry="4" fill="url(#mbGoldH)" />
+        {/* the coin falls into the slot on hover (it is drawn behind the lid, so it disappears into it) */}
+        <circle className="mb-coin" cx="100" cy="18" r="7" fill="url(#mbCoinFill)" />
+        <rect x="34" y="52" width="132" height="80" rx="10" fill="url(#mbLacquer)" />
+        <rect x="28" y="38" width="144" height="24" rx="8" fill="url(#mbLacquer)" />
+        <rect x="31" y="40" width="138" height="8" rx="4" fill="#26262a" />
+        <path d="M30 49 Q30 39 52 39 H148 Q170 39 170 49" fill="none" stroke="url(#mbGoldH)" strokeWidth="2.6" strokeLinecap="round" />
+        <rect x="30" y="59" width="140" height="3" rx="1.5" fill="url(#mbGoldH)" />
+        <rect x="76" y="43" width="48" height="5" rx="2.5" fill="#000" stroke="url(#mbGoldH)" strokeWidth=".8" />
+        <rect x="58" y="76" width="84" height="36" rx="7" fill="#0c0c0d" stroke="url(#mbGoldH)" strokeWidth="1.6" />
+        <text x="100" y="99" textAnchor="middle" fontSize="15" fontWeight="500" fill="#ecd29a" style={{ fontFamily: "inherit" }}>Công đức</text>
+      </svg>
+      <span className="mt-1 block text-xs text-neutral-400">Hòm công đức</span>
+    </button>
+  );
+}
+
+type MeritState = { status: "loading" } | { status: "error" } | { status: "empty" } | { status: "ready"; qr: MeritBoxQr };
+
+function MeritBoxDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [state, setState] = useState<MeritState>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
+
+  // Load the QR each time the dialog opens, so a change made by the admin shows up straight away.
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    setState({ status: "loading" });
+    getMeritBoxQr()
+      .then((qr) => { if (alive) setState(qr ? { status: "ready", qr } : { status: "empty" }); })
+      .catch((err) => {
+        console.error(err);
+        if (alive) setState({ status: "error" });
+      });
+    return () => { alive = false; };
+  }, [open, attempt]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 backdrop-blur-sm sm:place-items-center sm:p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div role="dialog" aria-modal="true" aria-labelledby="merit-title" className="dialog-pop relative w-full max-w-sm rounded-t-3xl bg-white p-6 pb-8 text-center shadow-2xl sm:rounded-3xl sm:pb-6">
+        <button type="button" onClick={onClose} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
+          ×
+        </button>
+        <h2 id="merit-title" className="text-xl font-semibold tracking-wide">Hòm công đức</h2>
+        <p className="mt-1 text-sm text-neutral-500">Quét mã để gửi công đức.</p>
+
+        <div className="mt-5">
+          {state.status === "loading" && <div className="mx-auto h-64 w-64 animate-pulse rounded-2xl bg-neutral-100" aria-busy="true" />}
+          {state.status === "ready" && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={state.qr.imageUrl}
+                alt="Mã QR hòm công đức"
+                decoding="async"
+                onError={() => setState({ status: "error" })}
+                className="mx-auto h-64 w-64 rounded-2xl border border-neutral-200 bg-white object-contain p-3"
+              />
+              {state.qr.title && <p className="mt-3 text-sm font-semibold text-neutral-900">{nfc(state.qr.title)}</p>}
+              {state.qr.note && <p className="mt-1 whitespace-pre-line text-sm text-neutral-500">{nfc(state.qr.note)}</p>}
+            </>
+          )}
+          {state.status === "empty" && <p className="px-4 py-10 text-sm text-neutral-400">Hiện chưa có mã QR công đức.</p>}
+          {state.status === "error" && (
+            <div>
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Chưa tải được mã QR. Vui lòng thử lại.</p>
+              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-900">
+                Thử lại
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
 // Dialog: write a prayer and light the stick
 // ---------------------------------------------------------------------------------------------
 function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
@@ -438,6 +561,7 @@ export function IncenseView() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [meritOpen, setMeritOpen] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -675,7 +799,11 @@ export function IncenseView() {
             ))}
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-2">
+        <div className="mt-8">
+          <MeritBoxButton onClick={() => setMeritOpen(true)} />
+        </div>
+
+        <div className="mt-6 flex flex-col items-center gap-2">
           {cta}
           <p className="text-xs text-neutral-400">Mỗi nén nhang cháy trong 4 giờ.</p>
         </div>
@@ -690,6 +818,7 @@ export function IncenseView() {
         </div>
       )}
 
+      <MeritBoxDialog open={meritOpen} onClose={() => setMeritOpen(false)} />
       <LightDialog open={dialogOpen} donorName={donorName} busy={busy} error={dialogError} onClose={closeDialog} onSubmit={lightOne} />
     </div>
   );

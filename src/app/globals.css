@@ -139,6 +139,19 @@ body {
 }
 .toast-in { animation: toast-in .3s ease-out both; }
 
+/* Merit box: a coin drops into the slot while the box is hovered / focused. */
+.mb-coin { opacity: 0; }
+.mb-btn:hover .mb-coin, .mb-btn:focus-visible .mb-coin { animation: mbCoin 1.3s ease-in infinite; }
+@keyframes mbCoin {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: 1; }
+  85% { opacity: 1; transform: translateY(26px); }
+  100% { opacity: 0; transform: translateY(28px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-btn:hover .mb-coin, .mb-btn:focus-visible .mb-coin { animation: none; }
+}
+
 @keyframes dialog-fade {
   from { opacity: 0; }
   to { opacity: 1; }
