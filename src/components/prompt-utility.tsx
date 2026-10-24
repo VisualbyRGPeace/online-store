@@ -231,7 +231,7 @@ export function PromptUtility() {
       {selected && (
         <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-7">
           <div className="mb-4 flex items-start gap-3">
-            {selected.image_path && <img src={communityPromptImageUrl(selected.image_path)} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />}
+            {selected.image_path && <img src={communityPromptImageUrl(selected.image_path)} alt="" className="h-28 w-28 shrink-0 rounded-xl object-cover transition-transform duration-200 hover:z-10 hover:scale-105" />}
             <div className="min-w-0 flex-1">
               <h2 className="font-semibold">{selected.title}</h2>
               <p className="mt-1 text-xs text-slate-500">by Nghệ nhân {selected.creator_name}</p>
@@ -269,7 +269,7 @@ export function PromptUtility() {
                 <article key={prompt.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-start gap-3">
                     {prompt.image_path ? (
-                      <img src={communityPromptImageUrl(prompt.image_path)} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-slate-100 object-cover" />
+                      <img src={communityPromptImageUrl(prompt.image_path)} alt="" className="h-28 w-28 shrink-0 rounded-xl bg-slate-100 object-cover transition-transform duration-200 hover:z-10 hover:scale-105" />
                     ) : (
                       <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500">Aa</span>
                     )}
