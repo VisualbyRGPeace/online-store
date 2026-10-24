@@ -23,7 +23,7 @@ export function IncenseAdmin() {
   }, []);
 
   async function remove(id: string, donorName: string) {
-    if (!window.confirm(`Xóa nén nhang của ${donorName}? Thao tác này không thể hoàn tác.`)) return;
+    if (!window.confirm(`Xóa lời cúng dường của ${donorName}? Thao tác này không thể hoàn tác.`)) return;
     setError(null);
     setDeletingId(id);
     try {
@@ -32,7 +32,7 @@ export function IncenseAdmin() {
       else setVersion((current) => current + 1);
     } catch (err) {
       console.error(err);
-      setError("Chưa xóa được nén nhang. Vui lòng thử lại.");
+      setError("Chưa xóa được. Vui lòng thử lại.");
     } finally {
       setDeletingId(null);
     }
@@ -41,25 +41,25 @@ export function IncenseAdmin() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Quản lý nhang</h1>
-        <p className="mt-1 text-sm text-slate-500">Xem người cúng, lời khẩn cầu, thời điểm thắp và trạng thái từng nén nhang.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Lịch sử cúng dường</h1>
+        <p className="mt-1 text-sm text-slate-500">Xem người cúng, lời khẩn cầu và thời điểm.</p>
         <div className="mt-5"><IncenseOfferingControl /></div>
       </div>
       {error && <FormMessage kind="error">{error}</FormMessage>}
       {state.status === "loading" && <div className="h-40 animate-pulse rounded-2xl bg-slate-200" aria-busy="true" />}
       {state.status === "error" && <ErrorState />}
-      {state.status === "success" && state.data.total === 0 && <EmptyState title="Chưa có nén nhang nào" description="Nhang được thắp sẽ xuất hiện tại đây." />}
+      {state.status === "success" && state.data.total === 0 && <EmptyState title="Chưa có lời cúng dường nào" description="Các lượt cúng dường sẽ xuất hiện tại đây." />}
       {state.status === "success" && state.data.total > 0 && (
         <>
           <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>{state.data.total} nén nhang</span>
+            <span>{state.data.total} lượt cúng dường</span>
             <span>Trang {page}/{totalPages}</span>
           </div>
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
-                  <th className="p-3 font-medium">Thời điểm thắp</th>
+                  <th className="p-3 font-medium">Thời điểm</th>
                   <th className="p-3 font-medium">Người cúng</th>
                   <th className="p-3 font-medium">Lời khẩn cầu</th>
                   <th className="p-3 font-medium">Trạng thái</th>
@@ -76,7 +76,7 @@ export function IncenseAdmin() {
                       <td className="max-w-sm whitespace-normal p-3 leading-6 text-slate-600">{item.message_text}</td>
                       <td className="whitespace-nowrap p-3">
                         <span className={`rounded-full px-2 py-1 text-xs ${burning ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
-                          {burning ? "Đang cháy" : "Đã cháy hết"}
+                          {burning ? "Đang hiển thị" : "Đã kết thúc"}
                         </span>
                       </td>
                       <td className="whitespace-nowrap p-3 text-right">
