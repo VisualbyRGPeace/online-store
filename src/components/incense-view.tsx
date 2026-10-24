@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { getProfile } from "@/services/account-service";
@@ -21,347 +21,212 @@ const SUGGESTIONS = ["Bình an cho gia đình", "Sức khỏe dồi dào", "Côn
 const WELCOME = "Hãy thắp một nén nhang và gửi lời nguyện của bạn.";
 
 const buttonDark =
-  "inline-flex items-center justify-center rounded-full border border-[#c9a24a] bg-neutral-950 px-7 py-3 text-sm font-medium tracking-wide text-[#f6e9c0] transition hover:bg-neutral-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex items-center justify-center rounded-full bg-black px-7 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
 
 // ---------------------------------------------------------------------------------------------
-// Flat 2D cartoon palette (solid fills + one dark outline colour, no gradients, no blur)
+// Vietnamese text helper
 // ---------------------------------------------------------------------------------------------
-const INK = "#1f1f1f";
-const COLOR = {
-  body: "#7a1d24",
-  bodyLight: "#a8323b",
-  bamboo: "#d4af5a",
-  band: "#d4af5a",
-  ash: "#d9d2c3",
-  ember: "#f08a24",
-  core: "#ffe08a",
-  ray: "#e0b14a",
-  spark: "#d9b04a",
-};
+/** Vietnamese text from the database may be decomposed (base letter + combining mark); NFC joins them. */
+const nfc = (text: string) => text.normalize("NFC");
 
 // ---------------------------------------------------------------------------------------------
-// Canvas helpers
+// Incense table (SVG): black lacquer tray with a gold rim, burning sticks, thin wavering smoke
 // ---------------------------------------------------------------------------------------------
-function reducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+const TOP_Y = 74; // top of a freshly lit stick
+const BODY_BOTTOM = 406;
+const BURN_RANGE = 250; // how far the tip travels while the stick burns down
+const STAR = "M0 -7 Q0 0 7 0 Q0 0 0 7 Q0 0 -7 0 Q0 0 0 -7Z";
+const STARS = [[-20, 52, 0], [19, 44, 0.9], [-13, 90, 1.7], [15, 80, 2.4]] as const;
+const SMOKE_PATHS = [
+  ["M0 0 C-18 -34 20 -62 0 -100 S-22 -152 4 -204", "M0 0 C16 -30 -18 -70 2 -104 S24 -150 -5 -198", "M0 0 C-12 -40 16 -56 -2 -98 S-18 -158 7 -206"],
+  ["M0 0 C20 -32 -16 -66 2 -102 S22 -150 -4 -202", "M0 0 C-16 -36 18 -60 0 -100 S-20 -154 6 -200", "M0 0 C12 -38 -14 -64 2 -104 S20 -148 -7 -206"],
+] as const;
+const SMOKE_WIDTH = [[2.4, 2, 2.2], [2.2, 2, 2.4]] as const;
 
-/** One shared animation loop for every stick (capped at ~30fps, which also suits the cartoon look). */
-type TickFn = (time: number) => void;
-const tickers = new Set<TickFn>();
-let rafId = 0;
-let lastFrame = 0;
-const FRAME_MS = 1000 / 30;
-
-function loop(time: number) {
-  rafId = requestAnimationFrame(loop);
-  if (time - lastFrame < FRAME_MS - 2) return;
-  lastFrame = time;
-  if (document.hidden) return;
-  tickers.forEach((fn) => fn(time));
-}
-
-function subscribeTick(fn: TickFn) {
-  tickers.add(fn);
-  if (tickers.size === 1) {
-    lastFrame = 0;
-    rafId = requestAnimationFrame(loop);
-  }
-  return () => {
-    tickers.delete(fn);
-    if (tickers.size === 0) cancelAnimationFrame(rafId);
-  };
-}
-
-/** A ref that says whether the element is on screen, so off-screen canvases stop drawing. */
-function useOnScreen(ref: React.RefObject<Element | null>) {
-  const visible = useRef(true);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([entry]) => { visible.current = entry?.isIntersecting ?? true; }, { rootMargin: "160px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [ref]);
-  return visible;
-}
-
-/** Keeps a canvas bitmap in sync with its CSS size (device pixel ratio capped at 2). */
-function observeCanvasSize(canvas: HTMLCanvasElement, aspect: number, onResize: (cssWidth: number, dpr: number) => void) {
-  const apply = () => {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = canvas.clientWidth;
-    if (w < 1) return;
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(w * aspect * dpr);
-    onResize(w, dpr);
-  };
-  apply();
-  if (typeof ResizeObserver === "undefined") return () => undefined;
-  const ro = new ResizeObserver(apply);
-  ro.observe(canvas);
-  return () => ro.disconnect();
-}
-
-function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-}
-
-/** Four-point twinkle, drawn as one flat shape. */
-function twinkle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x, y - r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.quadraticCurveTo(x, y, x, y + r);
-  ctx.quadraticCurveTo(x, y, x - r, y);
-  ctx.quadraticCurveTo(x, y, x, y - r);
-  ctx.closePath();
-}
-
-// ---------------------------------------------------------------------------------------------
-// Cartoon Buddha (inline SVG: flat fills + outline, so it matches the incense and never fails to load)
-// ---------------------------------------------------------------------------------------------
-function BuddhaArt() {
-  const skin = "#f8d9b0";
-  const hair = "#2b2b2b";
-  return (
-    <svg viewBox="0 0 240 230" className="pointer-events-none h-full w-full" role="img" aria-label="Tượng Phật ngồi thiền" strokeLinejoin="round" strokeLinecap="round">
-      <circle className="halo-pulse" cx="120" cy="96" r="84" fill="#fff1b8" />
-      <ellipse cx="120" cy="219" rx="84" ry="7" fill="#e5e5e5" />
-      <g className="buddha-float" stroke={INK} strokeWidth="4">
-        {/* lotus seat */}
-        <ellipse cx="50" cy="198" rx="26" ry="13" fill="#f6a9bd" transform="rotate(-12 50 198)" />
-        <ellipse cx="190" cy="198" rx="26" ry="13" fill="#f6a9bd" transform="rotate(12 190 198)" />
-        <ellipse cx="82" cy="204" rx="28" ry="14" fill="#f9c3d1" transform="rotate(-5 82 204)" />
-        <ellipse cx="158" cy="204" rx="28" ry="14" fill="#f9c3d1" transform="rotate(5 158 204)" />
-        <ellipse cx="120" cy="206" rx="30" ry="13" fill="#f6a9bd" />
-        {/* robe, crossed legs */}
-        <path d="M52 192 C52 128 82 104 120 104 C158 104 188 128 188 192 Z" fill="#f2a93b" />
-        <path d="M92 112 C104 150 134 176 170 186" fill="none" strokeWidth="3.5" />
-        <ellipse cx="120" cy="186" rx="74" ry="17" fill="#e8932a" />
-        {/* arms and hands */}
-        <ellipse cx="78" cy="150" rx="17" ry="38" transform="rotate(-25 78 150)" fill="#f7b84a" />
-        <ellipse cx="162" cy="150" rx="17" ry="38" transform="rotate(25 162 150)" fill="#f7b84a" />
-        <ellipse cx="120" cy="170" rx="28" ry="11" fill={skin} />
-        <path d="M104 171 Q120 177 136 171" fill="none" strokeWidth="3" />
-        {/* head */}
-        <ellipse cx="85" cy="78" rx="8" ry="17" fill={skin} />
-        <ellipse cx="155" cy="78" rx="8" ry="17" fill={skin} />
-        <circle cx="120" cy="40" r="12" fill={hair} />
-        <circle cx="120" cy="72" r="34" fill={skin} />
-        <path d="M87 64 C86 40 154 40 153 64 C146 54 132 50 120 50 C108 50 94 54 87 64 Z" fill={hair} strokeWidth="3.5" />
-        <circle cx="120" cy="25" r="4.5" fill="#ff8a3d" strokeWidth="3" />
-        {/* face */}
-        <circle cx="98" cy="88" r="5" fill="#f5a89a" stroke="none" />
-        <circle cx="142" cy="88" r="5" fill="#f5a89a" stroke="none" />
-        <circle cx="120" cy="66" r="2.6" fill="#e2553a" stroke="none" />
-        <path d="M101 76 Q107 82 113 76 M127 76 Q133 82 139 76 M112 90 Q120 97 128 90" fill="none" strokeWidth="3" />
-      </g>
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------
-// One burning incense stick: flat cartoon stick, ember with rays, flat smoke puffs, gold twinkles when blessed
-// ---------------------------------------------------------------------------------------------
-const LW = 96; // logical canvas width: wider than the stick so smoke and rays are never cut off
-const LH = 420;
-const CX = LW / 2;
-const TOP0 = 170; // tip position when freshly lit
-const BURN_END = 330; // tip position when fully burned
-const BAMBOO_TOP = 335;
-const BASE = LH;
-const RAY_ANGLES = [-28, 8, 44].flatMap((a) => [(a * Math.PI) / 180, ((180 - a) * Math.PI) / 180]);
-
-type Smoke = { x0: number; y: number; vy: number; r0: number; life: number; max: number; phase: number; amp: number; drift: number };
-type Spark = { x: number; y: number; life: number; max: number; size: number; vy: number };
-
-const IncenseStick = memo(function IncenseStick({
-  incense, fresh, selected, onSelect, onHover,
-}: {
+function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect, onHover }: {
   incense: BurningIncense;
+  index: number;
+  x: number;
+  remaining: number;
   fresh: boolean;
   selected: boolean;
+  fancy: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const onScreen = useOnScreen(buttonRef);
-  const expires = useMemo(() => new Date(incense.expires_at).getTime(), [incense.expires_at]);
-  const selectedRef = useRef(selected);
-  const blessedRef = useRef(incense.blessing_count > 0);
-  const freshRef = useRef(fresh);
-
-  useEffect(() => { selectedRef.current = selected; }, [selected]);
-  useEffect(() => { blessedRef.current = incense.blessing_count > 0; }, [incense.blessing_count]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    const cv: HTMLCanvasElement = canvas;
-    const ctx: CanvasRenderingContext2D = context;
-    const reduce = reducedMotion();
-    const born = performance.now();
-    const isFresh = freshRef.current && !reduce;
-    const smoke: Smoke[] = [];
-    const sparks: Spark[] = [];
-    let drawScale = 1;
-    let last = 0;
-
-    const stopObserving = observeCanvasSize(cv, LH / LW, (cssW, dpr) => { drawScale = (cssW / LW) * dpr; });
-
-    const tick = (time: number) => {
-      if (!onScreen.current) { last = 0; return; }
-      if (reduce && last !== 0 && time - last < 1000) return; // reduced motion: redraw about once a second
-      const dt = last ? Math.min(4, (time - last) / 16.67) : 1;
-      last = time;
-
-      const toggle = reduce ? 0 : Math.floor(time / 220) % 2; // two-frame cartoon flicker
-      const ignite = isFresh ? Math.min(1, (time - born) / 1400) : 1;
-      const remaining = Math.max(0, Math.min(1, (expires - Date.now()) / BURN_MS));
-      const ey = TOP0 + (BURN_END - TOP0) * (1 - remaining);
-      const active = selectedRef.current;
-
-      ctx.setTransform(drawScale, 0, 0, drawScale, 0, 0);
-      ctx.clearRect(0, 0, LW, LH);
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 1.3;
-
-      // Bamboo core.
-      ctx.fillStyle = COLOR.bamboo;
-      ctx.beginPath();
-      ctx.rect(CX - 1.8, BAMBOO_TOP - 2, 3.6, BASE - BAMBOO_TOP + 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Incense body (shortens as it burns) with one flat highlight stripe.
-      if (ey + 4 < BAMBOO_TOP) {
-        ctx.fillStyle = COLOR.body;
-        ctx.beginPath();
-        ctx.rect(CX - 3, ey + 4, 6, BAMBOO_TOP - ey - 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = COLOR.bodyLight;
-        ctx.fillRect(CX - 1.7, ey + 8, 1.1, Math.max(0, BAMBOO_TOP - ey - 12));
-        // Gold band near the base.
-        if (ey + 8 < BAMBOO_TOP - 22) {
-          ctx.fillStyle = COLOR.band;
-          ctx.beginPath();
-          ctx.rect(CX - 3, BAMBOO_TOP - 20, 6, 4);
-          ctx.fill();
-          ctx.stroke();
-        }
-      }
-
-      // Ash above the tip.
-      const ashLen = 14 + 6 * (1 - remaining);
-      ctx.fillStyle = COLOR.ash;
-      ctx.beginPath();
-      ctx.moveTo(CX - 3.2, ey);
-      ctx.lineTo(CX - 2.4, ey - ashLen + 2);
-      ctx.quadraticCurveTo(CX, ey - ashLen - 1.5, CX + 2.4, ey - ashLen + 2);
-      ctx.lineTo(CX + 3.2, ey);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Ember: flat rays, flat orange dot, flat yellow core.
-      const ex = CX;
-      const eyc = ey + 1.5;
-      if (ignite > 0.6) {
-        ctx.strokeStyle = COLOR.ray;
-        ctx.lineWidth = 1.4;
-        const r1 = active ? 7.4 : 6.4;
-        RAY_ANGLES.forEach((a, i) => {
-          const len = (active ? 4.5 : 3) + ((i + toggle) % 2) * 1.6;
-          ctx.beginPath();
-          ctx.moveTo(ex + Math.cos(a) * r1, eyc + Math.sin(a) * r1);
-          ctx.lineTo(ex + Math.cos(a) * (r1 + len), eyc + Math.sin(a) * (r1 + len));
-          ctx.stroke();
-        });
-        ctx.strokeStyle = INK;
-        ctx.lineWidth = 1.3;
-      }
-      const er = (3.9 + toggle * 0.5) * (0.4 + 0.6 * ignite);
-      ctx.fillStyle = COLOR.ember;
-      circle(ctx, ex, eyc, er);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = COLOR.core;
-      circle(ctx, ex, eyc, er * 0.5);
-      ctx.fill();
-
-      // Smoke: a few flat grey puffs. Colour is blended toward the white page instead of using alpha or blur.
-      if (!reduce && smoke.length < 16 && Math.random() < 0.05 * ignite * dt) {
-        smoke.push({
-          x0: CX, y: ey - ashLen - 2, vy: -(0.45 + Math.random() * 0.15), r0: 2 + Math.random() * 0.8, life: 0,
-          max: 260 + Math.random() * 80, phase: Math.random() * 6.28, amp: 2 + Math.random() * 1.6, drift: (Math.random() - 0.5) * 0.02,
-        });
-      }
-      for (let i = smoke.length - 1; i >= 0; i--) {
-        const p = smoke[i];
-        if (!p) continue;
-        p.life += dt;
-        p.y += p.vy * dt;
-        const progress = p.life / p.max;
-        if (progress >= 1 || p.y < -10) { smoke.splice(i, 1); continue; }
-        const r = p.r0 + progress * 6.5;
-        const x = p.x0 + p.drift * p.life + Math.sin(p.phase + p.life * 0.03) * p.amp * (0.3 + progress * 1.2);
-        const strength = Math.sin(Math.PI * progress) * Math.max(0, Math.min(1, p.y / 60));
-        const v = Math.round(255 - 72 * strength);
-        ctx.fillStyle = `rgb(${v},${v - 3},${v - 9})`;
-        circle(ctx, x, p.y, r);
-        ctx.fill();
-      }
-
-      // Blessed sticks get a few flat gold twinkles around the tip.
-      if (blessedRef.current && sparks.length < 8 && Math.random() < 0.05 * dt) {
-        const side = Math.random() < 0.5 ? -1 : 1;
-        sparks.push({ x: CX + side * (9 + Math.random() * 12), y: ey - 6 + (Math.random() - 0.5) * 24, life: 0, max: 40 + Math.random() * 30, size: 2.2 + Math.random() * 1.6, vy: -0.1 - Math.random() * 0.08 });
-      }
-      ctx.fillStyle = COLOR.spark;
-      for (let i = sparks.length - 1; i >= 0; i--) {
-        const s = sparks[i];
-        if (!s) continue;
-        s.life += dt;
-        s.y += s.vy * dt;
-        const progress = s.life / s.max;
-        if (progress >= 1) { sparks.splice(i, 1); continue; }
-        twinkle(ctx, s.x, s.y, s.size * Math.sin(progress * Math.PI) * 1.6);
-        ctx.fill();
-      }
-    };
-
-    const unsubscribe = subscribeTick(tick);
-    return () => {
-      unsubscribe();
-      stopObserving();
-    };
-  }, [expires, onScreen]);
+  const topY = TOP_Y + BURN_RANGE * (1 - remaining);
+  const dy = topY - TOP_Y;
+  const blessed = incense.blessing_count > 0;
+  const variant = index % 2;
+  const delay = (base: number) => ({ animationDelay: `${-(base + index * 1.3)}s` });
+  const hitTop = topY - 40;
 
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      onClick={() => onSelect(incense.id)}
-      onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover(incense.id); }}
-      onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover(null); }}
-      onFocus={() => onHover(incense.id)}
-      onBlur={() => onHover(null)}
-      aria-pressed={selected}
-      aria-label={`Nhang do ${incense.donor_name} cúng dường. Khẩn cầu: ${incense.message_text}`}
-      className={`relative z-10 h-[341px] w-[52px] shrink-0 cursor-pointer rounded-full transition-transform duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/40 sm:h-[420px] sm:w-16 ${fresh ? "incense-rise" : ""} ${selected ? "-translate-y-1" : ""}`}
-    >
-      {/* The canvas is 150% of the button width and centred, so smoke/rays have room on both sides. */}
-      <canvas ref={canvasRef} className="pointer-events-none absolute left-1/2 top-0 h-full w-[150%] -translate-x-1/2" aria-hidden="true" />
-    </button>
+    <g transform={`translate(${x} 0)`} className={selected ? "inc-sel" : undefined}>
+      <g className={fresh ? "inc-drop" : undefined}>
+        <ellipse cx="0" cy="546" rx="8" ry="3" fill="url(#incGoldRod)" />
+        <rect x="-1.8" y="404" width="3.6" height="142" fill="url(#incBamboo)" />
+        <rect x="-3" y={topY} width="6" height={BODY_BOTTOM - topY} fill="url(#incBrown)" />
+        <rect x="-3" y="400" width="6" height="6" fill="#5a3520" opacity=".7" />
+
+        <g transform={`translate(0 ${dy})`}>
+          <path d="M-3.2 69 L-3 59 L-2 55 L-.6 53 L1 56 L2.6 54 L3.2 60 L3.2 69Z" fill="url(#incAsh)" />
+          <path d="M-1.6 62 L-.4 60 L.8 63 M1.2 58 L2.4 59" stroke="#7d7870" strokeWidth=".7" fill="none" opacity=".8" />
+          <rect x="-3" y="68" width="6" height="6" fill="#2a1a12" />
+          <g className="inc-ember">
+            <circle className="inc-halo inc-flick-h" cx="0" cy="71" r="20" fill="url(#incHalo)" style={delay(0.4)} />
+            <rect x="-3" y="74" width="6" height="12" fill="url(#incCoal)" />
+            <rect x="-3" y="68" width="6" height="6" fill="#d9300e" />
+            <rect className="inc-flick" x="-3" y="68" width="6" height="6" fill="#ff8a3a" style={delay(1.1)} />
+          </g>
+          <g transform="translate(0 50)">
+            <g filter={fancy ? "url(#incSmokeFx)" : undefined}>
+              {SMOKE_PATHS[variant]?.map((d, i) => (
+                <path key={i} className="inc-wisp" strokeWidth={SMOKE_WIDTH[variant]?.[i] ?? 2.2} d={d} style={delay(2.7 * i)} />
+              ))}
+            </g>
+          </g>
+          {blessed && STARS.map(([sx, sy, dl], i) => (
+            <g key={i} transform={`translate(${sx} ${sy})`}>
+              <g className="inc-star" style={{ animationDelay: `${-(dl + index * 0.6)}s` }}>
+                <circle r="11" fill="url(#incSparkGlow)" />
+                <path d={STAR} fill="#e8a91f" />
+                <path d={STAR} fill="#fff3c4" transform="scale(.5)" />
+              </g>
+            </g>
+          ))}
+        </g>
+
+        <rect
+          className="inc-hit"
+          x="-45"
+          y={hitTop}
+          width="90"
+          height={560 - hitTop}
+          tabIndex={0}
+          role="button"
+          aria-pressed={selected}
+          aria-label={`Nhang do ${nfc(incense.donor_name)} cúng dường. Khẩn cầu: ${nfc(incense.message_text)}`}
+          onClick={() => onSelect(incense.id)}
+          onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover(incense.id); }}
+          onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover(null); }}
+          onFocus={() => onHover(incense.id)}
+          onBlur={() => onHover(null)}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(incense.id); } }}
+        />
+      </g>
+    </g>
   );
-});
+}
+
+function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
+  items: BurningIncense[];
+  now: number;
+  freshIds: ReadonlySet<string>;
+  shownId: string | null;
+  onSelect: (id: string) => void;
+  onHover: (id: string | null) => void;
+}) {
+  const n = items.length;
+  const spacing = n <= 2 ? 260 : n === 3 ? 200 : 150;
+  const trayW = Math.max(860, (Math.max(n, 1) - 1) * spacing + 360);
+  const vbW = trayW + 340;
+  const cx = vbW / 2;
+  const L = 170;
+  const R = vbW - 170;
+  const fancy = n <= 6; // the animated smoke distortion is the costly part, so it is limited to a few sticks
+  const displayW = Math.round(vbW * 0.62);
+  const viewBox = n === 0 ? `0 330 ${vbW} 390` : `0 -190 ${vbW} 890`;
+
+  return (
+    <div className="overflow-x-auto" aria-label={`${n} nén nhang đang cháy`}>
+      <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: `max(560px, min(100%, ${displayW}px))` }} role="group" aria-label="Bàn cúng đen viền vàng với các cây nhang đang cháy">
+        <defs>
+          <linearGradient id="incLacquer" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#3b3b41" /><stop offset=".18" stopColor="#1b1b1e" /><stop offset=".7" stopColor="#0a0a0b" /><stop offset="1" stopColor="#000" />
+          </linearGradient>
+          <linearGradient id="incGoldH" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#7a5524" /><stop offset=".25" stopColor="#e6bd77" /><stop offset=".5" stopColor="#fbe3b0" /><stop offset=".75" stopColor="#d2a35a" /><stop offset="1" stopColor="#7a5524" />
+          </linearGradient>
+          <linearGradient id="incGoldRod" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#8a622b" /><stop offset=".35" stopColor="#f7dba5" /><stop offset=".6" stopColor="#cf9f55" /><stop offset="1" stopColor="#7a5524" />
+          </linearGradient>
+          <linearGradient id="incSheen" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset=".5" stopColor="#fff" stopOpacity=".22" /><stop offset="1" stopColor="#fff" stopOpacity="0" />
+          </linearGradient>
+          <radialGradient id="incFoot" cx=".4" cy=".35" r=".8">
+            <stop offset="0" stopColor="#fbe3b0" /><stop offset=".6" stopColor="#c8964b" /><stop offset="1" stopColor="#6e4a1f" />
+          </radialGradient>
+          <radialGradient id="incHalo">
+            <stop offset="0" stopColor="#ff9a2e" stopOpacity=".65" /><stop offset=".45" stopColor="#ff8a20" stopOpacity=".22" /><stop offset="1" stopColor="#ff8a20" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="incSparkGlow">
+            <stop offset="0" stopColor="#ffd25a" stopOpacity=".6" /><stop offset="1" stopColor="#ffd25a" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="incSmoke" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stopColor="#b9b2a8" stopOpacity=".95" /><stop offset=".6" stopColor="#d9d4cc" stopOpacity=".6" /><stop offset="1" stopColor="#ece8e1" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="incBrown" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#3b2213" /><stop offset=".35" stopColor="#8d5a38" /><stop offset=".62" stopColor="#6a3f25" /><stop offset="1" stopColor="#36200f" />
+          </linearGradient>
+          <linearGradient id="incBamboo" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#8a6234" /><stop offset=".4" stopColor="#e2c28a" /><stop offset="1" stopColor="#9a7040" />
+          </linearGradient>
+          <linearGradient id="incAsh" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#8d8880" /><stop offset=".45" stopColor="#cfcac2" /><stop offset="1" stopColor="#85807a" />
+          </linearGradient>
+          <linearGradient id="incCoal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#ff5a1f" stopOpacity=".85" /><stop offset="1" stopColor="#8d5a38" stopOpacity="0" />
+          </linearGradient>
+          {/* The soft shadow needs a tall filter region, otherwise the blur is cut off above and below it. */}
+          <filter id="incSoft" x="-10%" y="-400%" width="120%" height="900%"><feGaussianBlur stdDeviation="14" /></filter>
+          <filter id="incBlur2" x="-10%" y="-200%" width="120%" height="500%"><feGaussianBlur stdDeviation="1.6" /></filter>
+          <filter id="incSmokeFx" x="-120%" y="-30%" width="340%" height="160%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="2" seed="7" result="n">
+              <animate attributeName="baseFrequency" dur="10s" repeatCount="indefinite" values="0.012 0.03;0.017 0.022;0.012 0.03" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="34" xChannelSelector="R" yChannelSelector="G" result="d" />
+            <feGaussianBlur in="d" stdDeviation="2.2" />
+          </filter>
+        </defs>
+
+        {/* ground shadow */}
+        <ellipse cx={cx} cy="624" rx={trayW / 2 + 40} ry="13" fill="#000" opacity=".28" filter="url(#incSoft)" />
+        <ellipse cx={cx} cy="618" rx={trayW * 0.35} ry="5" fill="#c9a15a" opacity=".25" filter="url(#incBlur2)" />
+
+        {/* feet */}
+        <ellipse cx={L + 102} cy="608" rx="17" ry="7" fill="url(#incFoot)" />
+        <ellipse cx={R - 102} cy="608" rx="17" ry="7" fill="url(#incFoot)" />
+
+        {/* tray body, side highlight, top face, sheen, gold rim */}
+        <path d={`M${L} 562 Q${L} 540 ${L + 32} 540 H${R - 32} Q${R} 540 ${R} 562 Q${R} 606 ${R - 36} 606 H${L + 36} Q${L} 606 ${L} 562Z`} fill="url(#incLacquer)" />
+        <path d={`M${L + 6} 566 Q${L + 8} 598 ${L + 38} 600 H${R - 38}`} fill="none" stroke="#fff" strokeOpacity=".08" strokeWidth="2" />
+        <path d={`M${L + 14} 541 H${R - 14} Q${R - 6} 541 ${R - 6} 548 Q${R - 6} 556 ${R - 18} 556 H${L + 18} Q${L + 6} 556 ${L + 6} 548 Q${L + 6} 541 ${L + 14} 541Z`} fill="#26262a" />
+        <rect x={L + 40} y="543" width={trayW - 80} height="6" rx="3" fill="url(#incSheen)" />
+        <path d={`M${L + 6} 550 Q${L + 6} 541 ${L + 34} 541 H${R - 34} Q${R - 6} 541 ${R - 6} 550`} fill="none" stroke="url(#incGoldH)" strokeWidth="3.2" strokeLinecap="round" />
+        <path d={`M${L + 12} 556 H${R - 12}`} stroke="url(#incGoldH)" strokeWidth="2" opacity=".85" />
+
+        {items.map((item, i) => {
+          const remaining = Math.max(0, Math.min(1, (new Date(item.expires_at).getTime() - now) / BURN_MS));
+          return (
+            <Stick
+              key={item.id}
+              incense={item}
+              index={i}
+              x={cx + (i - (n - 1) / 2) * spacing}
+              remaining={remaining}
+              fresh={freshIds.has(item.id)}
+              selected={item.id === shownId}
+              fancy={fancy}
+              onSelect={onSelect}
+              onHover={onHover}
+            />
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------------------------
 // Details of the stick being hovered / tapped
@@ -379,10 +244,10 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
   const pct = Math.max(0, Math.min(100, (left / BURN_MS) * 100));
   return (
     <div className="fade-up flex min-h-[132px] flex-col items-center justify-center px-5 py-4 text-center">
-      <p className="text-sm font-semibold tracking-wide text-neutral-900">{incense.donor_name}</p>
-      <p className="mt-1.5 max-w-md font-serif text-base italic leading-6 text-neutral-600">“{incense.message_text}”</p>
-      <div className="mt-3 h-3 w-full max-w-[200px] overflow-hidden rounded-full border-2 border-neutral-900 bg-white" aria-hidden>
-        <div className="h-full bg-[#c9a24a] transition-[width] duration-1000" style={{ width: `${pct}%` }} />
+      <p className="text-sm font-semibold tracking-wide text-neutral-900">{nfc(incense.donor_name)}</p>
+      <p className="mt-1.5 max-w-md text-[15px] leading-6 text-neutral-600">“{nfc(incense.message_text)}”</p>
+      <div className="mt-3 h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-neutral-200" aria-hidden>
+        <div className="h-full bg-neutral-900 transition-[width] duration-1000" style={{ width: `${pct}%` }} />
       </div>
       <p className="mt-1.5 text-xs text-neutral-400">
         Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
@@ -393,7 +258,7 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
           type="button"
           disabled={busy}
           onClick={() => onBless(incense.id)}
-          className="mt-3 rounded-full border-2 border-neutral-900 bg-[#d8b45a] px-4 py-1.5 text-xs font-semibold text-neutral-900 shadow-[2px_2px_0_#171717] transition active:translate-x-px active:translate-y-px active:shadow-none disabled:opacity-50"
+          className="mt-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-900 disabled:opacity-50"
         >
           {busy ? "Đang ban phước…" : "✦ Ban phước"}
         </button>
@@ -442,7 +307,7 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
 
   return createPortal(
     <div
-      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center sm:p-4"
+      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 backdrop-blur-sm sm:place-items-center sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
     >
       <form
@@ -454,12 +319,12 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
           if (trimmed.length < 2 || busy) return;
           if (await onSubmit(trimmed)) setPrayer("");
         }}
-        className="dialog-pop relative w-full max-w-md rounded-t-3xl border-2 border-neutral-900 bg-white p-6 pb-8 sm:rounded-3xl sm:pb-6 sm:shadow-[6px_6px_0_#c9a24a]"
+        className="dialog-pop relative w-full max-w-md rounded-t-3xl bg-white p-6 pb-8 shadow-2xl sm:rounded-3xl sm:pb-6"
       >
         <button type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
           ×
         </button>
-        <h2 id="light-title" className="font-serif text-xl font-semibold tracking-wide">Thắp một nén nhang</h2>
+        <h2 id="light-title" className="text-xl font-semibold tracking-wide">Thắp một nén nhang</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Người cúng: <span className="font-medium text-neutral-900">{donorName}</span> · cháy trong 4 giờ
         </p>
@@ -688,8 +553,8 @@ export function IncenseView() {
     <div className="mx-auto max-w-3xl">
       <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Bàn hương cúng dường">
         <header className="text-center">
-          <h1 className="font-serif text-2xl font-semibold tracking-wide sm:text-3xl">Cúng dường</h1>
-          <div className="mx-auto mt-3 flex items-center justify-center gap-3 text-[#b8913a]" aria-hidden>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Cúng dường</h1>
+          <div className="mx-auto mt-3 flex items-center justify-center gap-3 text-neutral-400" aria-hidden>
             <span className="h-px w-12 bg-current" />
             <span className="text-[10px]">◆</span>
             <span className="h-px w-12 bg-current" />
@@ -700,14 +565,13 @@ export function IncenseView() {
         </header>
 
         <div className="relative mx-auto mt-6 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
-          {/* Flat gold halo: solid cream disc with two thin gold rings (no gradient, no blur). */}
+          {/* Soft grey aura with two fine rings. */}
           <span className="pointer-events-none absolute left-1/2 top-[48%] aspect-square w-[82%] -translate-x-1/2 -translate-y-1/2" aria-hidden>
-            <span className="halo-pulse absolute inset-0 rounded-full border border-[#e3cf9a] bg-[#fcf6e4]" />
-            <span className="absolute inset-[8%] rounded-full border border-[#c9a24a]" />
+            <span className="halo-pulse stage-glow absolute -inset-[24%] rounded-full" />
+            <span className="absolute inset-0 rounded-full border border-neutral-200" />
+            <span className="absolute inset-[8%] rounded-full border border-neutral-300" />
           </span>
-          {imageFailed ? (
-            <BuddhaArt />
-          ) : (
+          {!imageFailed && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={BUDDHA_IMAGE}
@@ -719,34 +583,18 @@ export function IncenseView() {
           )}
         </div>
 
-        <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center font-serif text-base italic leading-6 text-neutral-600" role="status" aria-live="polite">
-          {message}
-          {npcMessage && <span className="mt-1 block font-sans text-[11px] not-italic uppercase tracking-widest text-[#a98532]">Thích Khoai Tây</span>}
+        <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center text-[15px] leading-6 text-neutral-600" role="status" aria-live="polite">
+          {nfc(message)}
+          {npcMessage && <span className="mt-1 block text-xs text-neutral-400">Thích Khoai Tây</span>}
         </p>
 
         {loadError && <p role="alert" className="mx-auto mt-4 max-w-md rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">{loadError}</p>}
 
-        {/* Sticks stand on a single thin line */}
         {loading ? (
           <div className="mx-auto mt-8 h-48 w-full max-w-md animate-pulse rounded-2xl bg-neutral-100" aria-busy="true" />
         ) : (
-          <div className="-mt-6 overflow-x-auto overflow-y-hidden pb-1 pt-8" aria-label={`${active.length} nén nhang đang cháy`}>
-            <div className="relative mx-auto flex w-max min-w-[16rem] items-end justify-center gap-3 px-8 sm:min-w-[24rem] sm:gap-5">
-              {active.length === 0 && <div className="h-[180px]" aria-hidden />}
-              {active.map((item) => (
-                <IncenseStick
-                  key={item.id}
-                  incense={item}
-                  fresh={freshIds.has(item.id)}
-                  selected={item.id === shownId}
-                  onSelect={selectStick}
-                  onHover={setHoverId}
-                />
-              ))}
-              <div className="pointer-events-none absolute inset-x-3 bottom-0 z-20 h-4 rounded-full border-2 border-[#c9a24a] bg-neutral-900" aria-hidden>
-                <span className="absolute inset-x-5 top-[3px] h-px bg-[#c9a24a]" />
-              </div>
-            </div>
+          <div className="mt-2">
+            <IncenseTable items={active} now={now} freshIds={freshIds} shownId={shownId} onSelect={selectStick} onHover={setHoverId} />
           </div>
         )}
 
@@ -770,7 +618,7 @@ export function IncenseView() {
       {toast && (
         <div
           role={toast.kind === "error" ? "alert" : "status"}
-          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full border-2 border-[#c9a24a] px-5 py-3 text-center text-sm shadow-[3px_3px_0_#171717] ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
+          className={`toast-in fixed bottom-6 left-1/2 z-40 w-[min(92%,24rem)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-sm shadow-xl ${toast.kind === "error" ? "bg-red-600 text-white" : "bg-neutral-900 text-white"}`}
         >
           {toast.text}
         </div>
