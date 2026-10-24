@@ -64,7 +64,7 @@ function encode(frames: ImageData[], profile: (typeof PROFILES)[number], seconds
     if (fi % Math.max(1, Math.floor(chosen.length / 6))) return;
     const step = Math.max(4, Math.floor(frame.data.length / 1600 / 4) * 4);
     for (let i = 0; i < frame.data.length; i += step) {
-      sample.push(frame.data[i], frame.data[i + 1], frame.data[i + 2], frame.data[i + 3]);
+      sample.push(frame.data[i]!, frame.data[i + 1]!, frame.data[i + 2]!, frame.data[i + 3]!);
     }
   });
   const palette = quantize(new Uint8Array(sample), colors, { format: "rgb565" });
