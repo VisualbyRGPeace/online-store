@@ -73,6 +73,7 @@ export function PromptUtility() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [copied, setCopied] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const state = useQuery(`community-prompts:${page}:${version}`, () => listCommunityPrompts(page));
   const selected = state.status === "success" ? state.data.items.find((item) => item.id === selectedId) ?? null : null;
@@ -125,6 +126,7 @@ export function PromptUtility() {
       setPage(1);
       setVersion((current) => current + 1);
       setNotice("Prompt đã được đăng lên thư viện.");
+      setUploadOpen(false);
     } catch (err) {
       console.error(err);
       setError("Chưa đăng được prompt. Vui lòng thử lại.");
@@ -170,10 +172,23 @@ export function PromptUtility() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Thư viện prompt</h2>
+          {state.status === "success" && <span className="mt-1 block text-sm text-slate-500">{state.data.total} prompt</span>}
+        </div>
+        <button type="button" onClick={() => { setUploadOpen((open) => !open); setError(""); setNotice(""); }} aria-expanded={uploadOpen} className="inline-flex h-10 shrink-0 items-center rounded-xl bg-black px-4 text-sm font-medium text-white transition hover:bg-slate-700">
+          {uploadOpen ? "Đóng tải lên" : "Tải lên prompt"}
+        </button>
+      </div>
+      {uploadOpen && (
       <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-        <div className="mb-5">
-          <h2 className="text-lg font-semibold">Đăng prompt</h2>
-          <p className="mt-1 text-sm text-slate-500">Dùng {"{{tên biến}}"} để tạo ô thay nhanh. Prompt đã đăng không thể chỉnh sửa.</p>
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Tải lên prompt</h2>
+            <p className="mt-1 text-sm text-slate-500">Dùng {"{{tên biến}}"} để tạo ô thay nhanh.</p>
+          </div>
+          <button type="button" onClick={() => setUploadOpen(false)} className="text-sm text-slate-500 underline">Đóng</button>
         </div>
 
         {!authLoading && !user ? (
@@ -211,6 +226,7 @@ export function PromptUtility() {
           </form>
         )}
       </section>
+      )}
 
       {selected && (
         <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-7">
@@ -242,14 +258,10 @@ export function PromptUtility() {
       )}
 
       <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Prompt cộng đồng</h2>
-          {state.status === "success" && <span className="text-sm text-slate-500">{state.data.total} prompt</span>}
-        </div>
         {error && !user && <p role="alert" className="mb-4 text-sm text-red-600">{error}</p>}
         {state.status === "loading" && <div className="h-40 animate-pulse rounded-2xl bg-slate-100" aria-busy="true" />}
         {state.status === "error" && <ErrorState />}
-        {state.status === "success" && state.data.total === 0 && <EmptyState title="Chưa có prompt nào" description="Đăng prompt đầu tiên để chia sẻ với mọi người." />}
+        {state.status === "success" && state.data.total === 0 && <EmptyState title="Chưa có prompt nào" description="Tải lên prompt đầu tiên để chia sẻ với mọi người." />}
         {state.status === "success" && state.data.items.length > 0 && (
           <>
             <div className="grid gap-4 md:grid-cols-2">
