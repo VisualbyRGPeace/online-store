@@ -66,6 +66,14 @@ export function CustomerGifHistory({
                   <p className="mt-3 text-sm text-slate-700">
                     {Number(item.duration_seconds).toFixed(1)} giây · {(item.output_size_bytes / 1024).toFixed(0)} KB · {item.output_quality}
                   </p>
+                  {item.preview_url && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <img src={item.preview_url} alt={item.gif_filename} className="h-20 w-20 rounded-lg border border-slate-200 bg-slate-50 object-contain" />
+                      <a href={item.preview_url} target="_blank" rel="noreferrer" className="text-sm font-medium underline">
+                        Xem / tải GIF
+                      </a>
+                    </div>
+                  )}
                   {item.caption && (
                     <p className="mt-2 break-words text-sm text-slate-600">Chữ: {item.caption}</p>
                   )}
@@ -74,7 +82,7 @@ export function CustomerGifHistory({
             </ol>
           )}
           <p className="mt-4 text-xs text-slate-400">
-            Lịch sử lưu thông tin tạo GIF, không lưu tệp GIF hoặc video gốc.
+            Chỉ lưu 10 GIF mới nhất cho mỗi tài khoản; GIF cũ sẽ tự xóa.
           </p>
         </div>
       </section>
