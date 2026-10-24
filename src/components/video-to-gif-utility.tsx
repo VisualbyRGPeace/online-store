@@ -21,10 +21,16 @@ function seek(video: HTMLVideoElement, time: number) {
   });
 }
 
-async function makeFilmstrip(video: HTMLVideoElement, duration: number) {
-  if (video.readyState < 2) {
-    await new Promise<void>(resolve => video.addEventListener("loadeddata", () => resolve(), { once: true }));
-  }
+async function makeFilmstrip(src: string, duration: number) {
+  const video = document.createElement("video");
+  video.muted = true;
+  video.preload = "auto";
+  const loaded = new Promise<void>((resolve, reject) => {
+    video.addEventListener("loadeddata", () => resolve(), { once: true });
+    video.addEventListener("error", () => reject(new Error("Không thể tạo khung xem trước.")), { once: true });
+  });
+  video.src = src;
+  await loaded;
   const count = 14;
   const thumbWidth = 64;
   const thumbHeight = 54;
@@ -36,10 +42,12 @@ async function makeFilmstrip(video: HTMLVideoElement, duration: number) {
     await seek(video, Math.min(Math.max(0, duration - 0.05), duration * (i / count)));
     ctx.drawImage(video, i * thumbWidth, 0, thumbWidth, thumbHeight);
   }
-  await seek(video, 0);
-  return canvas.toDataURL("image/jpeg", 0.72);
+  const result = canvas.toDataURL("image/jpeg", 0.72);
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+  return result;
 }
-
 function drawCaption(ctx: CanvasRenderingContext2D, text: string, size: number) {
   if (!text.trim()) return;
   ctx.save();
