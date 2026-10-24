@@ -29,7 +29,7 @@ type Incense = BurningIncense & {
 type ActionKind = "bless" | "extinguish" | "relight";
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 const SUGGESTIONS = ["Bình an cho gia đình", "Sức khỏe dồi dào", "Công việc thuận lợi", "Tâm luôn an tĩnh"];
-const WELCOME = "Hãy thắp một nén nhang và gửi lời nguyện của bạn.";
+const WELCOME = "Gửi lời nguyện của bạn.";
 
 const buttonDark =
   "inline-flex items-center justify-center rounded-full bg-black px-7 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
@@ -125,7 +125,7 @@ function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect,
           tabIndex={0}
           role="button"
           aria-pressed={selected}
-          aria-label={`Nhang do ${nfc(incense.donor_name)} cúng dường${out ? `, đã bị ${nfc(incense.extinguished_by_name ?? "một người")} dập tắt` : ""}. Khẩn cầu: ${nfc(incense.message_text)}`}
+          aria-label={`Lời cúng dường của ${nfc(incense.donor_name)}${out ? `, đã được dập tắt bởi ${nfc(incense.extinguished_by_name ?? "một người")}` : ""}. Khẩn cầu: ${nfc(incense.message_text)}`}
           onClick={() => onSelect(incense.id)}
           onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover(incense.id); }}
           onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover(null); }}
@@ -158,8 +158,8 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
   const viewBox = n === 0 ? `0 330 ${vbW} 390` : `0 -190 ${vbW} 890`;
 
   return (
-    <div className="overflow-x-auto" aria-label={`${n} nén nhang`}>
-      <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: `max(560px, min(100%, ${displayW}px))` }} role="group" aria-label="Bàn cúng đen viền vàng với các cây nhang đang cháy">
+    <div className="overflow-x-auto" aria-label={`${n} lời cúng dường`}>
+      <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: `max(560px, min(100%, ${displayW}px))` }} role="group" aria-label="Bàn cúng dường">
         <defs>
           <linearGradient id="incLacquer" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#3b3b41" /><stop offset=".18" stopColor="#1b1b1e" /><stop offset=".7" stopColor="#0a0a0b" /><stop offset="1" stopColor="#000" />
@@ -264,7 +264,7 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
   if (!incense) {
     return (
       <div className="flex min-h-[132px] items-center justify-center px-6 text-center text-sm text-neutral-400">
-        Chạm vào một nén nhang để đọc lời khẩn cầu.
+        Chọn một lời nguyện để xem chi tiết.
       </div>
     );
   }
@@ -282,14 +282,13 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
       {out ? (
         <>
           <p className="mt-3 text-sm text-neutral-600">
-            Nhang đã bị dập tắt bởi <span className="font-semibold text-neutral-900">{nfc(incense.extinguished_by_name ?? "một người")}</span>
+            Đã được dập tắt bởi <span className="font-semibold text-neutral-900">{nfc(incense.extinguished_by_name ?? "một người")}</span>
           </p>
           {incense.is_mine ? (
             <button type="button" disabled={locked} onClick={() => onRelight(incense)} className={`mt-3 ${dark}`}>
-              {busyKind === "relight" ? "Đang thắp lại…" : "Thắp lại nhang"}
+              {busyKind === "relight" ? "Đang thắp lại…" : "Thắp lại"}
             </button>
           ) : (
-            <p className="mt-1.5 text-xs text-neutral-400">Chỉ người thắp nhang mới có thể thắp lại.</p>
           )}
         </>
       ) : (
@@ -310,7 +309,7 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
               )}
               {canExtinguish && !incense.is_mine && (
                 <button type="button" disabled={locked} onClick={() => onExtinguish(incense)} className={outline}>
-                  {busyKind === "extinguish" ? "Đang dập…" : "Dập nhang"}
+                  {busyKind === "extinguish" ? "Đang dập…" : "Dập tắt"}
                 </button>
               )}
             </div>
@@ -500,9 +499,9 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
         <button type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
           ×
         </button>
-        <h2 id="light-title" className="text-xl font-semibold tracking-wide">Thắp một nén nhang</h2>
+        <h2 id="light-title" className="text-xl font-semibold tracking-wide">Cúng dường</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Người cúng: <span className="font-medium text-neutral-900">{donorName}</span> · cháy trong 4 giờ
+          Người cúng: <span className="font-medium text-neutral-900">{donorName}</span>
         </p>
 
         <label htmlFor="prayer" className="mt-5 block text-sm font-medium text-neutral-700">Lời khẩn cầu</label>
@@ -532,7 +531,7 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
         {error && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
         <button type="submit" disabled={busy || trimmed.length < 2} className={`${buttonDark} mt-5 w-full`}>
-          {busy ? "Đang thắp…" : "Thắp nhang"}
+          {busy ? "Đang gửi…" : "Cúng dường"}
         </button>
       </form>
     </div>,
@@ -670,17 +669,17 @@ export function IncenseView() {
 
   function giveBlessing(offeringId: string) {
     if (!canBless) return;
-    void runAction(offeringId, "bless", () => blessIncense(offeringId), "Đã ban phước cho nén nhang này.", "Chưa ban phước được. Vui lòng thử lại sau.");
+    void runAction(offeringId, "bless", () => blessIncense(offeringId), "Đã ban phước.", "Chưa ban phước được. Vui lòng thử lại sau.");
   }
 
   function putOut(item: Incense) {
     if (!user || item.is_mine) return;
-    void runAction(item.id, "extinguish", () => extinguishIncense(item.id), `Đã dập nén nhang của ${nfc(item.donor_name)}.`, "Chưa dập được nhang. Vui lòng thử lại sau.");
+    void runAction(item.id, "extinguish", () => extinguishIncense(item.id), `Đã dập tắt lời cúng dường của ${nfc(item.donor_name)}.`, "Chưa dập tắt được. Vui lòng thử lại.");
   }
 
   function relight(item: Incense) {
     if (!item.is_mine) return;
-    void runAction(item.id, "relight", () => relightIncense(item.id), "Đã thắp lại nén nhang.", "Chưa thắp lại được. Vui lòng thử lại sau.");
+    void runAction(item.id, "relight", () => relightIncense(item.id), "Đã thắp lại.", "Chưa thắp lại được. Vui lòng thử lại sau.");
   }
 
   async function lightOne(prayer: string): Promise<boolean> {
@@ -700,7 +699,7 @@ export function IncenseView() {
       }
       setSelectedId(offeringId);
       setDialogOpen(false);
-      setToast({ kind: "success", text: "Nén nhang đã được thắp." });
+      setToast({ kind: "success", text: "Đã cúng dường." });
       return true;
     } catch (err) {
       const message = (err as { message?: string } | null)?.message ?? "";
@@ -738,7 +737,7 @@ export function IncenseView() {
     if (acceptingIncense === false) return <p role="status" className={note}>Hiện đang tạm ngưng nhận cúng dường.</p>;
     return (
       <button type="button" disabled={nameLoading || !donorName} onClick={() => { setDialogError(null); setDialogOpen(true); }} className={buttonDark}>
-        Thắp nhang cúng dường
+        Cúng dường
       </button>
     );
   })();
@@ -750,7 +749,7 @@ export function IncenseView() {
         <header className="sr-only">
           <h1>Cúng dường</h1>
           <p aria-live="polite">
-            {loading ? "Đang tải…" : active.length === 0 ? "Chưa có nén nhang nào đang cháy" : `${litCount} nén nhang đang cháy${active.length > litCount ? ` · ${active.length - litCount} đã tắt` : ""}`}
+            {loading ? "Đang tải…" : active.length === 0 ? "Chưa có lời cúng dường nào" : `${litCount} lời nguyện đang hiển thị${active.length > litCount ? ` · ${active.length - litCount} đã dập tắt` : ""}`}
           </p>
         </header>
 
@@ -792,7 +791,7 @@ export function IncenseView() {
           {!loading &&
             (active.length === 0 ? (
               <div className="flex min-h-[132px] items-center justify-center px-6 text-center text-sm text-neutral-400">
-                Hãy là người thắp nén nhang đầu tiên.
+                Hãy gửi lời cúng dường đầu tiên.
               </div>
             ) : (
               <Plaque key={shown?.id ?? "none"} incense={shown} now={now} canBless={canBless} canExtinguish={Boolean(user)} locked={actionBusy !== null} busyKind={actionBusy && actionBusy.id === shown?.id ? actionBusy.kind : null} onBless={giveBlessing} onExtinguish={putOut} onRelight={relight} />
@@ -805,7 +804,6 @@ export function IncenseView() {
 
         <div className="mt-6 flex flex-col items-center gap-2">
           {cta}
-          <p className="text-xs text-neutral-400">Mỗi nén nhang cháy trong 4 giờ.</p>
         </div>
       </section>
 
