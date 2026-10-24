@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 
-type CropBox = { x: number; y: number; size: number };\n\nconst LIMIT = 1_000_000;
+type CropBox = { x: number; y: number; size: number };
+
+const LIMIT = 1_000_000;
 const PROFILES = [
   [160, 8, 128], [144, 7, 112], [128, 6, 96], [112, 5, 80],
   [96, 4, 64], [80, 3, 48], [64, 2, 32], [48, 1, 16], [32, 1, 8],
