@@ -91,4 +91,14 @@ create policy prompt_illustrations_admin_delete on storage.objects
   for delete to authenticated
   using (bucket_id = 'prompt-illustrations' and (select public.is_admin()));
 
+create policy prompt_illustrations_owner_delete_orphan on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'prompt-illustrations'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+    and not exists (
+      select 1 from public.community_prompts p where p.image_path = name
+    )
+  );
+
 commit;
