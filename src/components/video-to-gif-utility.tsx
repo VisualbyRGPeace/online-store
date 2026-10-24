@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import TimelineTrimmer from "./timeline-trimmer";
+import { useAuth } from "@/hooks/use-auth";
+import { recordGifGeneration } from "@/services/gif-history-service";
 
 type CropBox = { x: number; y: number; size: number };
 type CaptionPosition = { x: number; y: number };
@@ -129,6 +131,7 @@ export function VideoToGifUtility() {
   const [source, setSource] = useState("");
   const [gif, setGif] = useState("");
   const [name, setName] = useState("video");
+  const [sourceName, setSourceName] = useState("");
   const [dimensions, setDimensions] = useState<[number, number] | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [cropBox, setCropBox] = useState<CropBox>({ x: 0.15, y: 0.15, size: 0.7 });
@@ -142,6 +145,8 @@ export function VideoToGifUtility() {
   const [quality, setQuality] = useState("");
   const [busy, setBusy] = useState(false);
   const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [historyWarning, setHistoryWarning] = useState("");
+  const { user, loading: authLoading } = useAuth();
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const maxSeconds = Math.max(0.1, Math.min(6, videoDuration || 6));
@@ -175,7 +180,8 @@ export function VideoToGifUtility() {
     if (!file) return;
     if (!file.type.startsWith("video/")) { setError("Chọn tệp video hợp lệ."); return; }
     if (file.size > 100 * 1024 * 1024) { setError("Video tối đa 100 MB."); return; }
-    setError(""); setGif(""); setDimensions(null);
+    setError(""); setHistoryWarning(""); setGif(""); setDimensions(null);
+    setSourceName(file.name);
     setName(file.name.replace(/\.[^.]+$/, "") || "video");
     setSource(URL.createObjectURL(file));
   }
@@ -287,9 +293,10 @@ export function VideoToGifUtility() {
   }
 
   async function createGif() {
+    if (authLoading) return;
     const video = videoRef.current;
     if (!video || !dimensions) return;
-    setBusy(true); setError(""); setStatus("Đọc video…"); setGif("");
+    setBusy(true); setError(""); setHistoryWarning(""); setStatus("Đọc video…"); setGif("");
     const previousTime = video.currentTime;
     const [width, height] = dimensions;
     const side = Math.min(width, height) * cropBox.size;
@@ -311,6 +318,7 @@ export function VideoToGifUtility() {
         setStatus(`Đọc khung hình ${i + 1}/${total}…`);
       }
       let result: Blob | undefined;
+      let resultQuality = "";
       for (let i = 0; i < PROFILES.length; i++) {
         setStatus(`Tối ưu dung lượng ${i + 1}/${PROFILES.length}…`);
         await new Promise<void>(resolve => setTimeout(resolve, 0));
@@ -318,14 +326,32 @@ export function VideoToGifUtility() {
         const candidate = encode(frames, profile, length);
         if (candidate.size <= LIMIT) {
           result = candidate;
-          setQuality(`${profile[0]}px · ${profile[1]} khung/giây`);
+          resultQuality = `${profile[0]}px · ${profile[1]} khung/giây`;
           break;
         }
       }
       if (!result) throw new Error("Video vẫn quá nặng. Hãy chọn đoạn ngắn hơn.");
       setBytes(result.size);
+      setQuality(resultQuality);
       setGif(URL.createObjectURL(result));
       setStatus("");
+      if (user) {
+        try {
+          await recordGifGeneration(user.id, {
+            source_filename: sourceName || name,
+            gif_filename: `${name}.gif`,
+            duration_seconds: length,
+            output_size_bytes: result.size,
+            output_quality: resultQuality,
+            caption,
+          }, result);
+        } catch (historyError) {
+          console.error(historyError);
+          setHistoryWarning("GIF đã tạo, nhưng chưa lưu được lịch sử. Hãy kiểm tra migration GIF trong Supabase.");
+        }
+      } else {
+        setHistoryWarning("Đăng nhập để lưu lịch sử tạo GIF cho quản trị viên.");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thể tạo GIF từ video này.");
       setStatus("");
@@ -447,8 +473,9 @@ export function VideoToGifUtility() {
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button type="button" onClick={togglePreview} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">{previewPlaying ? "Tạm dừng" : "▶ Xem trước"}</button>
-                <button type="button" onClick={createGif} disabled={busy} className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60">{busy ? "Đang tạo GIF…" : "Tạo GIF"}</button>
+                <button type="button" onClick={createGif} disabled={busy || authLoading} className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60">{authLoading ? "Đang tải…" : busy ? "Đang tạo GIF…" : "Tạo GIF"}</button>
                 {status && <span className="text-sm text-slate-500">{status}</span>}
+                {historyWarning && <span role="status" className="text-sm text-slate-500">{historyWarning}</span>}
               </div>
             </div>}
           </>}
