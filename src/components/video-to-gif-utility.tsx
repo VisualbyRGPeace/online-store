@@ -241,9 +241,9 @@ export function VideoToGifUtility() {
     setBusy(true); setError(""); setStatus("Đọc video…"); setGif("");
     const previousTime = video.currentTime;
     const [width, height] = dimensions;
-    const side = Math.min(width, height);
-    const sx = width > side ? (width - side) * crop / 100 : 0;
-    const sy = height > side ? (height - side) * crop / 100 : 0;
+    const side = Math.min(width, height) * cropBox.size;
+    const sx = cropBox.x * width;
+    const sy = cropBox.y * height;
     const length = Math.min(6, seconds, Math.max(0.2, videoDuration - start));
     const total = Math.max(2, Math.ceil(length * 8));
     try {
