@@ -29,6 +29,25 @@ function fillPrompt(text: string, values: Record<string, string>): string {
   return text.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, name: string) => values[name.trim()]?.trim() || match);
 }
 
+function PromptImagePreview({ src, alt, className }: { src: string; alt: string; className: string }) {
+  return (
+    <div className="group/prompt-image relative z-0 shrink-0 hover:z-30 focus-within:z-30">
+      <img
+        src={src}
+        alt={alt}
+        tabIndex={0}
+        className={`${className} cursor-zoom-in transition-transform duration-200 group-hover/prompt-image:scale-[1.03] focus:scale-[1.03]`}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-full z-50 mt-3 hidden w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl group-hover/prompt-image:block group-focus-within/prompt-image:block sm:left-full sm:top-1/2 sm:ml-3 sm:mt-0 sm:translate-x-0 sm:-translate-y-1/2"
+      >
+        <img src={src} alt="" className="max-h-[70vh] w-full rounded-xl bg-slate-50 object-contain" />
+      </div>
+    </div>
+  );
+}
+
 async function compressIllustration(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Chọn một tệp hình ảnh.");
   if (file.size > 15 * 1024 * 1024) throw new Error("Ảnh tối đa 15 MB.");
@@ -231,7 +250,7 @@ export function PromptUtility() {
       {selected && (
         <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-7">
           <div className="mb-4 flex items-start gap-3">
-            {selected.image_path && <img src={communityPromptImageUrl(selected.image_path)} alt="" className="h-28 w-28 shrink-0 rounded-xl object-cover transition-transform duration-200 hover:z-10 hover:scale-105" />}
+            {selected.image_path && <PromptImagePreview src={communityPromptImageUrl(selected.image_path)} alt={`Xem chi tiết ảnh minh họa: ${selected.title}`} className="h-28 w-28 rounded-xl object-cover" />}
             <div className="min-w-0 flex-1">
               <h2 className="font-semibold">{selected.title}</h2>
               <p className="mt-1 text-xs text-slate-500">by Nghệ nhân {selected.creator_name}</p>
@@ -269,7 +288,7 @@ export function PromptUtility() {
                 <article key={prompt.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-start gap-3">
                     {prompt.image_path ? (
-                      <img src={communityPromptImageUrl(prompt.image_path)} alt="" className="h-28 w-28 shrink-0 rounded-xl bg-slate-100 object-cover transition-transform duration-200 hover:z-10 hover:scale-105" />
+                      <PromptImagePreview src={communityPromptImageUrl(prompt.image_path)} alt={`Xem chi tiết ảnh minh họa: ${prompt.title}`} className="h-28 w-28 rounded-xl bg-slate-100 object-cover" />
                     ) : (
                       <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500">Aa</span>
                     )}
