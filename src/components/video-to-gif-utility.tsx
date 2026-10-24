@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 
-const LIMIT = 1_000_000;
+type CropBox = { x: number; y: number; size: number };\n\nconst LIMIT = 1_000_000;
 const PROFILES = [
   [160, 8, 128], [144, 7, 112], [128, 6, 96], [112, 5, 80],
   [96, 4, 64], [80, 3, 48], [64, 2, 32], [48, 1, 16], [32, 1, 8],
@@ -21,6 +21,33 @@ function seek(video: HTMLVideoElement, time: number) {
   });
 }
 
+async function makeFilmstrip(src: string, duration: number) {
+  const video = document.createElement("video");
+  video.muted = true;
+  video.preload = "auto";
+  const loaded = new Promise<void>((resolve, reject) => {
+    video.addEventListener("loadeddata", () => resolve(), { once: true });
+    video.addEventListener("error", () => reject(new Error("Không thể tạo khung xem trước.")), { once: true });
+  });
+  video.src = src;
+  await loaded;
+  const count = 14;
+  const thumbWidth = 64;
+  const thumbHeight = 54;
+  const canvas = document.createElement("canvas");
+  canvas.width = count * thumbWidth;
+  canvas.height = thumbHeight;
+  const ctx = canvas.getContext("2d")!;
+  for (let i = 0; i < count; i++) {
+    await seek(video, Math.min(Math.max(0, duration - 0.05), duration * (i / count)));
+    ctx.drawImage(video, i * thumbWidth, 0, thumbWidth, thumbHeight);
+  }
+  const result = canvas.toDataURL("image/jpeg", 0.72);
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+  return result;
+}
 function drawCaption(ctx: CanvasRenderingContext2D, text: string, size: number) {
   if (!text.trim()) return;
   ctx.save();
@@ -88,13 +115,13 @@ function encode(frames: ImageData[], profile: (typeof PROFILES)[number], seconds
 }
 
 export function VideoToGifUtility() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);\n  const previewRef = useRef<HTMLDivElement>(null);\n  const timelineRef = useRef<HTMLDivElement>(null);\n  const timelineDrag = useRef<{ mode: "start" | "end" | "move"; x: number; start: number } | null>(null);\n  const cropDrag = useRef<{ mode: "move" | "resize"; edge: "nw" | "ne" | "sw" | "se"; x: number; y: number; box: CropBox } | null>(null);
   const [source, setSource] = useState("");
   const [gif, setGif] = useState("");
   const [name, setName] = useState("video");
   const [dimensions, setDimensions] = useState<[number, number] | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
-  const [crop, setCrop] = useState(50);
+  const [cropBox, setCropBox] = useState<CropBox>({ x: 0.15, y: 0.15, size: 0.7 });\n  const [filmstrip, setFilmstrip] = useState("");
   const [start, setStart] = useState(0);
   const [seconds, setSeconds] = useState(3);
   const [caption, setCaption] = useState("");
@@ -123,6 +150,82 @@ export function VideoToGifUtility() {
     setVideoDuration(video.duration);
     setSeconds(Math.min(3, 6, video.duration));
     setStart(0);
+  }
+
+  function formatTime(value: number) {
+    const minutes = Math.floor(value / 60).toString().padStart(2, "0");
+    const seconds = (value % 60).toFixed(1).padStart(4, "0");
+    return `${minutes}:${seconds}`;
+  }
+
+  function beginTimeline(event: PointerEvent<HTMLDivElement | HTMLButtonElement>, mode: "start" | "end" | "move") {
+    timelineRef.current?.setPointerCapture(event.pointerId);
+    timelineDrag.current = { mode, x: event.clientX, start };
+  }
+
+  function moveTimeline(event: PointerEvent<HTMLDivElement>) {
+    const drag = timelineDrag.current;
+    const track = timelineRef.current;
+    if (!drag || !track || !videoDuration) return;
+    const rect = track.getBoundingClientRect();
+    const delta = (event.clientX - drag.x) / rect.width * videoDuration;
+    if (drag.mode === "move") {
+      setStart(Math.min(Math.max(0, drag.start + delta), Math.max(0, videoDuration - seconds)));
+    } else if (drag.mode === "start") {
+      const nextStart = Math.max(0, Math.min(videoDuration - 0.5, (event.clientX - rect.left) / rect.width * videoDuration));
+      setStart(Math.min(nextStart, Math.max(0, videoDuration - seconds)));
+    } else {
+      const end = (event.clientX - rect.left) / rect.width * videoDuration;
+      setSeconds(Math.max(0.5, Math.min(6, videoDuration - start, end - start)));
+    }
+  }
+
+  function endTimeline() {
+    timelineDrag.current = null;
+  }
+
+  function beginCrop(event: PointerEvent<HTMLDivElement | HTMLSpanElement>, mode: "move" | "resize", edge: "nw" | "ne" | "sw" | "se" = "se") {
+    event.preventDefault();
+    previewRef.current?.setPointerCapture(event.pointerId);
+    cropDrag.current = { mode, edge, x: event.clientX, y: event.clientY, box: cropBox };
+  }
+
+  function moveCrop(event: PointerEvent<HTMLDivElement>) {
+    const drag = cropDrag.current;
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (!drag || !rect || !dimensions) return;
+    const [width, height] = dimensions;
+    const short = Math.min(width, height);
+    if (drag.mode === "move") {
+      const side = short * drag.box.size;
+      const left = drag.box.x * width + (event.clientX - drag.x) / rect.width * width;
+      const top = drag.box.y * height + (event.clientY - drag.y) / rect.height * height;
+      setCropBox({
+        ...drag.box,
+        x: Math.max(0, Math.min(width - side, left)) / width,
+        y: Math.max(0, Math.min(height - side, top)) / height,
+      });
+      return;
+    }
+    const west = drag.edge.includes("w");
+    const north = drag.edge.includes("n");
+    const left = drag.box.x * width;
+    const top = drag.box.y * height;
+    const oldSide = short * drag.box.size;
+    const anchorX = west ? left + oldSide : left;
+    const anchorY = north ? top + oldSide : top;
+    const dx = (event.clientX - drag.x) / rect.width * width;
+    const dy = (event.clientY - drag.y) / rect.height * height;
+    const sideDelta = ((west ? -dx : dx) + (north ? -dy : dy)) / 2;
+    const maxSide = Math.min(short, west ? anchorX : width - anchorX, north ? anchorY : height - anchorY);
+    const nextSide = Math.max(short * 0.2, Math.min(maxSide, oldSide + sideDelta));
+    const nextLeft = west ? anchorX - nextSide : anchorX;
+    const nextTop = north ? anchorY - nextSide : anchorY;
+    setCropBox({ x: nextLeft / width, y: nextTop / height, size: nextSide / short });
+  }
+
+  function endCrop() {
+    cropDrag.current = null;
   }
 
   async function createGif() {
@@ -193,21 +296,73 @@ export function VideoToGifUtility() {
           </label>
           {source && <>
             <video ref={videoRef} src={source} onLoadedMetadata={onMetadata} className="hidden" playsInline />
-            <div className="relative mx-auto aspect-square w-full max-w-[420px] overflow-hidden rounded-2xl bg-slate-100">
-              <video src={source} muted playsInline loop autoPlay className="h-full w-full object-cover"
-                style={{ objectPosition: horizontal ? `${crop}% center` : `center ${crop}%` }} />
-              {caption && <div className="pointer-events-none absolute inset-x-3 bottom-4 text-center text-lg font-bold text-white [text-shadow:0_2px_5px_#000,1px_1px_3px_#000]">{caption}</div>}
+            <div
+              ref={previewRef}
+              className="relative mx-auto w-full max-w-[560px] touch-none overflow-hidden rounded-2xl bg-slate-950"
+              style={{ aspectRatio: dimensions ? `${dimensions[0]} / ${dimensions[1]}` : "16 / 9" }}
+              onPointerMove={moveCrop}
+              onPointerUp={endCrop}
+              onPointerCancel={endCrop}
+            >
+              <video src={source} muted playsInline loop autoPlay className="absolute inset-0 h-full w-full object-fill" />
+              {dimensions && (() => {
+                const side = Math.min(dimensions[0], dimensions[1]) * cropBox.size;
+                const handles = (["nw", "ne", "sw", "se"] as const);
+                return (
+                  <div
+                    className="absolute touch-none border-2 border-white bg-[linear-gradient(to_right,transparent_33%,rgba(255,255,255,.35)_33%,rgba(255,255,255,.35)_34%,transparent_34%,transparent_66%,rgba(255,255,255,.35)_66%,rgba(255,255,255,.35)_67%,transparent_67%),linear-gradient(to_bottom,transparent_33%,rgba(255,255,255,.35)_33%,rgba(255,255,255,.35)_34%,transparent_34%,transparent_66%,rgba(255,255,255,.35)_66%,rgba(255,255,255,.35)_67%,transparent_67%)] shadow-[0_0_0_100vmax_rgba(2,6,23,0.4)]"
+                    style={{ left: `${cropBox.x * 100}%`, top: `${cropBox.y * 100}%`, width: `${side / dimensions[0] * 100}%`, height: `${side / dimensions[1] * 100}%` }}
+                    onPointerDown={event => beginCrop(event, "move")}
+                  >
+                    {handles.map(edge => (
+                      <span
+                        key={edge}
+                        data-edge={edge}
+                        onPointerDown={event => { event.stopPropagation(); beginCrop(event, "resize", edge); }}
+                        className={`absolute h-3 w-3 rounded-sm border border-slate-400 bg-white shadow ${edge.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${edge.includes("w") ? "-left-1.5" : "-right-1.5"} ${edge === "nw" ? "cursor-nwse-resize" : edge === "se" ? "cursor-nwse-resize" : "cursor-nesw-resize"}`}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
+              {caption && <div className="pointer-events-none absolute inset-x-3 bottom-4 z-10 text-center text-lg font-bold text-white [text-shadow:0_2px_5px_#000,1px_1px_3px_#000]">{caption}</div>}
             </div>
             {dimensions && <div className="mt-6 space-y-5">
-              <label className="block text-sm font-medium text-slate-800">Vị trí cắt vuông
-                <input className="mt-2 w-full accent-black" type="range" min="0" max="100" value={crop} onChange={e => setCrop(Number(e.target.value))} />
-              </label>
-              <label className="block text-sm font-medium text-slate-800">Độ dài · {seconds.toFixed(1)} giây
-                <input className="mt-2 w-full accent-black" type="range" min="0.5" max={maxLength} step="0.5" value={Math.min(seconds, maxLength)} onChange={e => { const value = Number(e.target.value); setSeconds(value); setStart(s => Math.min(s, Math.max(0, videoDuration - value))); }} />
-              </label>
-              <label className="block text-sm font-medium text-slate-800">Bắt đầu tại · {start.toFixed(1)} giây
-                <input className="mt-2 w-full accent-black" type="range" min="0" max={maxStart} step="0.1" value={Math.min(start, maxStart)} onChange={e => setStart(Number(e.target.value))} />
-              </label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm font-medium text-slate-800">
+                  <span>Đoạn video</span><span className="text-xs text-slate-500">{seconds.toFixed(1)} giây</span>
+                </div>
+                <div
+                  ref={timelineRef}
+                  className="relative h-[76px] select-none touch-none overflow-hidden rounded-xl bg-slate-900"
+                  onPointerMove={moveTimeline}
+                  onPointerUp={endTimeline}
+                  onPointerCancel={endTimeline}
+                >
+                  <div className="absolute inset-x-0 top-0 h-[54px] bg-slate-800 bg-repeat-x" style={{ backgroundImage: filmstrip ? `url(${filmstrip})` : undefined, backgroundSize: "auto 54px" }} />
+                  <div className="absolute inset-y-0 left-0 bg-slate-950/65" style={{ width: `${videoDuration ? start / videoDuration * 100 : 0}%` }} />
+                  <div className="absolute inset-y-0 right-0 bg-slate-950/65" style={{ width: `${videoDuration ? Math.max(0, (videoDuration - start - seconds) / videoDuration * 100) : 0}%` }} />
+                  <div
+                    className="absolute inset-y-0 border-x-2 border-cyan-300 bg-cyan-300/10 cursor-grab active:cursor-grabbing"
+                    style={{ left: `${videoDuration ? start / videoDuration * 100 : 0}%`, width: `${videoDuration ? seconds / videoDuration * 100 : 100}%` }}
+                    onPointerDown={event => beginTimeline(event, "move")}
+                  />
+                  {(["start", "end"] as const).map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-label={mode === "start" ? "Điểm bắt đầu đoạn video" : "Điểm kết thúc đoạn video"}
+                      onPointerDown={event => { event.preventDefault(); beginTimeline(event, mode); }}
+                      className="absolute inset-y-0 z-10 w-3 -translate-x-1/2 cursor-ew-resize rounded bg-cyan-400 shadow"
+                      style={{ left: `${videoDuration ? (start + (mode === "end" ? seconds : 0)) / videoDuration * 100 : 0}%` }}
+                    />
+                  ))}
+                  <div className="absolute inset-x-2 bottom-1 flex justify-between text-[10px] text-cyan-200">
+                    <span>{formatTime(start)}</span><span>{formatTime(start + seconds)}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">Kéo hai tay nắm để chọn đoạn; kéo vùng sáng để di chuyển.</p>
+              </div>
               <label className="block text-sm font-medium text-slate-800">Chữ trên GIF
                 <input className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 font-normal outline-none focus:border-slate-400" value={caption} maxLength={80} onChange={e => setCaption(e.target.value)} placeholder="Nhập chữ muốn chèn…" />
               </label>
