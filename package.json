@@ -19,7 +19,8 @@
     "react": "latest",
     "react-dom": "latest",
     "zod": "latest",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "gifenc": "^1.0.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",
