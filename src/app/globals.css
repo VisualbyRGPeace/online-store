@@ -60,107 +60,73 @@ body {
   mask-image: radial-gradient(ellipse at 70% 40%, #000 25%, transparent 75%);
 }
 
-/* ============================================================================================
-   Cúng dường: flat 2D cartoon style. Solid colours and one dark outline colour (#231c18);
-   no gradients, no blur, no soft shadows. The only "shadow" is the hard offset under buttons.
-   ============================================================================================ */
-@keyframes spin { to { transform: rotate(360deg); } }
+/* Cúng dường: SVG incense table. */
+.inc-hit { cursor: pointer; fill: transparent; outline: none; }
+.inc-hit:focus-visible { stroke: #c9a15a; stroke-width: 2; stroke-dasharray: 5 4; }
+.inc-halo { transform-box: fill-box; transform-origin: center; transition: transform .4s ease; }
+.inc-sel .inc-halo { transform: scale(1.6); }
 
-/* The monk floats gently; his ground shadow shrinks as he rises. */
-@keyframes monk-bob {
+.inc-flick { animation: incFlick 2.4s linear infinite; }
+.inc-flick-h { animation: incFlickH 2.9s linear infinite; }
+@keyframes incFlick { 0% { opacity: 1; } 5% { opacity: .35; } 9% { opacity: .95; } 17% { opacity: .6; } 22% { opacity: 1; } 34% { opacity: .4; } 38% { opacity: .85; } 52% { opacity: .5; } 56% { opacity: 1; } 71% { opacity: .7; } 76% { opacity: .3; } 81% { opacity: 1; } 92% { opacity: .6; } 100% { opacity: 1; } }
+@keyframes incFlickH { 0% { opacity: .9; } 8% { opacity: .4; } 15% { opacity: .8; } 30% { opacity: .35; } 37% { opacity: 1; } 50% { opacity: .5; } 64% { opacity: .9; } 72% { opacity: .3; } 85% { opacity: .75; } 100% { opacity: .9; } }
+
+.inc-wisp {
+  fill: none;
+  stroke: url(#incSmoke);
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  opacity: 0;
+  animation: incRise 8s ease-out infinite;
+}
+@keyframes incRise {
+  0% { opacity: 0; transform: translateY(8px) scale(.7, .5); }
+  18% { opacity: .85; }
+  60% { opacity: .45; }
+  100% { opacity: 0; transform: translateY(-34px) scale(1.35, 1.1) skewX(9deg); }
+}
+
+/* A newly lit stick drops in and its ember ignites. */
+.inc-drop { animation: incDrop 1s cubic-bezier(.2, .7, .2, 1) both; }
+.inc-drop .inc-ember { animation: incIgnite 1.8s ease-out both; }
+@keyframes incDrop { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: none; } }
+@keyframes incIgnite { 0%, 30% { opacity: 0; } 100% { opacity: 1; } }
+
+/* Blessed sticks: gold stars twinkling around the ember. */
+.inc-star { transform-box: fill-box; transform-origin: center; animation: incStar 2.8s ease-in-out infinite; }
+@keyframes incStar { 0%, 100% { opacity: 0; transform: scale(.2); } 50% { opacity: 1; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .inc-wisp, .inc-flick, .inc-flick-h, .inc-star, .inc-drop, .inc-drop .inc-ember { animation: none; }
+  .inc-wisp { opacity: .5; }
+  .inc-star { opacity: .9; transform: none; }
+}
+
+@keyframes buddha-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
-@keyframes monk-shadow {
-  0%, 100% { transform: scaleX(1); }
-  50% { transform: scaleX(.88); }
-}
-.monk-body { animation: monk-bob 4.5s ease-in-out infinite; }
-.monk-shadow { transform-box: fill-box; transform-origin: center; animation: monk-shadow 4.5s ease-in-out infinite; }
-.halo-ring { transform-box: fill-box; transform-origin: center; animation: spin 28s linear infinite; }
-
-/* Incense table (svg). */
-.inc-hit { cursor: pointer; fill: transparent; outline: none; }
-.inc-hit:focus-visible { stroke: #231c18; stroke-width: 2; stroke-dasharray: 5 4; }
-
-.inc-ember { transform-box: fill-box; transform-origin: center; animation: ember-pulse 1.1s ease-in-out infinite; }
-@keyframes ember-pulse {
-  0%, 100% { transform: scale(.92); fill: #ff6a3d; }
-  50% { transform: scale(1.12); fill: #ff8a3d; }
-}
-.inc-flare { transform-box: fill-box; transform-origin: center; animation: ember-flare 1.4s ease-out both; }
-@keyframes ember-flare {
-  0% { transform: scale(2.6); }
-  100% { transform: scale(1); }
+.buddha-float {
+  animation: buddha-float 5s ease-in-out infinite;
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, .16));
 }
 
-/* Smoke: two wavy lines; their dashes flow upward and the whole wisp sways. It always stays inside the svg. */
-.inc-smoke { transform-box: fill-box; transform-origin: 50% 100%; animation: smoke-sway 3.6s ease-in-out infinite; }
-.inc-smoke path { stroke-dasharray: 36 12; animation: smoke-flow 1.8s linear infinite; }
-.inc-smoke .inc-short { animation-duration: 2.4s; }
-@keyframes smoke-sway {
-  0%, 100% { transform: rotate(-4deg); }
-  50% { transform: rotate(4deg); }
+@keyframes halo-pulse {
+  0%, 100% { opacity: .75; transform: scale(.97); }
+  50% { opacity: 1; transform: scale(1.04); }
 }
-@keyframes smoke-flow { to { stroke-dashoffset: -48; } }
+.halo-pulse { animation: halo-pulse 6s ease-in-out infinite; }
+/* Soft grey aura; fades to transparent well inside its box, so it is never cut off. */
+.stage-glow { background: radial-gradient(circle, rgba(0, 0, 0, .07), rgba(0, 0, 0, .03) 45%, transparent 68%); }
 
-.inc-ring { transform-box: fill-box; transform-origin: center; animation: spin 6s linear infinite; }
-.inc-star { transform-box: fill-box; transform-origin: center; animation: twinkle 1.8s ease-in-out infinite; }
-@keyframes twinkle {
-  0%, 100% { transform: scale(.2) rotate(0deg); }
-  50% { transform: scale(1) rotate(45deg); }
-}
-
-/* A newly lit stick drops in and its tip flares once. */
-.inc-drop { animation: inc-drop 1s cubic-bezier(.2, .8, .2, 1) both; }
-@keyframes inc-drop {
-  from { transform: translateY(-34px); opacity: 0; }
+/* A newly lit stick drops in softly. */
+@keyframes incense-rise {
+  from { transform: translateY(-28px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
+.incense-rise { animation: incense-rise 1s cubic-bezier(.2, .8, .2, 1) both; }
 
-/* Merit box: a coin drops into the slot while the box is hovered / focused. */
-.mb-coin { opacity: 0; }
-.mb-btn:hover .mb-coin, .mb-btn:focus-visible .mb-coin { animation: mb-coin 1.3s ease-in infinite; }
-@keyframes mb-coin {
-  0% { opacity: 0; transform: translateY(0); }
-  15% { opacity: 1; }
-  85% { opacity: 1; transform: translateY(24px); }
-  100% { opacity: 0; transform: translateY(26px); }
-}
-
-/* Cartoon buttons: thick outline and a hard offset underneath that presses flat when clicked. */
-.btn-cartoon, .btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: .4rem;
-  border: 2.5px solid #231c18;
-  border-radius: 9999px;
-  color: #231c18;
-  font-weight: 800;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease, background-color .15s ease;
-}
-.btn-cartoon {
-  background: #f6c23e;
-  padding: .7rem 1.6rem;
-  font-size: .95rem;
-  box-shadow: 0 4px 0 #231c18;
-}
-.btn-ghost {
-  background: #fff;
-  padding: .4rem 1rem;
-  font-size: .75rem;
-  box-shadow: 0 3px 0 #231c18;
-}
-.btn-ghost:hover:not(:disabled) { background: #fde9a8; }
-.btn-cartoon:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 0 #231c18; }
-.btn-cartoon:active:not(:disabled), .btn-ghost:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 #231c18; }
-.btn-cartoon:disabled, .btn-ghost:disabled { opacity: .55; cursor: not-allowed; }
-.btn-cartoon:focus-visible, .btn-ghost:focus-visible { outline: 3px solid #f08a24; outline-offset: 3px; }
-
-/* Gentle entrances. */
 @keyframes fade-up {
   from { transform: translateY(6px); opacity: 0; }
   to { transform: none; opacity: 1; }
@@ -172,6 +138,19 @@ body {
   to { transform: none; opacity: 1; }
 }
 .toast-in { animation: toast-in .3s ease-out both; }
+
+/* Merit box: a coin drops into the slot while the box is hovered / focused. */
+.mb-coin { opacity: 0; }
+.mb-btn:hover .mb-coin, .mb-btn:focus-visible .mb-coin { animation: mbCoin 1.3s ease-in infinite; }
+@keyframes mbCoin {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: 1; }
+  85% { opacity: 1; transform: translateY(26px); }
+  100% { opacity: 0; transform: translateY(28px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-btn:hover .mb-coin, .mb-btn:focus-visible .mb-coin { animation: none; }
+}
 
 @keyframes dialog-fade {
   from { opacity: 0; }
