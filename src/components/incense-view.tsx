@@ -284,11 +284,10 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
           <p className="mt-3 text-sm text-neutral-600">
             Đã được dập tắt bởi <span className="font-semibold text-neutral-900">{nfc(incense.extinguished_by_name ?? "một người")}</span>
           </p>
-          {incense.is_mine ? (
+          {incense.is_mine && (
             <button type="button" disabled={locked} onClick={() => onRelight(incense)} className={`mt-3 ${dark}`}>
               {busyKind === "relight" ? "Đang thắp lại…" : "Thắp lại"}
             </button>
-          ) : (
           )}
         </>
       ) : (
