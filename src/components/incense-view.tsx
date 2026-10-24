@@ -19,6 +19,7 @@ import {
 import { getMeritBoxQr, type MeritBoxQr } from "@/services/merit-box-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
+const RELIGHT_WINDOW_MS = 60 * 60 * 1000;
 
 /** A stick as the page uses it. The extra fields come from the service (see docs/incense-extinguish.md). */
 type Incense = BurningIncense & {
@@ -722,7 +723,11 @@ export function IncenseView() {
     }
   }
 
-  const active = useMemo(() => incense.filter((item) => new Date(item.expires_at).getTime() > now), [incense, now]);
+  const active = useMemo(() => incense.filter((item) => {
+    const notExpired = new Date(item.expires_at).getTime() > now;
+    const relightOpen = !item.extinguished_at || new Date(item.extinguished_at).getTime() + RELIGHT_WINDOW_MS > now;
+    return notExpired && relightOpen;
+  }), [incense, now]);
   const litCount = active.filter((item) => !item.extinguished_at).length;
   const shownId = hoverId ?? selectedId;
   const shown = active.find((item) => item.id === shownId) ?? null;
