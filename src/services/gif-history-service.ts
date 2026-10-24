@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { listCustomers } from "@/services/admin-order-service";
 
 export type GifGenerationInput = {
   source_filename: string;
@@ -73,4 +74,24 @@ export async function listAdminGifGenerationHistory(userId: string): Promise<Adm
       .createSignedUrl(row.storage_path, 60 * 60);
     return { ...row, preview_url: signedError ? null : signed?.signedUrl ?? null };
   }));
+}
+
+
+export type AdminGifHistoryFeedItem = AdminGifHistoryRow & {
+  member_name: string;
+  member_email: string;
+};
+
+export async function listAllAdminGifGenerationHistory(): Promise<AdminGifHistoryFeedItem[]> {
+  const customers = await listCustomers();
+  const perCustomer = await Promise.all(customers.map(async (customer) => {
+    const rows = await listAdminGifGenerationHistory(customer.id);
+    return rows.map((row) => ({
+      ...row,
+      member_name: customer.full_name || customer.email,
+      member_email: customer.email,
+    }));
+  }));
+
+  return perCustomer.flat().sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
