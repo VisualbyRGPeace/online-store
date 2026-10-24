@@ -105,13 +105,13 @@ export default function TimelineTrimmer({
   return (
     <div
       ref={timelineRef}
-      className="relative h-[180px] w-full touch-none select-none"
+      className="relative h-[132px] w-full touch-none select-none"
       onPointerMove={moveTimeline}
       onPointerUp={endTimeline}
       onPointerCancel={endTimeline}
     >
       <div
-        className="absolute inset-x-0 top-9 h-[76px] rounded-[3px] bg-gradient-to-b from-[#ececea] to-[#dddcd9]"
+        className="absolute inset-x-0 top-7 h-[52px] rounded-[3px] bg-gradient-to-b from-[#ececea] to-[#dddcd9]"
         style={{
           backgroundImage: filmstrip ? `url(${filmstrip})` : undefined,
           backgroundSize: "auto 100%",
@@ -135,7 +135,7 @@ export default function TimelineTrimmer({
       />
 
       <div
-        className="absolute top-2 flex h-7 w-14 -translate-x-1/2 cursor-grab flex-col items-center justify-center gap-1 bg-neutral-950 pt-1 active:cursor-grabbing"
+        className="absolute top-1 flex h-6 w-12 -translate-x-1/2 cursor-grab flex-col items-center justify-center gap-1 bg-neutral-950 pt-1 active:cursor-grabbing"
         style={{
           left: `${centerPct}%`,
           clipPath:
@@ -143,7 +143,7 @@ export default function TimelineTrimmer({
         }}
         onPointerDown={(event) => beginTimeline(event, "move")}
       >
-        <span className="h-px w-5 bg-white/90" />
+        <span className="h-px w-4 bg-white/90" />
         <span className="h-px w-5 bg-white/90" />
       </div>
 
@@ -157,18 +157,18 @@ export default function TimelineTrimmer({
             type="button"
             aria-label={mode === "start" ? "Điểm bắt đầu" : "Điểm kết thúc"}
             onPointerDown={(event) => beginTimeline(event, mode)}
-            className="group absolute top-7 z-10 h-[92px] w-9 -translate-x-1/2 cursor-ew-resize touch-none focus-visible:outline-none"
+            className="group absolute top-5 z-10 h-[64px] w-7 -translate-x-1/2 cursor-ew-resize touch-none focus-visible:outline-none"
             style={{ left: `${pct}%` }}
           >
-            <span className="absolute left-1/2 top-0 h-full w-[9px] -translate-x-1/2 rounded-sm bg-neutral-950 shadow-[0_8px_18px_-4px_rgba(0,0,0,0.45)] transition-[width] duration-150 group-hover:w-[11px] group-active:w-[11px]">
-              <span className="absolute left-1/2 top-1/2 h-6 w-px -translate-x-1/2 -translate-y-1/2 bg-white/85" />
+            <span className="absolute left-1/2 top-0 h-full w-[7px] -translate-x-1/2 rounded-sm bg-neutral-950 shadow-[0_8px_18px_-4px_rgba(0,0,0,0.45)] transition-[width] duration-150 group-hover:w-[9px] group-active:w-[9px]">
+              <span className="absolute left-1/2 top-1/2 h-4 w-px -translate-x-1/2 -translate-y-1/2 bg-white/85" />
             </span>
           </button>
         );
       })}
 
       <div
-        className="pointer-events-none absolute top-[130px] -translate-x-1/2 whitespace-nowrap rounded-full border border-neutral-950 bg-white px-[26px] pb-[3px] pt-1 text-[20px] font-medium leading-[1.3] tracking-[0.04em] text-neutral-950 tabular-nums"
+        className="pointer-events-none absolute top-[92px] -translate-x-1/2 whitespace-nowrap rounded-full border border-neutral-950 bg-white px-5 pb-[2px] pt-1 text-base font-medium leading-[1.3] tracking-[0.04em] text-neutral-950 tabular-nums"
         style={{ left: `${clamp(centerPct, 9, 91)}%` }}
       >
         {formatTime(safeSeconds)}
