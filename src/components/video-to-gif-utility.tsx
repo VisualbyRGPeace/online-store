@@ -142,6 +142,7 @@ export function VideoToGifUtility() {
   const [bytes, setBytes] = useState(0);
   const [quality, setQuality] = useState("");
   const [busy, setBusy] = useState(false);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const maxSeconds = Math.max(0.1, Math.min(6, videoDuration || 6));
@@ -149,6 +150,27 @@ export function VideoToGifUtility() {
 
   useEffect(() => () => { if (source) URL.revokeObjectURL(source); }, [source]);
   useEffect(() => () => { if (gif) URL.revokeObjectURL(gif); }, [gif]);
+
+  useEffect(() => {
+    const preview = previewVideoRef.current;
+    if (!preview) return;
+    const stopAtSelectionEnd = () => {
+      if (preview.currentTime >= start + seconds) {
+        preview.pause();
+        setPreviewPlaying(false);
+        preview.currentTime = start;
+      }
+    };
+    const syncPlaybackState = () => setPreviewPlaying(!preview.paused);
+    preview.addEventListener("timeupdate", stopAtSelectionEnd);
+    preview.addEventListener("play", syncPlaybackState);
+    preview.addEventListener("pause", syncPlaybackState);
+    return () => {
+      preview.removeEventListener("timeupdate", stopAtSelectionEnd);
+      preview.removeEventListener("play", syncPlaybackState);
+      preview.removeEventListener("pause", syncPlaybackState);
+    };
+  }, [source, start, seconds]);
 
   function chooseFile(file?: File) {
     if (!file) return;
@@ -174,6 +196,23 @@ export function VideoToGifUtility() {
     return `${minutes}:${seconds}`;
   }
 
+  async function togglePreview() {
+    const preview = previewVideoRef.current;
+    if (!preview) return;
+    if (!preview.paused) {
+      preview.pause();
+      setPreviewPlaying(false);
+      return;
+    }
+    if (preview.currentTime < start || preview.currentTime >= start + seconds) preview.currentTime = start;
+    try {
+      await preview.play();
+      setPreviewPlaying(true);
+    } catch {
+      setError("Trình duyệt không thể phát video xem trước.");
+    }
+  }
+
   function scrubPreview(clientX: number) {
     const track = timelineRef.current;
     const preview = previewVideoRef.current;
@@ -181,6 +220,7 @@ export function VideoToGifUtility() {
     const rect = track.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     preview.pause();
+    setPreviewPlaying(false);
     const target = Math.min(videoDuration - 0.02, ratio * videoDuration);
     if (Math.abs(preview.currentTime - target) > 0.04) preview.currentTime = target;
   }
@@ -354,7 +394,7 @@ export function VideoToGifUtility() {
               onPointerUp={endCrop}
               onPointerCancel={endCrop}
             >
-              <video ref={previewVideoRef} src={source} muted playsInline loop autoPlay className="absolute inset-0 h-full w-full object-fill" />
+              <video ref={previewVideoRef} src={source} muted playsInline className="absolute inset-0 h-full w-full object-fill" />
               {dimensions && (() => {
                 const side = Math.min(dimensions[0], dimensions[1]) * cropBox.size;
                 const handles = (["nw", "ne", "sw", "se"] as const);
@@ -466,6 +506,7 @@ export function VideoToGifUtility() {
                 <p className="text-xs text-slate-500">Kéo chữ trực tiếp trên khung crop để đổi vị trí.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                <button type="button" onClick={togglePreview} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50">{previewPlaying ? "Tạm dừng" : "▶ Xem trước"}</button>
                 <button type="button" onClick={createGif} disabled={busy} className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60">{busy ? "Đang tạo GIF…" : "Tạo GIF"}</button>
                 {status && <span className="text-sm text-slate-500">{status}</span>}
               </div>
