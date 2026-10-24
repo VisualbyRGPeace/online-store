@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Tiện ích" };
 
 const tools = [
   { href: "/utilities/qr/", name: "Tạo mã QR", description: "Tạo và tải mã QR dạng SVG." },
-  { href: "/utilities/prompts/", name: "Thư viện prompt", description: "Lưu mẫu, thay nhanh biến và sao chép prompt." },
+  { href: "/utilities/prompts/", name: "Lưu trữ prompt", description: "Đăng prompt cộng đồng, thay nhanh biến và sao chép." },
 ];
 
 export default function UtilitiesPage() {
