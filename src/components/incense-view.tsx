@@ -7,15 +7,25 @@ import { useAuth } from "@/hooks/use-auth";
 import { getProfile } from "@/services/account-service";
 import {
   blessIncense,
+  extinguishIncense,
   getIncenseOfferingEnabled,
   getIncensePermissions,
   lightIncense,
   listBurningIncense,
+  relightIncense,
   subscribeToIncenseBlessings,
   type BurningIncense,
 } from "@/services/incense-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
+
+/** A stick as the page uses it. The extra fields come from the service (see docs/incense-extinguish.md). */
+type Incense = BurningIncense & {
+  is_mine?: boolean; // the signed-in user is the one who lit this stick
+  extinguished_at?: string | null; // set while the stick is put out
+  extinguished_by_name?: string | null; // who put it out
+};
+type ActionKind = "bless" | "extinguish" | "relight";
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 const SUGGESTIONS = ["Bình an cho gia đình", "Sức khỏe dồi dào", "Công việc thuận lợi", "Tâm luôn an tĩnh"];
 const WELCOME = "Hãy thắp một nén nhang và gửi lời nguyện của bạn.";
@@ -44,7 +54,7 @@ const SMOKE_PATHS = [
 const SMOKE_WIDTH = [[2.4, 2, 2.2], [2.2, 2, 2.4]] as const;
 
 function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect, onHover }: {
-  incense: BurningIncense;
+  incense: Incense;
   index: number;
   x: number;
   remaining: number;
@@ -56,7 +66,8 @@ function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect,
 }) {
   const topY = TOP_Y + BURN_RANGE * (1 - remaining);
   const dy = topY - TOP_Y;
-  const blessed = incense.blessing_count > 0;
+  const out = Boolean(incense.extinguished_at);
+  const blessed = incense.blessing_count > 0 && !out;
   const variant = index % 2;
   const delay = (base: number) => ({ animationDelay: `${-(base + index * 1.3)}s` });
   const hitTop = topY - 40;
@@ -73,19 +84,26 @@ function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect,
           <path d="M-3.2 69 L-3 59 L-2 55 L-.6 53 L1 56 L2.6 54 L3.2 60 L3.2 69Z" fill="url(#incAsh)" />
           <path d="M-1.6 62 L-.4 60 L.8 63 M1.2 58 L2.4 59" stroke="#7d7870" strokeWidth=".7" fill="none" opacity=".8" />
           <rect x="-3" y="68" width="6" height="6" fill="#2a1a12" />
-          <g className="inc-ember">
-            <circle className="inc-halo inc-flick-h" cx="0" cy="71" r="20" fill="url(#incHalo)" style={delay(0.4)} />
-            <rect x="-3" y="74" width="6" height="12" fill="url(#incCoal)" />
-            <rect x="-3" y="68" width="6" height="6" fill="#d9300e" />
-            <rect className="inc-flick" x="-3" y="68" width="6" height="6" fill="#ff8a3a" style={delay(1.1)} />
-          </g>
-          <g transform="translate(0 50)">
-            <g filter={fancy ? "url(#incSmokeFx)" : undefined}>
-              {SMOKE_PATHS[variant]?.map((d, i) => (
-                <path key={i} className="inc-wisp" strokeWidth={SMOKE_WIDTH[variant]?.[i] ?? 2.2} d={d} style={delay(2.7 * i)} />
-              ))}
-            </g>
-          </g>
+          {out ? (
+            // Put out: dark, cold tip, no glow and no smoke.
+            <rect x="-3" y="68" width="6" height="6" fill="#4a3a32" />
+          ) : (
+            <>
+              <g className="inc-ember">
+                <circle className="inc-halo inc-flick-h" cx="0" cy="71" r="20" fill="url(#incHalo)" style={delay(0.4)} />
+                <rect x="-3" y="74" width="6" height="12" fill="url(#incCoal)" />
+                <rect x="-3" y="68" width="6" height="6" fill="#d9300e" />
+                <rect className="inc-flick" x="-3" y="68" width="6" height="6" fill="#ff8a3a" style={delay(1.1)} />
+              </g>
+              <g transform="translate(0 50)">
+                <g filter={fancy ? "url(#incSmokeFx)" : undefined}>
+                  {SMOKE_PATHS[variant]?.map((d, i) => (
+                    <path key={i} className="inc-wisp" strokeWidth={SMOKE_WIDTH[variant]?.[i] ?? 2.2} d={d} style={delay(2.7 * i)} />
+                  ))}
+                </g>
+              </g>
+            </>
+          )}
           {blessed && STARS.map(([sx, sy, dl], i) => (
             <g key={i} transform={`translate(${sx} ${sy})`}>
               <g className="inc-star" style={{ animationDelay: `${-(dl + index * 0.6)}s` }}>
@@ -106,7 +124,7 @@ function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect,
           tabIndex={0}
           role="button"
           aria-pressed={selected}
-          aria-label={`Nhang do ${nfc(incense.donor_name)} cúng dường. Khẩn cầu: ${nfc(incense.message_text)}`}
+          aria-label={`Nhang do ${nfc(incense.donor_name)} cúng dường${out ? `, đã bị ${nfc(incense.extinguished_by_name ?? "một người")} dập tắt` : ""}. Khẩn cầu: ${nfc(incense.message_text)}`}
           onClick={() => onSelect(incense.id)}
           onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover(incense.id); }}
           onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover(null); }}
@@ -120,7 +138,7 @@ function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect,
 }
 
 function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
-  items: BurningIncense[];
+  items: Incense[];
   now: number;
   freshIds: ReadonlySet<string>;
   shownId: string | null;
@@ -134,12 +152,12 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
   const cx = vbW / 2;
   const L = 170;
   const R = vbW - 170;
-  const fancy = n <= 6; // the animated smoke distortion is the costly part, so it is limited to a few sticks
+  const fancy = items.filter((item) => !item.extinguished_at).length <= 6; // the animated smoke distortion is the costly part, so it is limited to a few sticks
   const displayW = Math.round(vbW * 0.62);
   const viewBox = n === 0 ? `0 330 ${vbW} 390` : `0 -190 ${vbW} 890`;
 
   return (
-    <div className="overflow-x-auto" aria-label={`${n} nén nhang đang cháy`}>
+    <div className="overflow-x-auto" aria-label={`${n} nén nhang`}>
       <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: `max(560px, min(100%, ${displayW}px))` }} role="group" aria-label="Bàn cúng đen viền vàng với các cây nhang đang cháy">
         <defs>
           <linearGradient id="incLacquer" x1="0" y1="0" x2="0" y2="1">
@@ -231,7 +249,17 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
 // ---------------------------------------------------------------------------------------------
 // Details of the stick being hovered / tapped
 // ---------------------------------------------------------------------------------------------
-function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningIncense | null; now: number; canBless: boolean; busy: boolean; onBless: (id: string) => void }) {
+function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBless, onExtinguish, onRelight }: {
+  incense: Incense | null;
+  now: number;
+  canBless: boolean;
+  canExtinguish: boolean;
+  locked: boolean; // some action is running, so every button waits
+  busyKind: ActionKind | null; // the action running on this stick
+  onBless: (id: string) => void;
+  onExtinguish: (item: Incense) => void;
+  onRelight: (item: Incense) => void;
+}) {
   if (!incense) {
     return (
       <div className="flex min-h-[132px] items-center justify-center px-6 text-center text-sm text-neutral-400">
@@ -239,29 +267,54 @@ function Plaque({ incense, now, canBless, busy, onBless }: { incense: BurningInc
       </div>
     );
   }
+  const out = Boolean(incense.extinguished_at);
   const left = Math.max(0, new Date(incense.expires_at).getTime() - now);
   const minutes = Math.ceil(left / 60000);
   const pct = Math.max(0, Math.min(100, (left / BURN_MS) * 100));
+  const outline = "rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-900 disabled:opacity-50";
+  const dark = "rounded-full bg-black px-4 py-1.5 text-xs font-medium text-white transition hover:bg-neutral-700 disabled:opacity-50";
   return (
     <div className="fade-up flex min-h-[132px] flex-col items-center justify-center px-5 py-4 text-center">
       <p className="text-sm font-semibold tracking-wide text-neutral-900">{nfc(incense.donor_name)}</p>
       <p className="mt-1.5 max-w-md text-[15px] leading-6 text-neutral-600">“{nfc(incense.message_text)}”</p>
-      <div className="mt-3 h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-neutral-200" aria-hidden>
-        <div className="h-full bg-neutral-900 transition-[width] duration-1000" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="mt-1.5 text-xs text-neutral-400">
-        Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
-        {incense.blessing_count > 0 && <> · ✦ {incense.blessing_count}</>}
-      </p>
-      {canBless && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onBless(incense.id)}
-          className="mt-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-900 disabled:opacity-50"
-        >
-          {busy ? "Đang ban phước…" : "✦ Ban phước"}
-        </button>
+
+      {out ? (
+        <>
+          <p className="mt-3 text-sm text-neutral-600">
+            Nhang đã bị dập tắt bởi <span className="font-semibold text-neutral-900">{nfc(incense.extinguished_by_name ?? "một người")}</span>
+          </p>
+          {incense.is_mine ? (
+            <button type="button" disabled={locked} onClick={() => onRelight(incense)} className={`mt-3 ${dark}`}>
+              {busyKind === "relight" ? "Đang thắp lại…" : "Thắp lại nhang"}
+            </button>
+          ) : (
+            <p className="mt-1.5 text-xs text-neutral-400">Chỉ người thắp nhang mới có thể thắp lại.</p>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="mt-3 h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-neutral-200" aria-hidden>
+            <div className="h-full bg-neutral-900 transition-[width] duration-1000" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mt-1.5 text-xs text-neutral-400">
+            Còn {Math.floor(minutes / 60)} giờ {minutes % 60} phút
+            {incense.blessing_count > 0 && <> · ✦ {incense.blessing_count}</>}
+          </p>
+          {(canBless || (canExtinguish && !incense.is_mine)) && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {canBless && (
+                <button type="button" disabled={locked} onClick={() => onBless(incense.id)} className={outline}>
+                  {busyKind === "bless" ? "Đang ban phước…" : "✦ Ban phước"}
+                </button>
+              )}
+              {canExtinguish && !incense.is_mine && (
+                <button type="button" disabled={locked} onClick={() => onExtinguish(incense)} className={outline}>
+                  {busyKind === "extinguish" ? "Đang dập…" : "Dập nhang"}
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -371,11 +424,11 @@ type Toast = { kind: "success" | "error"; text: string };
 
 export function IncenseView() {
   const { loading: authLoading, user } = useAuth();
-  const [incense, setIncense] = useState<BurningIncense[]>([]);
+  const [incense, setIncense] = useState<Incense[]>([]);
   const [freshIds, setFreshIds] = useState<ReadonlySet<string>>(() => new Set());
   const [canDonate, setCanDonate] = useState(false);
   const [canBless, setCanBless] = useState(false);
-  const [blessingBusy, setBlessingBusy] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState<{ id: string; kind: ActionKind } | null>(null);
   const [acceptingIncense, setAcceptingIncense] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [donorName, setDonorName] = useState("");
@@ -475,19 +528,35 @@ export function IncenseView() {
   const closeDialog = useCallback(() => setDialogOpen(false), []);
   const selectStick = useCallback((id: string) => setSelectedId((current) => (current === id ? null : id)), []);
 
-  async function giveBlessing(offeringId: string) {
-    if (!canBless || blessingBusy) return;
-    setBlessingBusy(offeringId);
+  /** Runs one action on a stick (bless / put out / relight), then reloads the table and shows a toast. */
+  async function runAction(id: string, kind: ActionKind, work: () => Promise<void>, okText: string, errText: string) {
+    if (actionBusy) return;
+    setActionBusy({ id, kind });
     try {
-      await blessIncense(offeringId);
+      await work();
       await refresh();
-      setToast({ kind: "success", text: "Đã ban phước cho nén nhang này." });
+      setToast({ kind: "success", text: okText });
     } catch (err) {
       console.error(err);
-      setToast({ kind: "error", text: "Chưa ban phước được. Vui lòng thử lại sau." });
+      setToast({ kind: "error", text: errText });
     } finally {
-      setBlessingBusy(null);
+      setActionBusy(null);
     }
+  }
+
+  function giveBlessing(offeringId: string) {
+    if (!canBless) return;
+    void runAction(offeringId, "bless", () => blessIncense(offeringId), "Đã ban phước cho nén nhang này.", "Chưa ban phước được. Vui lòng thử lại sau.");
+  }
+
+  function putOut(item: Incense) {
+    if (!user || item.is_mine) return;
+    void runAction(item.id, "extinguish", () => extinguishIncense(item.id), `Đã dập nén nhang của ${nfc(item.donor_name)}.`, "Chưa dập được nhang. Vui lòng thử lại sau.");
+  }
+
+  function relight(item: Incense) {
+    if (!item.is_mine) return;
+    void runAction(item.id, "relight", () => relightIncense(item.id), "Đã thắp lại nén nhang.", "Chưa thắp lại được. Vui lòng thử lại sau.");
   }
 
   async function lightOne(prayer: string): Promise<boolean> {
@@ -532,6 +601,7 @@ export function IncenseView() {
   }
 
   const active = useMemo(() => incense.filter((item) => new Date(item.expires_at).getTime() > now), [incense, now]);
+  const litCount = active.filter((item) => !item.extinguished_at).length;
   const shownId = hoverId ?? selectedId;
   const shown = active.find((item) => item.id === shownId) ?? null;
   const message = npcMessage || WELCOME;
@@ -552,19 +622,15 @@ export function IncenseView() {
   return (
     <div className="mx-auto max-w-3xl">
       <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Bàn hương cúng dường">
-        <header className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Cúng dường</h1>
-          <div className="mx-auto mt-3 flex items-center justify-center gap-3 text-neutral-400" aria-hidden>
-            <span className="h-px w-12 bg-current" />
-            <span className="text-[10px]">◆</span>
-            <span className="h-px w-12 bg-current" />
-          </div>
-          <p className="mt-2 text-sm text-neutral-500" aria-live="polite">
-            {loading ? "Đang tải…" : active.length === 0 ? "Chưa có nén nhang nào đang cháy" : `${active.length} nén nhang đang cháy`}
+        {/* Hidden from view, kept for screen readers. */}
+        <header className="sr-only">
+          <h1>Cúng dường</h1>
+          <p aria-live="polite">
+            {loading ? "Đang tải…" : active.length === 0 ? "Chưa có nén nhang nào đang cháy" : `${litCount} nén nhang đang cháy${active.length > litCount ? ` · ${active.length - litCount} đã tắt` : ""}`}
           </p>
         </header>
 
-        <div className="relative mx-auto mt-6 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
+        <div className="relative mx-auto mt-0 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
           {/* Soft grey aura with two fine rings. */}
           <span className="pointer-events-none absolute left-1/2 top-[48%] aspect-square w-[82%] -translate-x-1/2 -translate-y-1/2" aria-hidden>
             <span className="halo-pulse stage-glow absolute -inset-[24%] rounded-full" />
@@ -605,7 +671,7 @@ export function IncenseView() {
                 Hãy là người thắp nén nhang đầu tiên.
               </div>
             ) : (
-              <Plaque key={shown?.id ?? "none"} incense={shown} now={now} canBless={canBless} busy={blessingBusy === shown?.id} onBless={giveBlessing} />
+              <Plaque key={shown?.id ?? "none"} incense={shown} now={now} canBless={canBless} canExtinguish={Boolean(user)} locked={actionBusy !== null} busyKind={actionBusy && actionBusy.id === shown?.id ? actionBusy.kind : null} onBless={giveBlessing} onExtinguish={putOut} onRelight={relight} />
             ))}
         </div>
 
