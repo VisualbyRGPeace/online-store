@@ -58,7 +58,7 @@ export function IncenseMessagesAdmin() {
   }
 
   async function remove(message: IncenseMessage) {
-    if (!window.confirm("Xóa thông điệp này? Nhang đang cháy vẫn giữ nguyên câu thoại đã lưu.")) return;
+    if (!window.confirm("Xóa thông điệp này?")) return;
     setError(null);
     try {
       await deleteIncenseMessage(message.id);
@@ -73,7 +73,7 @@ export function IncenseMessagesAdmin() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Quản lý thông điệp</h1>
-        <p className="mt-1 text-sm text-slate-500">Thêm các câu thoại hiển thị ngẫu nhiên cạnh hình Phật sau khi có người cúng dường. Thông điệp đã gắn với nhang đang cháy sẽ không đổi.</p>
+        <p className="mt-1 text-sm text-slate-500">Quản lý thông điệp hiển thị sau khi cúng dường.</p>
       </div>
 
       <form onSubmit={add} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
