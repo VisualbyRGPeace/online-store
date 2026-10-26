@@ -221,7 +221,7 @@ as $$
     left join public.profiles p on p.id = f.user_id
     left join public.farm_harvests h on h.user_id = f.user_id
    group by f.user_id, f.farm_name, f.points, p.full_name
-   order by weekly_points desc, total_points desc
+   order by 3 desc, 2 desc
    limit least(greatest(coalesce(p_limit, 10), 1), 20)
 $$;
 
