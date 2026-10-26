@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react";
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import TimelineTrimmer from "./timeline-trimmer";
 import { useAuth } from "@/hooks/use-auth";
@@ -15,7 +15,6 @@ type QualityId = "light" | "balanced" | "sharp";
 const LIMIT = 1_000_000;
 const MAX_VIDEO_MB = 100;
 const MAX_SECONDS = 6;
-const LIVE_SIZE = 320;
 
 // [cạnh ảnh (px), khung hình/giây, số màu] — thử lần lượt từ trên xuống đến khi GIF < 1 MB.
 const PROFILES = [
@@ -193,7 +192,6 @@ export function VideoToGifUtility() {
   const stageRef = useRef<HTMLDivElement>(null);
   const stageVideoRef = useRef<HTMLVideoElement>(null);
   const cropFrameRef = useRef<HTMLDivElement>(null);
-  const liveCanvasRef = useRef<HTMLCanvasElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const cropDrag = useRef<{ mode: "move" | "resize"; edge: Edge; x: number; y: number; box: CropBox } | null>(null);
   const captionDragging = useRef(false);
@@ -228,31 +226,8 @@ export function VideoToGifUtility() {
   const ready = Boolean(source && dimensions);
   const filmstrip = filmstripState.key === `${source}|${videoDuration}` ? filmstripState.url : "";
 
-  // Giữ trạng thái mới nhất cho vòng vẽ (tránh đọc state cũ trong requestAnimationFrame).
-  const live = useRef({ cropBox, caption, captionPosition, captionSize, dimensions });
-  useEffect(() => {
-    live.current = { cropBox, caption, captionPosition, captionSize, dimensions };
-  });
-
   useEffect(() => () => { if (source) URL.revokeObjectURL(source); }, [source]);
   useEffect(() => () => { if (gif) URL.revokeObjectURL(gif); }, [gif]);
-
-  /** Vẽ đúng vùng vuông đã chọn (kèm chữ) để người dùng thấy trước kết quả. */
-  const drawLive = useCallback(() => {
-    const canvas = liveCanvasRef.current;
-    const video = stageVideoRef.current;
-    const state = live.current;
-    if (!canvas || !video || !state.dimensions || video.readyState < 2) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const [width, height] = state.dimensions;
-    const side = Math.min(width, height) * state.cropBox.size;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(video, state.cropBox.x * width, state.cropBox.y * height, side, side, 0, 0, canvas.width, canvas.height);
-    drawCaption(ctx, state.caption, canvas.width, state.captionPosition, state.captionSize);
-  }, []);
-
-  useEffect(() => { drawLive(); }, [cropBox, caption, captionPosition, captionSize, dimensions, drawLive]);
 
   // Tạo dải ảnh khung hình cho timeline.
   useEffect(() => {
@@ -274,7 +249,6 @@ export function VideoToGifUtility() {
     let reported = -1;
     const tick = () => {
       if (video.currentTime >= start + seconds - 0.04 || video.currentTime < start - 0.3) video.currentTime = start;
-      drawLive();
       if (Math.abs(video.currentTime - reported) > 0.05) {
         reported = video.currentTime;
         setPlayhead(video.currentTime);
@@ -283,7 +257,7 @@ export function VideoToGifUtility() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [previewPlaying, start, seconds, drawLive]);
+  }, [previewPlaying, start, seconds]);
 
   function stopPreview() {
     stageVideoRef.current?.pause();
@@ -536,8 +510,6 @@ export function VideoToGifUtility() {
                   playsInline
                   preload="auto"
                   onLoadedMetadata={onMetadata}
-                  onLoadedData={drawLive}
-                  onSeeked={drawLive}
                   onPlay={() => setPreviewPlaying(true)}
                   onPause={(event) => { if (!event.currentTarget.ended) setPreviewPlaying(false); }}
                   onEnded={(event) => {
@@ -653,7 +625,7 @@ export function VideoToGifUtility() {
                 giây
               </label>
             </div>
-            <p className="mt-2 text-xs text-slate-400">Tối đa {maxSeconds.toFixed(1)} giây. Đoạn xem thử lặp lại liên tục, có hiện cả vùng cắt và chữ bên phải.</p>
+            <p className="mt-2 text-xs text-slate-400">Tối đa {maxSeconds.toFixed(1)} giây. Đoạn xem thử lặp lại liên tục ngay trên video phía trên.</p>
           </Section>
         )}
 
@@ -732,29 +704,6 @@ export function VideoToGifUtility() {
       </div>
 
       <aside className="space-y-6 lg:sticky lg:top-24">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <h2 className="font-semibold text-slate-950">Xem thử khung vuông</h2>
-          <p className="mb-4 text-sm text-slate-500">Đúng vùng và chữ sẽ có trong GIF.</p>
-          <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-slate-100">
-            <canvas ref={liveCanvasRef} width={LIVE_SIZE} height={LIVE_SIZE} className={`h-full w-full ${ready ? "" : "hidden"}`} />
-            {!ready && (
-              <div className="grid h-full w-full place-items-center px-6 text-center text-sm text-slate-400">Chọn video để bắt đầu</div>
-            )}
-            {ready && (
-              <button
-                type="button"
-                onClick={() => void togglePreview()}
-                aria-label={previewPlaying ? "Dừng xem thử" : "Xem thử đoạn cắt"}
-                className={`group absolute inset-0 grid place-items-center transition ${previewPlaying ? "opacity-0 hover:opacity-100 focus-visible:opacity-100" : ""}`}
-              >
-                <span className="grid h-14 w-14 place-items-center rounded-full bg-black/70 text-white backdrop-blur transition group-hover:scale-110">
-                  {previewPlaying ? <PauseIcon className="h-6 w-6" /> : <PlayIcon className="h-6 w-6" />}
-                </span>
-              </button>
-            )}
-          </div>
-        </section>
-
         <section ref={resultRef} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="font-semibold text-slate-950">GIF của bạn</h2>
           {gif ? (

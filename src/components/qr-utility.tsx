@@ -5,19 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useAuth } from "@/hooks/use-auth";
 import { recordQrGeneration } from "@/services/qr-history-service";
-import { CheckIcon, DownloadIcon } from "@/components/utilities/tool-icons";
+import { DownloadIcon } from "@/components/utilities/tool-icons";
 
 type Mode = "text" | "wifi";
 type Level = "M" | "Q" | "H";
 type Security = "WPA" | "WEP" | "nopass";
 
 const MAX_LENGTH = 4000;
-const COLORS = [
-  { name: "Đen", value: "#171717" },
-  { name: "Xanh navy", value: "#1e3a8a" },
-  { name: "Xanh lá", value: "#166534" },
-  { name: "Đỏ rượu", value: "#9f1239" },
-] as const;
+const COLOR = "#171717";
 const LEVELS: { value: Level; label: string; hint: string }[] = [
   { value: "M", label: "Tiêu chuẩn", hint: "Gọn, dễ quét" },
   { value: "Q", label: "Cao", hint: "Chịu được trầy xước" },
@@ -79,7 +74,6 @@ export function QrUtility() {
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
   const [security, setSecurity] = useState<Security>("WPA");
-  const [color, setColor] = useState<string>(COLORS[0].value);
   const [level, setLevel] = useState<Level>("M");
   const [svg, setSvg] = useState("");
   const [renderedKey, setRenderedKey] = useState("");
@@ -96,7 +90,7 @@ export function QrUtility() {
     return `WIFI:T:${security};S:${escapeWifi(ssid.trim())};${pass};`;
   }, [mode, text, ssid, password, security]);
 
-  const key = `${payload}|${color}|${level}`;
+  const key = `${payload}|${level}`;
   const tooLong = payload.length > MAX_LENGTH;
   const active = Boolean(payload) && !tooLong;
   const ready = active && Boolean(svg) && renderedKey === key;
@@ -111,11 +105,11 @@ export function QrUtility() {
           type: "svg",
           margin: 2,
           errorCorrectionLevel: level,
-          color: { dark: color, light: "#ffffff" },
+          color: { dark: COLOR, light: "#ffffff" },
         });
         if (!current) return;
         setSvg(result);
-        setRenderedKey(`${payload}|${color}|${level}`);
+        setRenderedKey(`${payload}|${level}`);
         setError("");
       } catch {
         if (!current) return;
@@ -128,7 +122,7 @@ export function QrUtility() {
       current = false;
       window.clearTimeout(timer);
     };
-  }, [payload, color, level, tooLong]);
+  }, [payload, level, tooLong]);
 
   useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
 
@@ -150,7 +144,7 @@ export function QrUtility() {
           width: 1024,
           margin: 2,
           errorCorrectionLevel: level,
-          color: { dark: color, light: "#ffffff" },
+          color: { dark: COLOR, light: "#ffffff" },
         });
         saveBlob(await (await fetch(dataUrl)).blob(), "ma-qr.png");
       }
@@ -244,33 +238,10 @@ export function QrUtility() {
           </div>
         )}
 
-        <div className="grid gap-6 border-t border-slate-100 pt-6 sm:grid-cols-2">
-          <div>
-            <p className="mb-2 text-sm font-semibold text-slate-900">Màu mã</p>
-            <div className="flex gap-2" role="radiogroup" aria-label="Màu mã QR">
-              {COLORS.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={color === item.value}
-                  aria-label={item.name}
-                  title={item.name}
-                  onClick={() => setColor(item.value)}
-                  className={`grid h-10 w-10 place-items-center rounded-full border-2 transition ${color === item.value ? "border-slate-900" : "border-transparent hover:border-slate-300"}`}
-                >
-                  <span className="grid h-7 w-7 place-items-center rounded-full text-white" style={{ background: item.value }}>
-                    {color === item.value && <CheckIcon className="h-4 w-4" />}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-semibold text-slate-900">Độ bền</p>
-            <Segmented label="Độ bền mã QR" value={level} onChange={setLevel} options={LEVELS.map(({ value, label }) => ({ value, label }))} />
-            <p className="mt-2 text-xs text-slate-500">{LEVELS.find((item) => item.value === level)?.hint}</p>
-          </div>
+        <div className="border-t border-slate-100 pt-6">
+          <p className="mb-2 text-sm font-semibold text-slate-900">Độ bền</p>
+          <Segmented label="Độ bền mã QR" value={level} onChange={setLevel} options={LEVELS.map(({ value, label }) => ({ value, label }))} />
+          <p className="mt-2 text-xs text-slate-500">{LEVELS.find((item) => item.value === level)?.hint}</p>
         </div>
       </div>
 
