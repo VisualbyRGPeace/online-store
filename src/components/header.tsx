@@ -27,6 +27,9 @@ export function Header() {
           <Link href="/products/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
             Tài nguyên
           </Link>
+          <Link href="/farm/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
+            Nông trại
+          </Link>
           <details className="group relative">
             <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 [&::-webkit-details-marker]:hidden">
               Tiện ích
@@ -44,10 +47,6 @@ export function Header() {
               <Link href="/utilities/video-to-gif/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">GIF</span>
                 <span>Video thành GIF</span>
-              </Link>
-              <Link href="/utilities/image-crop/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">Ảnh</span>
-                <span>Cắt ảnh social</span>
               </Link>
             </div>
           </details>
