@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
 import { PromptUtility } from "@/components/prompt-utility";
+import { ToolShell } from "@/components/utilities/tool-shell";
 
 export const metadata: Metadata = { title: "Thư viện prompt" };
 
 export default function PromptPage() {
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="mb-7">
-        <p className="mb-2 text-sm font-medium text-slate-500">Tiện ích</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Thư viện prompt</h1>
-        <p className="mt-2 text-sm text-slate-500">Khám phá prompt và tải lên prompt của bạn.</p>
-      </div>
+    <ToolShell
+      title="Thư viện prompt"
+      description="Chọn một prompt, điền các biến cần thay rồi sao chép dùng ngay. Bạn cũng có thể đăng prompt của mình."
+    >
       <PromptUtility />
-    </div>
+    </ToolShell>
   );
 }

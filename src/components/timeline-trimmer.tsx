@@ -14,6 +14,8 @@ type Props = {
   minSeconds?: number;
   maxSeconds?: number;
   onScrub?: (time: number) => void;
+  /** Vị trí đang phát thử (giây). Bỏ trống để ẩn vạch phát. */
+  playhead?: number;
 };
 
 const clamp = (v: number, min: number, max: number) =>
@@ -35,6 +37,7 @@ export default function TimelineTrimmer({
   minSeconds = 3,
   maxSeconds = 6,
   onScrub,
+  playhead,
 }: Props) {
   const timelineRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -114,8 +117,8 @@ export default function TimelineTrimmer({
         className="absolute inset-x-0 top-6 h-10 rounded-[3px] bg-gradient-to-b from-[#ececea] to-[#dddcd9]"
         style={{
           backgroundImage: filmstrip ? `url(${filmstrip})` : undefined,
-          backgroundSize: "auto 100%",
-          backgroundRepeat: "repeat-x",
+          backgroundSize: "100% 100%",
+          backgroundRepeat: "no-repeat",
         }}
       />
 
@@ -133,6 +136,14 @@ export default function TimelineTrimmer({
         style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
         onPointerDown={(event) => beginTimeline(event, "move")}
       />
+
+      {playhead !== undefined && duration > 0 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute top-5 z-[5] h-12 w-0.5 -translate-x-1/2 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.7)]"
+          style={{ left: `${clamp((playhead / total) * 100, 0, 100)}%` }}
+        />
+      )}
 
       <div
         className="absolute top-0 flex h-5 w-10 -translate-x-1/2 cursor-grab flex-col items-center justify-center gap-1 bg-neutral-950 pt-1 active:cursor-grabbing"

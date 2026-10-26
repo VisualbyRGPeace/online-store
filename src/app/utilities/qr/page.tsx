@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import { QrUtility } from "@/components/qr-utility";
+import { ToolShell } from "@/components/utilities/tool-shell";
 
 export const metadata: Metadata = { title: "Tạo mã QR" };
 
 export default function QrPage() {
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-7">
-        <p className="mb-2 text-sm font-medium text-slate-500">Tiện ích</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Tạo mã QR</h1>
-      </div>
+    <ToolShell
+      title="Tạo mã QR"
+      description="Nhập nội dung, mã QR cập nhật ngay. Tải về dạng SVG sắc nét hoặc PNG để chèn vào tài liệu."
+      width="max-w-5xl"
+    >
       <QrUtility />
-    </div>
+    </ToolShell>
   );
 }
