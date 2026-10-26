@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRightIcon, FilmIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
+import { ArrowRightIcon, FilmIcon, ImageIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
 
 export const metadata: Metadata = { title: "Tiện ích" };
 
@@ -26,6 +26,14 @@ const tools = [
     tags: ["Tìm kiếm", "Điền biến", "Chia sẻ"],
     Icon: PromptIcon,
   },
+  {
+    href: "/utilities/image-crop/",
+    name: "Cắt ảnh social",
+    description: "Tạo nhiều tỷ lệ, căn theo lưới vàng và mở rộng ảnh bằng Adobe Firefly.",
+    tags: ["Cắt nhiều tỷ lệ", "Lưới vàng", "Mở rộng ảnh"],
+    Icon: ImageIcon,
+  },
+
 ];
 
 export default function UtilitiesPage() {
