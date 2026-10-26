@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRightIcon, FilmIcon, ImageIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
+import { ArrowRightIcon, FilmIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
 
 export const metadata: Metadata = { title: "Tiện ích" };
 
@@ -25,13 +25,6 @@ const tools = [
     description: "Tìm prompt hay, điền nhanh các biến rồi sao chép; chia sẻ prompt của bạn.",
     tags: ["Tìm kiếm", "Điền biến", "Chia sẻ"],
     Icon: PromptIcon,
-  },
-  {
-    href: "/utilities/image-crop/",
-    name: "Cắt ảnh social",
-    description: "Cắt ảnh theo nhiều tỷ lệ, căn bố cục bằng lưới và tải các phiên bản cho mạng xã hội.",
-    tags: ["Cắt nhiều tỷ lệ", "Lưới vàng", "Tải ảnh"],
-    Icon: ImageIcon,
   },
 
 ];
