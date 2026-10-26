@@ -93,7 +93,7 @@ export function ImageCropExpandUtility() {
   const [file, setFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
-  const [ratioId, setRatioId] = useState(PRESETS[0].id);
+  const [ratioId, setRatioId] = useState(PRESETS[0]!.id);
   const [center, setCenter] = useState<Point>({ x: 0.5, y: 0.5 });
   const [zoom, setZoom] = useState(1);
   const [grid, setGrid] = useState<"thirds" | "golden" | "none">("thirds");
@@ -111,7 +111,7 @@ export function ImageCropExpandUtility() {
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; center: Point } | null>(null);
 
-  const currentPreset = useMemo(() => PRESETS.find((preset) => preset.id === ratioId) ?? PRESETS[0], [ratioId]);
+  const currentPreset = useMemo(() => PRESETS.find((preset) => preset.id === ratioId) ?? PRESETS[0]!, [ratioId]);
   const selectedPresets = useMemo(() => PRESETS.filter((preset) => selectedRatios.includes(preset.id)), [selectedRatios]);
 
   useEffect(() => {
