@@ -29,8 +29,8 @@ const tools = [
   {
     href: "/utilities/image-crop/",
     name: "Cắt ảnh social",
-    description: "Tạo nhiều tỷ lệ, căn theo lưới vàng và mở rộng ảnh bằng Adobe Firefly.",
-    tags: ["Cắt nhiều tỷ lệ", "Lưới vàng", "Mở rộng ảnh"],
+    description: "Cắt ảnh theo nhiều tỷ lệ, căn bố cục bằng lưới và tải các phiên bản cho mạng xã hội.",
+    tags: ["Cắt nhiều tỷ lệ", "Lưới vàng", "Tải ảnh"],
     Icon: ImageIcon,
   },
 
