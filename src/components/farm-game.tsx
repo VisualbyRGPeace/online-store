@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@/hooks/use-query";
+import { getMyRole } from "@/services/admin-order-service";
 import { createClient } from "@/lib/supabase/client";
 
 type CropKey = "greens" | "sunflower" | "strawberry" | "lotus";
@@ -46,6 +48,11 @@ function growth(plot: Plot, now: number) {
 
 export function FarmGame() {
   const { user, loading: authLoading } = useAuth();
+  const role = useQuery(
+    user ? `farm-role:${user.id}` : "farm-role:anonymous",
+    () => user ? getMyRole(user.id) : Promise.resolve(null),
+  );
+  const isAdmin = !!user && role.status === "success" && role.data === "admin";
   const [farms, setFarms] = useState<Farm[]>([]);
   const [ranking, setRanking] = useState<Rank[]>([]);
   const [busy, setBusy] = useState(false);
@@ -73,9 +80,9 @@ export function FarmGame() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !isAdmin) return;
     void load();
-  }, [authLoading, user?.id, load]);
+  }, [authLoading, isAdmin, user?.id, load]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -96,6 +103,19 @@ export function FarmGame() {
   }
 
   const ownFarm = farms.find((farm) => farm.is_mine);
+
+  if (authLoading || (user && role.status === "loading")) {
+    return <div className="mx-auto h-40 max-w-6xl animate-pulse rounded-2xl bg-slate-100" aria-busy="true" />;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="mx-auto max-w-3xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-semibold text-slate-950">Nông trại đang thử nghiệm</h1>
+        <p className="mt-2 text-sm text-slate-500">Tính năng này hiện chỉ dành cho quản trị viên, chưa mở công khai.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
