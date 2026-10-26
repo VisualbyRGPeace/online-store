@@ -160,47 +160,113 @@ export function FarmGame() {
                     </div>
                     <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">🌱 {farm.points} điểm</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {farm.plots.map((plot) => {
-                      const crop = CROPS.find((item) => item.key === plot.crop_key);
-                      const state = crop && plot.crop_key ? growth(plot, now) : null;
-                      return (
-                        <div key={plot.plot_no} className={`min-h-28 rounded-2xl border p-3 ${crop ? "border-emerald-100 bg-emerald-50/60" : "border-dashed border-stone-200 bg-stone-50"}`}>
-                          {crop && state ? (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-2xl" aria-hidden="true">{crop.icon}</span>
-                                <span className="text-[11px] text-slate-500">{state.remaining === 0 ? "✨" : "Ô " + plot.plot_no}</span>
-                              </div>
-                              <p className="mt-1 text-sm font-medium">{crop.name}</p>
-                              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
-                                <div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${state.percent}%` }} />
-                              </div>
-                              <p className="mt-1 text-[11px] text-slate-500">{timeLeft(state.remaining)}</p>
-                              {farm.is_mine && state.remaining > 0 && !plot.watered && (
-                                <button disabled={busy} type="button" onClick={() => void act("farm_water", { p_plot_no: plot.plot_no })} className="mt-2 text-xs font-semibold text-sky-700 hover:underline">💧 Tưới · lớn nhanh hơn</button>
-                              )}
-                              {farm.is_mine && state.remaining === 0 && (
-                                <button disabled={busy} type="button" onClick={() => void act("farm_harvest", { p_plot_no: plot.plot_no })} className="mt-2 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Thu hoạch +{crop.points}</button>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-2xl" aria-hidden="true">🟫</div>
-                              <p className="mt-1 text-xs text-slate-500">Ô đất trống</p>
-                              {farm.is_mine && (
-                                <div className="mt-2 flex gap-1">
-                                  <select aria-label={`Chọn cây cho ô ${plot.plot_no}`} value={cropChoice[plot.plot_no] ?? "greens"} onChange={(event) => setCropChoice((previous) => ({ ...previous, [plot.plot_no]: event.target.value as CropKey }))} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs">
-                                    {CROPS.map((item) => <option key={item.key} value={item.key}>{item.icon} {item.name} · {timeLeft(item.seconds)}</option>)}
-                                  </select>
-                                  <button disabled={busy} type="button" onClick={() => void act("farm_plant", { p_plot_no: plot.plot_no, p_crop_key: cropChoice[plot.plot_no] ?? "greens" })} className="rounded-lg bg-slate-950 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50">Trồng</button>
+                  <div className="relative isolate min-h-[290px] overflow-hidden rounded-2xl border border-emerald-200/80 bg-[#dceecb] p-3 shadow-inner sm:min-h-[310px]">
+                    <div className="absolute inset-0 -z-20 bg-[linear-gradient(135deg,#e6f1d9_0%,#d6eac5_48%,#c9e1b6_100%)]" />
+                    <div className="absolute -left-8 -top-8 -z-10 h-36 w-52 rounded-full bg-white/20 blur-2xl" />
+                    <div className="absolute -bottom-10 -right-8 -z-10 h-36 w-52 rounded-full bg-emerald-300/20 blur-2xl" />
+
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 500 300"
+                      preserveAspectRatio="none"
+                      className="pointer-events-none absolute inset-0 -z-10 h-full w-full"
+                    >
+                      <path d="M92 112 C130 137 142 153 160 180 C177 205 190 226 223 235" fill="none" stroke="#c6aa7b" strokeWidth="34" strokeLinecap="round" />
+                      <path d="M92 112 C130 137 142 153 160 180 C177 205 190 226 223 235" fill="none" stroke="#ddc99f" strokeWidth="26" strokeLinecap="round" />
+                      <path d="M117 151 C101 170 94 189 99 213" fill="none" stroke="#ddc99f" strokeWidth="15" strokeLinecap="round" />
+                      <circle cx="40" cy="221" r="4" fill="#86a96c" />
+                      <circle cx="140" cy="40" r="4" fill="#86a96c" />
+                      <circle cx="465" cy="42" r="5" fill="#86a96c" />
+                      <circle cx="463" cy="270" r="4" fill="#86a96c" />
+                      <path d="M31 266c7-12 15-12 22 0m-11-5v11m423-33c8-12 17-12 24 0m-12-5v11" fill="none" stroke="#78a86b" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+
+                    <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full border border-white/70 bg-white/75 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-900 shadow-sm">
+                      <span aria-hidden="true">☀️</span> Nông trại
+                    </div>
+
+                    <div className="absolute left-[4%] top-[31%] w-[28%] max-w-32">
+                      <svg viewBox="0 0 120 118" role="img" aria-label="Ngôi nhà nhỏ trong nông trại" className="w-full drop-shadow-md">
+                        <path d="M14 48 60 13l46 35v55H14z" fill="#fff8e9" stroke="#805b3d" strokeWidth="4" strokeLinejoin="round" />
+                        <path d="M7 48 60 8l53 40" fill="none" stroke="#9b573f" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M79 24V10h14v25" fill="#b96e4a" stroke="#805b3d" strokeWidth="4" strokeLinejoin="round" />
+                        <path d="M27 57h20v19H27zm46 0h20v19H73z" fill="#bfe6ee" stroke="#805b3d" strokeWidth="3" />
+                        <path d="M50 71h20v32H50z" fill="#a96b45" stroke="#805b3d" strokeWidth="3" />
+                        <circle cx="65" cy="88" r="2" fill="#f5d78f" />
+                        <path d="M12 103h96" stroke="#78a86b" strokeWidth="5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                    <span className="absolute left-[7%] top-[69%] rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-medium text-emerald-900">Nhà vườn</span>
+
+                    <div className="absolute bottom-3 right-3 top-12 grid w-[68%] grid-cols-2 gap-2 sm:w-[66%]">
+                      {farm.plots.map((plot) => {
+                        const crop = CROPS.find((item) => item.key === plot.crop_key);
+                        const state = crop && plot.crop_key ? growth(plot, now) : null;
+                        return (
+                          <div
+                            key={plot.plot_no}
+                            className={`relative isolate flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 shadow-sm sm:p-2.5 ${crop ? "border-amber-900/20 bg-[#9c7047]" : "border-amber-900/20 bg-[#a57a50]"}`}
+                          >
+                            <div
+                              aria-hidden="true"
+                              className="absolute inset-1 -z-10 rounded-lg opacity-80"
+                              style={{
+                                backgroundImage: "repeating-linear-gradient(180deg, transparent 0px, transparent 8px, rgba(65,39,22,.48) 9px, rgba(65,39,22,.48) 11px)",
+                              }}
+                            />
+                            <div className="flex items-center justify-between text-[10px] font-semibold text-white/90">
+                              <span>Luống {plot.plot_no}</span>
+                              {crop && state?.remaining === 0 && <span aria-label="Đã chín">✨</span>}
+                            </div>
+                            {crop && state ? (
+                              <>
+                                <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+                                  <span className="text-2xl leading-none drop-shadow sm:text-3xl" aria-hidden="true">{crop.icon}</span>
+                                  <span className="mt-1 max-w-full truncate rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-emerald-950">{crop.name}</span>
                                 </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
+                                <div className="h-1 overflow-hidden rounded-full bg-black/20">
+                                  <div className="h-full rounded-full bg-lime-200 transition-[width]" style={{ width: `${state.percent}%` }} />
+                                </div>
+                                <p className="mt-1 text-center text-[10px] font-medium text-white">{timeLeft(state.remaining)}</p>
+                                {farm.is_mine && state.remaining > 0 && !plot.watered && (
+                                  <button disabled={busy} type="button" onClick={() => void act("farm_water", { p_plot_no: plot.plot_no })} className="mt-1 rounded-md bg-white/90 px-1.5 py-1 text-[10px] font-semibold text-sky-800 disabled:opacity-50">💧 Tưới</button>
+                                )}
+                                {farm.is_mine && state.remaining === 0 && (
+                                  <button disabled={busy} type="button" onClick={() => void act("farm_harvest", { p_plot_no: plot.plot_no })} className="mt-1 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-semibold text-white disabled:opacity-50">Thu hoạch +{crop.points}</button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+                                  <span className="text-xl leading-none" aria-hidden="true">🌱</span>
+                                  <span className="mt-1 text-[10px] font-medium text-white">Đất nghỉ</span>
+                                </div>
+                                {farm.is_mine && (
+                                  <div className="flex gap-1">
+                                    <select
+                                      aria-label={`Chọn cây cho luống ${plot.plot_no}`}
+                                      value={cropChoice[plot.plot_no] ?? "greens"}
+                                      onChange={(event) => setCropChoice((previous) => ({ ...previous, [plot.plot_no]: event.target.value as CropKey }))}
+                                      className="min-w-0 flex-1 rounded-md border-0 bg-white/95 px-1 py-1 text-[10px] text-slate-800"
+                                    >
+                                      {CROPS.map((item) => <option key={item.key} value={item.key}>{item.icon} {item.name}</option>)}
+                                    </select>
+                                    <button
+                                      disabled={busy}
+                                      type="button"
+                                      onClick={() => void act("farm_plant", { p_plot_no: plot.plot_no, p_crop_key: cropChoice[plot.plot_no] ?? "greens" })}
+                                      className="rounded-md bg-white px-2 py-1 text-[10px] font-bold text-emerald-900 disabled:opacity-50"
+                                    >
+                                      Trồng
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </article>
               ))}
