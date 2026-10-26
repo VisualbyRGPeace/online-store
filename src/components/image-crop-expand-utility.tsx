@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { publicEnv } from "@/lib/env";
 
 type RatioPreset = {
   id: string;
@@ -101,10 +99,6 @@ export function ImageCropExpandUtility() {
   const [results, setResults] = useState<CropResult[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [expandUrl, setExpandUrl] = useState("");
-  const [expandType, setExpandType] = useState("image/png");
-  const [expandBusy, setExpandBusy] = useState(false);
-  const [expandMessage, setExpandMessage] = useState("");
   const [previewTick, setPreviewTick] = useState(0);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -167,10 +161,6 @@ export function ImageCropExpandUtility() {
     results.forEach((item) => URL.revokeObjectURL(item.url));
   }, [results]);
 
-  useEffect(() => () => {
-    if (expandUrl) URL.revokeObjectURL(expandUrl);
-  }, [expandUrl]);
-
   function chooseFile(next?: File) {
     if (!next) return;
     if (!["image/jpeg", "image/png", "image/webp"].includes(next.type)) {
@@ -183,14 +173,10 @@ export function ImageCropExpandUtility() {
     }
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     results.forEach((item) => URL.revokeObjectURL(item.url));
-    if (expandUrl) URL.revokeObjectURL(expandUrl);
     setFile(next);
     setImageUrl(URL.createObjectURL(next));
     setResults([]);
-    setExpandUrl("");
-    setExpandType("image/png");
     setMessage("");
-    setExpandMessage("");
   }
 
   function selectPreset(id: string) {
@@ -258,58 +244,6 @@ export function ImageCropExpandUtility() {
       setMessage(error instanceof Error ? error.message : "Chưa cắt được ảnh.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function expandWithAdobe() {
-    if (!file || !imageSize) return;
-    const targetRatio = currentPreset.ratio;
-    const originalRatio = imageSize.width / imageSize.height;
-    if (Math.abs(targetRatio - originalRatio) < 0.005) {
-      setExpandMessage("Ảnh đã đúng tỷ lệ này, hãy chọn tỷ lệ khác để mở rộng.");
-      return;
-    }
-    let width = imageSize.width;
-    let height = imageSize.height;
-    if (targetRatio > originalRatio) width = Math.ceil(height * targetRatio);
-    else height = Math.ceil(width / targetRatio);
-    const scale = Math.min(1, 4096 / Math.max(width, height));
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
-    setExpandBusy(true);
-    setExpandMessage("Đang gửi ảnh tới Adobe Firefly…");
-    if (expandUrl) URL.revokeObjectURL(expandUrl);
-    setExpandUrl("");
-    try {
-      const { data: session } = await createClient().auth.getSession();
-      const token = session.session?.access_token;
-      if (!token) throw new Error("Hãy đăng nhập trước khi dùng Mở rộng ảnh.");
-      const form = new FormData();
-      form.append("image", file);
-      form.append("width", String(width));
-      form.append("height", String(height));
-      const response = await fetch(`${publicEnv.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/generative-expand`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          apikey: publicEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: form,
-      });
-      if (!response.ok) {
-        const result = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(result.error || "Adobe chưa xử lý được ảnh. Kiểm tra kết nối Firefly Services.");
-      }
-      const blob = await response.blob();
-      const outputType = blob.type || response.headers.get("Content-Type") || "image/png";
-      const url = URL.createObjectURL(blob);
-      setExpandType(outputType);
-      setExpandUrl(url);
-      setExpandMessage("Đã mở rộng ảnh bằng Adobe Firefly. Tải ảnh để lưu kết quả.");
-    } catch (error) {
-      setExpandMessage(error instanceof Error ? error.message : "Không mở rộng được ảnh.");
-    } finally {
-      setExpandBusy(false);
     }
   }
 
@@ -422,23 +356,6 @@ export function ImageCropExpandUtility() {
             </section>
           )}
 
-          <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <div>
-              <h2 className="font-semibold text-slate-950">Mở rộng bằng Adobe Firefly</h2>
-              <p className="mt-1 text-sm text-slate-500">Tự tạo phần ảnh trống để đưa ảnh gốc vào tỷ lệ đã chọn.</p>
-            </div>
-            <button type="button" disabled={expandBusy} onClick={() => void expandWithAdobe()} className="rounded-xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">
-              {expandBusy ? "Đang tạo phần ảnh mở rộng…" : `Mở rộng thành ${currentPreset.label}`}
-            </button>
-            {expandMessage && <p role="status" className="text-sm text-slate-600">{expandMessage}</p>}
-            {expandUrl && (
-              <div className="space-y-3">
-                <img src={expandUrl} alt="Ảnh đã được mở rộng bằng Adobe Firefly" className="max-h-[520px] max-w-full rounded-xl border border-slate-200 object-contain" />
-                <a href={expandUrl} download={`${fileBaseName(file.name)}-expanded.${extensionFor(expandType)}`} className="inline-flex rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-50">Tải ảnh mở rộng</a>
-              </div>
-            )}
-            <p className="text-xs text-slate-400">Tính năng mở rộng cần kết nối Firefly Services của Adobe qua hàm bảo mật Supabase.</p>
-          </section>
         </>
       )}
     </div>
