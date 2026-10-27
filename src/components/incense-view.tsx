@@ -40,9 +40,8 @@ const nfc = (text: string) => text.normalize("NFC");
 // ---------------------------------------------------------------------------------------------
 // Ballot display: paper ballots shown on a presentation tray
 // ---------------------------------------------------------------------------------------------
-function Stick({ ballot, index, x, remaining, fresh, selected, onSelect, onHover }: {
+function Stick({ incense, x, remaining, fresh, selected, onSelect, onHover }: {
   incense: Incense;
-  index: number;
   x: number;
   remaining: number;
   fresh: boolean;
