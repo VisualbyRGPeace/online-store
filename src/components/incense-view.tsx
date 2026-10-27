@@ -21,6 +21,21 @@ const BURN_MS = 4 * 60 * 60 * 1000;
 const RELIGHT_WINDOW_MS = 60 * 60 * 1000;
 const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 
+/** Vị trí các đốm sáng lấp lánh quanh ảnh (cố định để không lệch giữa server và client). */
+const SPARKLES = [
+  { x: "4%", y: "12%", size: 14, delay: "0s", dur: "3.2s" },
+  { x: "92%", y: "8%", size: 18, delay: ".6s", dur: "2.8s" },
+  { x: "-2%", y: "46%", size: 10, delay: "1.2s", dur: "3.6s" },
+  { x: "98%", y: "42%", size: 12, delay: "1.8s", dur: "3s" },
+  { x: "8%", y: "84%", size: 16, delay: ".3s", dur: "3.4s" },
+  { x: "90%", y: "88%", size: 14, delay: "1.5s", dur: "2.6s" },
+  { x: "50%", y: "-6%", size: 12, delay: ".9s", dur: "3.1s" },
+  { x: "24%", y: "-2%", size: 8, delay: "2.1s", dur: "2.9s" },
+  { x: "76%", y: "98%", size: 9, delay: "2.4s", dur: "3.3s" },
+  { x: "18%", y: "30%", size: 7, delay: "1s", dur: "2.7s" },
+  { x: "84%", y: "62%", size: 7, delay: "2.7s", dur: "3.5s" },
+];
+
 /** A ballot record displayed on the page. The extra fields come from the service. */
 type Incense = BurningIncense & {
   is_mine?: boolean; // the signed-in user is the one who lit this stick
@@ -589,27 +604,43 @@ export function IncenseView() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Trang bỏ phiếu">
-        <header className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-bold leading-tight tracking-tight text-blue-950 sm:text-4xl">
-            Ai sẽ là tổng thống tiếp theo của nước Mỹ nào?
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-neutral-600 sm:text-base">Gửi lá phiếu của bạn vào hòm bỏ phiếu.</p>
-        </header>
+      <section className="pb-10" aria-label="Trang bỏ phiếu">
+        {/* Hero: nền xanh đậm, aura vàng lấp lánh, ảnh trong khung viền vàng lóe sáng */}
+        <div className="vote-hero relative overflow-hidden rounded-[2rem] px-5 pb-12 pt-10 text-center sm:px-10 sm:pt-12">
+          <div className="vote-hero-glow" aria-hidden />
+          <header className="relative z-10 mx-auto max-w-2xl">
+            <span className="vote-badge">★ Bầu cử ★</span>
+            <h1 className="vote-title mt-4 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+              Ai sẽ là tổng thống tiếp theo của nước Mỹ nào?
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-amber-100/80 sm:text-base">Gửi lá phiếu của bạn vào hòm bỏ phiếu.</p>
+          </header>
 
-        <div className="relative mx-auto mt-8 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
-          {!imageFailed && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={BUDDHA_IMAGE}
-              alt="Tượng Phật"
-              decoding="async"
-              onError={() => setImageFailed(true)}
-              className="buddha-float pointer-events-none relative h-full w-full object-contain object-top"
-            />
-          )}
+          <div className="gold-stage relative z-10 mx-auto mt-9">
+            <div className="gold-rays" aria-hidden />
+            <div className="gold-aura" aria-hidden />
+            {SPARKLES.map((sp, i) => (
+              <span key={i} className="gold-sparkle" aria-hidden style={{ left: sp.x, top: sp.y, width: sp.size, height: sp.size, animationDelay: sp.delay, animationDuration: sp.dur }} />
+            ))}
+            {!imageFailed && (
+              <div className="gold-frame">
+                <div className="gold-frame-inner">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={BUDDHA_IMAGE}
+                    alt="Ảnh ứng viên"
+                    decoding="async"
+                    onError={() => setImageFailed(true)}
+                    className="block h-full w-full object-cover object-top"
+                  />
+                  <span className="gold-shine" aria-hidden />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
+        <div className="px-4 sm:px-10">
         {loadError && <p role="alert" className="mx-auto mt-4 max-w-md rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">{loadError}</p>}
 
         {loading ? (
@@ -637,6 +668,7 @@ export function IncenseView() {
 
         <div className="mt-6 flex flex-col items-center gap-2">
           {cta}
+        </div>
         </div>
       </section>
 

@@ -14,7 +14,7 @@ const links = [
   ["/admin/categories/", "Danh mục"],
   ["/admin/donations/", PAID_LABEL],
   ["/admin/incense-messages/", "Thông điệp"],
-  ["/admin/incense/", "Lịch sử cúng dường"],
+  ["/admin/incense/", "Lịch sử bỏ phiếu"],
   ["/admin/qr-history/", "Lịch sử mã QR"],
   ["/admin/gif-history/", "Lịch sử GIF"],
   ["/admin/customers/", "Thành viên"],

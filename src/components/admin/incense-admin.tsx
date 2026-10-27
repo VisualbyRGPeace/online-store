@@ -23,7 +23,7 @@ export function IncenseAdmin() {
   }, []);
 
   async function remove(id: string, donorName: string) {
-    if (!window.confirm(`Xóa lời cúng dường của ${donorName}? Thao tác này không thể hoàn tác.`)) return;
+    if (!window.confirm(`Xóa phiếu bầu của ${donorName}? Thao tác này không thể hoàn tác.`)) return;
     setError(null);
     setDeletingId(id);
     try {
@@ -41,18 +41,18 @@ export function IncenseAdmin() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Lịch sử cúng dường</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Lịch sử bỏ phiếu</h1>
         <p className="mt-1 text-sm text-slate-500">Xem người cúng, lời khẩn cầu và thời điểm.</p>
         <div className="mt-5"><IncenseOfferingControl /></div>
       </div>
       {error && <FormMessage kind="error">{error}</FormMessage>}
       {state.status === "loading" && <div className="h-40 animate-pulse rounded-2xl bg-slate-200" aria-busy="true" />}
       {state.status === "error" && <ErrorState />}
-      {state.status === "success" && state.data.total === 0 && <EmptyState title="Chưa có lời cúng dường nào" description="Các lượt cúng dường sẽ xuất hiện tại đây." />}
+      {state.status === "success" && state.data.total === 0 && <EmptyState title="Chưa có phiếu bầu nào" description="Các lượt bỏ phiếu sẽ xuất hiện tại đây." />}
       {state.status === "success" && state.data.total > 0 && (
         <>
           <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>{state.data.total} lượt cúng dường</span>
+            <span>{state.data.total} lượt bỏ phiếu</span>
             <span>Trang {page}/{totalPages}</span>
           </div>
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">

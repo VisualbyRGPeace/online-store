@@ -73,7 +73,7 @@ export function IncenseMessagesAdmin() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Quản lý thông điệp</h1>
-        <p className="mt-1 text-sm text-slate-500">Quản lý thông điệp hiển thị sau khi cúng dường.</p>
+        <p className="mt-1 text-sm text-slate-500">Quản lý thông điệp hiển thị sau khi bỏ phiếu.</p>
       </div>
 
       <form onSubmit={add} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
