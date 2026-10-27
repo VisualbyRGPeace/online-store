@@ -69,7 +69,7 @@ function FarmIllustration({
     plot_no: plotNo, crop_key: null, planted_at: null, grow_seconds: null, watered: false,
   });
   const plotArt = (plot: Plot, index: number) => {
-    const pos = positions[index];
+    const pos = positions[index]!;
     const crop = CROPS.find((item) => item.key === plot.crop_key);
     const state = crop ? growth(plot, now) : null;
     const stage = state ? (state.percent >= 100 ? 3 : state.percent >= 65 ? 2 : state.percent >= 25 ? 1 : 0) : -1;
