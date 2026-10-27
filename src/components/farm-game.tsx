@@ -47,7 +47,6 @@ export function FarmGame() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [now, setNow] = useState(Date.now());
   const [frameHeight, setFrameHeight] = useState(1200);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const busyRef = useRef(false);
@@ -75,13 +74,7 @@ export function FarmGame() {
     void load();
   }, [authLoading, isAdmin, user?.id, load]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   const ownFarm = farms.find((farm) => farm.is_mine);
-  const community = farms.filter((farm) => !farm.is_mine);
 
   const sendFarmData = useCallback(() => {
     const emptyPlots = [1, 2, 3, 4].map((plotNo) => ({
@@ -107,13 +100,13 @@ export function FarmGame() {
           };
         })
       : emptyPlots;
-    const previewOthers = community.map((farm) => ({
+    const previewOthers = farms.filter((farm) => !farm.is_mine).map((farm) => ({
       n: farm.farm_name,
       s: farm.points,
       st: [1, 2, 3, 4].map((plotNo) => {
         const plot = farm.plots.find((item) => item.plot_no === plotNo);
         if (!plot?.crop_key) return -1;
-        const progress = growth(plot, now).percent;
+        const progress = growth(plot, Date.now()).percent;
         return progress >= 100 ? 3 : progress >= 65 ? 2 : progress >= 25 ? 1 : 0;
       }),
     }));
@@ -129,7 +122,7 @@ export function FarmGame() {
       board: ranking.map((entry) => [entry.owner_name, entry.weekly_points]),
       message: error ? "Không tải được dữ liệu. Vui lòng thử lại." : notice,
     }, "*");
-  }, [community, error, notice, now, ownFarm, ranking]);
+  }, [error, farms, notice, ownFarm, ranking]);
 
   useEffect(() => {
     sendFarmData();
