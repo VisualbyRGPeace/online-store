@@ -19,6 +19,7 @@ import {
 
 const BURN_MS = 4 * 60 * 60 * 1000;
 const RELIGHT_WINDOW_MS = 60 * 60 * 1000;
+const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
 
 /** A ballot record displayed on the page. The extra fields come from the service. */
 type Incense = BurningIncense & {
@@ -410,6 +411,7 @@ export function IncenseView() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
   const knownIds = useRef<Set<string> | null>(null);
 
   // Every list update goes through here so newly arrived ballots get their entrance animation.
@@ -595,16 +597,17 @@ export function IncenseView() {
           <p className="mt-3 text-sm leading-6 text-neutral-600 sm:text-base">Gửi lá phiếu của bạn vào hòm bỏ phiếu.</p>
         </header>
 
-        <div className="mx-auto mt-8 grid h-36 w-36 place-items-center rounded-full bg-blue-50 ring-1 ring-blue-100 sm:h-44 sm:w-44" aria-hidden="true">
-          <svg viewBox="0 0 120 120" className="h-28 w-28 sm:h-32 sm:w-32">
-            <path d="M22 100h76M30 91h60M36 84h48V52H36zM29 52l31-22 31 22z" fill="#fff" stroke="#1e3a8a" strokeWidth="3" strokeLinejoin="round" />
-            <path d="M43 84V62m11 22V62m12 22V62m11 22V62" stroke="#1e3a8a" strokeWidth="3" />
-            <path d="M60 30V18" stroke="#1e3a8a" strokeWidth="2" />
-            <path d="M60 18h23v14H60z" fill="#b91c1c" />
-            <path d="M60 18h12v14H60z" fill="#fff" />
-            <path d="M72 18h11v14H72z" fill="#1d4ed8" />
-            <circle cx="60" cy="47" r="4" fill="#b91c1c" />
-          </svg>
+        <div className="relative mx-auto mt-8 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
+          {!imageFailed && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={BUDDHA_IMAGE}
+              alt="Tượng Phật"
+              decoding="async"
+              onError={() => setImageFailed(true)}
+              className="buddha-float pointer-events-none relative h-full w-full object-contain object-top"
+            />
+          )}
         </div>
 
         {loadError && <p role="alert" className="mx-auto mt-4 max-w-md rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">{loadError}</p>}
