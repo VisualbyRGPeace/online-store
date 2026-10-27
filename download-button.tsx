@@ -13,8 +13,8 @@ import { formatVnd } from "@/utils/format";
  * Signed-out visitor: "Đăng nhập để tải" (returns to this page after login).
  * Signed-in member: asks the database for the Google Drive link and opens it.
  *   - Free ("Có sẵn") resource: any signed-in member.
- *   - Cúng dường resource: a member who already confirmed a donation. If not yet, a pop-up shows the QR code
- *     and the "Xác nhận đã cúng dường" button; after confirming, the file opens by itself.
+ *   - payment for a resource: a member who already confirmed a donation. If not yet, a pop-up shows the QR code
+ *     and the "Xác nhận đã thanh toán" button; after confirming, the file opens by itself.
  * The database enforces all of this too (and refuses blocked members).
  */
 export function DownloadButton({
@@ -85,7 +85,7 @@ export function DownloadButton({
         className={`${base} bg-black text-white hover:bg-slate-700 disabled:opacity-60`}
       >
         {paid ? <HeartIcon className={icon} /> : <DownloadIcon className={icon} />}
-        {status === "loading" ? "Đang lấy liên kết..." : paid ? `Cúng dường · ${formatVnd(price)}` : "Tải xuống"}
+        {status === "loading" ? "Đang lấy liên kết..." : paid ? `Thanh toán · ${formatVnd(price)}` : "Tải xuống"}
       </button>
       {status === "error" && (
         <p role="alert" className="mt-1.5 text-center text-xs text-red-600">

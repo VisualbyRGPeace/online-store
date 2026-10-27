@@ -21,10 +21,10 @@ type Props = {
 };
 
 /**
- * "Cúng dường để tải file". Two modes, chosen by the admin:
+ * "Thanh toán để tải file". Two modes, chosen by the admin:
  *  - automatic: a QR with the exact amount and a unique code; the bank webhook confirms the payment
  *    and this window unlocks the download by itself.
- *  - manual: the admin's QR image + "Xác nhận đã cúng dường" (honor system).
+ *  - manual: the admin's QR image + "Xác nhận đã thanh toán" (honor system).
  */
 export function DonateDialog({ open, productId, productName, price, onClose, onConfirmed }: Props) {
   useEffect(() => {
@@ -62,7 +62,7 @@ function Frame({ productName, onClose, children }: { productName: string; onClos
       <button type="button" onClick={onClose} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-black">
         ×
       </button>
-      <h2 id="donate-title" className="text-xl font-semibold tracking-tight">Cúng dường để tải file</h2>
+      <h2 id="donate-title" className="text-xl font-semibold tracking-tight">Thanh toán để tải file</h2>
       <p className="mt-1 truncate text-sm text-slate-500">{productName}</p>
       {children}
     </div>
@@ -219,7 +219,7 @@ function ManualPay({ productId, productName, price, onClose, onConfirmed }: Omit
           <p className="px-4 text-sm text-slate-500">Chưa có mã QR. Vui lòng liên hệ quản trị viên.</p>
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={qr} alt="Mã QR cúng dường" width={224} height={224} onError={() => setQrFailed(true)} className="h-full w-full object-contain" />
+          <img src={qr} alt="Mã QR thanh toán" width={224} height={224} onError={() => setQrFailed(true)} className="h-full w-full object-contain" />
         )}
       </div>
 
@@ -237,7 +237,7 @@ function ManualPay({ productId, productName, price, onClose, onConfirmed }: Omit
 
       <div className="mt-6 flex flex-col gap-2">
         <button type="button" onClick={confirm} disabled={busy} className={primaryButton}>
-          {busy ? "Đang xác nhận..." : "Xác nhận đã cúng dường"}
+          {busy ? "Đang xác nhận..." : "Xác nhận đã thanh toán"}
         </button>
         <button type="button" onClick={onClose} disabled={busy} className={secondaryButton}>
           Đóng

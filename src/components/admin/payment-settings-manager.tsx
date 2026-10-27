@@ -14,7 +14,7 @@ export function PaymentSettingsManager() {
   const state = useQuery("admin-payment-settings", getPaymentSettings);
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h2 className="text-lg font-semibold">Cách nhận cúng dường</h2>
+      <h2 className="text-lg font-semibold">Cách nhận thanh toán</h2>
       {state.status === "loading" && <div className="mt-4 h-24 animate-pulse rounded-xl bg-slate-100" />}
       {state.status === "error" && <div className="mt-4"><ErrorState /></div>}
       {state.status === "success" && <SettingsForm initial={state.data} />}
@@ -65,14 +65,14 @@ function SettingsForm({ initial }: { initial: PaymentSettings }) {
             <input type="radio" name="payment_mode" value="manual" checked={mode === "manual"} onChange={() => setMode("manual")} className="mt-1" />
             <span>
               <span className="font-medium">Thủ công</span>
-              <span className="block text-slate-500">Khách quét mã QR bên dưới rồi tự bấm “Xác nhận đã cúng dường” (dựa vào sự trung thực).</span>
+              <span className="block text-slate-500">Khách quét mã QR bên dưới rồi tự bấm “Xác nhận đã thanh toán” (dựa vào sự trung thực).</span>
             </span>
           </label>
           <label className="flex items-start gap-2">
             <input type="radio" name="payment_mode" value="auto" checked={mode === "auto"} onChange={() => setMode("auto")} className="mt-1" />
             <span>
               <span className="font-medium">Tự động (SePay)</span>
-              <span className="block text-slate-500">Mỗi lần cúng dường có mã QR riêng kèm số tiền và mã thanh toán; nhận tiền xong file tự mở khóa.</span>
+              <span className="block text-slate-500">Mỗi lần thanh toán có mã QR riêng kèm số tiền và mã thanh toán; nhận tiền xong file tự mở khóa.</span>
             </span>
           </label>
         </div>

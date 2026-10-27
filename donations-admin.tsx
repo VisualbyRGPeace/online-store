@@ -12,7 +12,7 @@ import { adminErrorMessage } from "@/utils/errors";
 import { formatVnd } from "@/utils/format";
 import { formatDateTime } from "@/utils/labels";
 
-/** Every "Xác nhận đã cúng dường" press, so the admin can compare with the bank and revoke false ones. */
+/** Every "Xác nhận đã thanh toán" press, so the admin can compare with the bank and revoke false ones. */
 export function DonationsAdmin() {
   const [version, setVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +33,7 @@ export function DonationsAdmin() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{PAID_LABEL}</h1>
-        <p className="mt-1 text-sm text-slate-500">Danh sách thành viên đã bấm “Xác nhận đã cúng dường”. Đối chiếu với tài khoản nhận tiền; thu hồi nếu không đúng.</p>
+        <p className="mt-1 text-sm text-slate-500">Danh sách thành viên đã bấm “Xác nhận đã thanh toán”. Đối chiếu với tài khoản nhận tiền; thu hồi nếu không đúng.</p>
       </div>
       <DonationQrManager />
 

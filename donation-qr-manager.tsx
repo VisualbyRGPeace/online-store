@@ -7,7 +7,7 @@ import { FormMessage, secondaryButton } from "@/components/ui/form";
 import { adminErrorMessage } from "@/utils/errors";
 import { validateImageFile } from "@/utils/image";
 
-/** Upload / replace / remove the QR image that members see in the "Cúng dường để tải file" pop-up. */
+/** Upload / replace / remove the QR image that members see in the "Thanh toán để tải file" pop-up. */
 export function DonationQrManager() {
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -44,8 +44,8 @@ export function DonationQrManager() {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h2 className="text-lg font-semibold">Mã QR nhận cúng dường</h2>
-      <p className="mt-1 text-sm text-slate-500">Ảnh này hiện trong cửa sổ “Cúng dường để tải file”. Dùng mã QR do ngân hàng hoặc ví của bạn cấp.</p>
+      <h2 className="text-lg font-semibold">Mã QR nhận thanh toán</h2>
+      <p className="mt-1 text-sm text-slate-500">Ảnh này hiện trong cửa sổ “Thanh toán để tải file”. Dùng mã QR do ngân hàng hoặc ví của bạn cấp.</p>
 
       {message && <div className="mt-4"><FormMessage kind={message.kind}>{message.text}</FormMessage></div>}
 
@@ -55,7 +55,7 @@ export function DonationQrManager() {
             <span className="text-xs text-slate-400">Đang tải...</span>
           ) : url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="Mã QR cúng dường hiện tại" className="h-full w-full object-contain" />
+            <img src={url} alt="Mã QR thanh toán hiện tại" className="h-full w-full object-contain" />
           ) : (
             <span className="px-3 text-center text-xs text-slate-400">Chưa tải mã QR lên</span>
           )}

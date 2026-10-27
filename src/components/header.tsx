@@ -55,7 +55,6 @@ export function Header() {
               </Link>
             </div>
           </details>
-          <Link href="/incense/" className="rounded-lg px-3.5 py-2 font-semibold text-amber-700 transition hover:bg-amber-50">Bỏ phiếu</Link>
           {!loading &&
             (user ? (
               <Link href="/account/" className="rounded-lg bg-black px-3.5 py-2 text-white transition hover:bg-slate-700">

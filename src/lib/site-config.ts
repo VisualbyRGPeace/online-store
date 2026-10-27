@@ -4,4 +4,4 @@ export const SITE_TAGLINE = "Tài nguyên tải xuống.";
 // Label for free resources (shown on cards, filters and in admin).
 export const FREE_LABEL = "Có sẵn";
 // Label for paid resources (filter, admin form, dashboard).
-export const PAID_LABEL = "Cúng dường";
+export const PAID_LABEL = "Thanh toán";
