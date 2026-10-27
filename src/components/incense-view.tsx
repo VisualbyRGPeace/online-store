@@ -20,7 +20,7 @@ import {
 const BURN_MS = 4 * 60 * 60 * 1000;
 const RELIGHT_WINDOW_MS = 60 * 60 * 1000;
 
-/** A stick as the page uses it. The extra fields come from the service (see docs/incense-extinguish.md). */
+/** A ballot record displayed on the page. The extra fields come from the service. */
 type Incense = BurningIncense & {
   is_mine?: boolean; // the signed-in user is the one who lit this stick
   extinguished_at?: string | null; // set while the stick is put out
@@ -38,19 +38,8 @@ const buttonDark =
 const nfc = (text: string) => text.normalize("NFC");
 
 // ---------------------------------------------------------------------------------------------
-// Incense table (SVG): black lacquer tray with a gold rim, burning sticks, thin wavering smoke
+// Ballot display: paper ballots shown on a presentation tray
 // ---------------------------------------------------------------------------------------------
-const TOP_Y = 74; // top of a freshly lit stick
-const BODY_BOTTOM = 406;
-const BURN_RANGE = 250; // how far the tip travels while the stick burns down
-const STAR = "M0 -7 Q0 0 7 0 Q0 0 0 7 Q0 0 -7 0 Q0 0 0 -7Z";
-const STARS = [[-20, 52, 0], [19, 44, 0.9], [-13, 90, 1.7], [15, 80, 2.4]] as const;
-const SMOKE_PATHS = [
-  ["M0 0 C-18 -34 20 -62 0 -100 S-22 -152 4 -204", "M0 0 C16 -30 -18 -70 2 -104 S24 -150 -5 -198", "M0 0 C-12 -40 16 -56 -2 -98 S-18 -158 7 -206"],
-  ["M0 0 C20 -32 -16 -66 2 -102 S22 -150 -4 -202", "M0 0 C-16 -36 18 -60 0 -100 S-20 -154 6 -200", "M0 0 C12 -38 -14 -64 2 -104 S20 -148 -7 -206"],
-] as const;
-const SMOKE_WIDTH = [[2.4, 2, 2.2], [2.2, 2, 2.4]] as const;
-
 function Stick({ ballot, index, x, remaining, fresh, selected, onSelect, onHover }: {
   incense: Incense;
   index: number;
@@ -191,7 +180,6 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
             <Stick
               key={item.id}
               incense={item}
-              index={i}
               x={cx + (i - (n - 1) / 2) * spacing}
               remaining={remaining}
               fresh={freshIds.has(item.id)}
@@ -207,7 +195,7 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Details of the stick being hovered / tapped
+// Details of the ballot being hovered / tapped
 // ---------------------------------------------------------------------------------------------
 function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBless, onExtinguish, onRelight }: {
   incense: Incense | null;
@@ -425,7 +413,7 @@ export function IncenseView() {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const knownIds = useRef<Set<string> | null>(null);
 
-  // Every list update goes through here so newly appeared sticks get their "ignite" animation.
+  // Every list update goes through here so newly arrived ballots get their entrance animation.
   const applyIncense = useCallback((list: BurningIncense[]) => {
     const known = knownIds.current;
     if (known === null) {
@@ -475,7 +463,7 @@ export function IncenseView() {
       if (!alive) return;
       let problem: string | null = null;
       if (incenseResult.status === "fulfilled") applyIncense(incenseResult.value);
-      else problem = "Không tải được bàn hương. Vui lòng thử lại.";
+      else problem = "Không tải được danh sách phiếu. Vui lòng thử lại.";
       if (availabilityResult.status === "fulfilled") setAcceptingIncense(availabilityResult.value);
       else {
         setAcceptingIncense(false);
@@ -506,7 +494,7 @@ export function IncenseView() {
   const closeDialog = useCallback(() => setDialogOpen(false), []);
   const selectStick = useCallback((id: string) => setSelectedId((current) => (current === id ? null : id)), []);
 
-  /** Runs one action on a stick (bless / put out / relight), then reloads the table and shows a toast. */
+  /** Runs one action on a ballot (bless / put out / relight), then reloads the table and shows a toast. */
   async function runAction(id: string, kind: ActionKind, work: () => Promise<void>, okText: string, errText: string) {
     if (actionBusy) return;
     setActionBusy({ id, kind });
@@ -524,12 +512,12 @@ export function IncenseView() {
 
   function giveBlessing(offeringId: string) {
     if (!canBless) return;
-    void runAction(offeringId, "bless", () => blessIncense(offeringId), "Đã ban phước.", "Chưa ban phước được. Vui lòng thử lại sau.");
+    void runAction(offeringId, "bless", () => blessIncense(offeringId), "Đã ghi nhận ủng hộ.", "Chưa ghi nhận ủng hộ được. Vui lòng thử lại sau.");
   }
 
   function putOut(item: Incense) {
     if (!user || item.is_mine) return;
-    void runAction(item.id, "extinguish", () => extinguishIncense(item.id), `Đã rút phiếu của ${nfc(item.donor_name)}.`, "Chưa dập tắt được. Vui lòng thử lại.");
+    void runAction(item.id, "extinguish", () => extinguishIncense(item.id), `Đã rút phiếu của ${nfc(item.donor_name)}.`, "Chưa rút phiếu được. Vui lòng thử lại.");
   }
 
   function relight(item: Incense) {
@@ -546,10 +534,9 @@ export function IncenseView() {
     try {
       const offeringId = await lightIncense(prayer);
       try {
-        const next = await refresh();
-        const own = next.find((item) => item.id === offeringId);
+        await refresh();
       } catch {
-        // the next poll will show the new stick
+        // the next refresh will show the new ballot
       }
       setSelectedId(offeringId);
       setDialogOpen(false);
@@ -559,10 +546,10 @@ export function IncenseView() {
       const message = (err as { message?: string } | null)?.message ?? "";
       if (message.includes("incense_closed")) {
         setAcceptingIncense(false);
-        setDialogError("Hiện đang tạm ngưng nhận cúng dường.");
+        setDialogError("Hiện đang tạm ngưng nhận phiếu bầu.");
       } else if (message.includes("incense_donation_not_allowed")) {
         setCanDonate(false);
-        setDialogError("Tài khoản này không được phép cúng dường.");
+        setDialogError("Tài khoản này không được phép bỏ phiếu.");
       } else if (message.includes("invalid_prayer")) {
         setDialogError("Phiếu bầu cần từ 2 đến 240 ký tự.");
       } else if (message.includes("npc_message_unavailable")) {
@@ -585,14 +572,13 @@ export function IncenseView() {
   const litCount = active.filter((item) => !item.extinguished_at).length;
   const shownId = hoverId ?? selectedId;
   const shown = active.find((item) => item.id === shownId) ?? null;
-  const message = npcMessage || WELCOME;
-
+  
   const cta = (() => {
     const note = "text-sm text-neutral-500";
     if (loading || authLoading) return <button type="button" disabled className={buttonDark}>Đang kiểm tra…</button>;
-    if (!user) return <Link href="/login/?next=%2Fincense%2F" className={buttonDark}>Đăng nhập để cúng dường</Link>;
-    if (!canDonate) return <p role="status" className={note}>Tài khoản này không được phép cúng dường.</p>;
-    if (acceptingIncense === false) return <p role="status" className={note}>Hiện đang tạm ngưng nhận cúng dường.</p>;
+    if (!user) return <Link href="/login/?next=%2Fincense%2F" className={buttonDark}>Đăng nhập để bỏ phiếu</Link>;
+    if (!canDonate) return <p role="status" className={note}>Tài khoản này không được phép bỏ phiếu.</p>;
+    if (acceptingIncense === false) return <p role="status" className={note}>Hiện đang tạm ngưng nhận phiếu bầu.</p>;
     return (
       <button type="button" disabled={nameLoading || !donorName} onClick={() => { setDialogError(null); setDialogOpen(true); }} className={buttonDark}>
         Bỏ phiếu
