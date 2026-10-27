@@ -16,7 +16,6 @@ import {
   subscribeToIncenseBlessings,
   type BurningIncense,
 } from "@/services/incense-service";
-import { getMeritBoxQr, type MeritBoxQr } from "@/services/merit-box-service";
 
 const BURN_MS = 4 * 60 * 60 * 1000;
 const RELIGHT_WINDOW_MS = 60 * 60 * 1000;
@@ -28,9 +27,6 @@ type Incense = BurningIncense & {
   extinguished_by_name?: string | null; // who put it out
 };
 type ActionKind = "bless" | "extinguish" | "relight";
-const BUDDHA_IMAGE = "https://raw.githubusercontent.com/VisualbyRGPeace/online-store/main/Phatthanh.png";
-const SUGGESTIONS = ["Bình an cho gia đình", "Sức khỏe dồi dào", "Công việc thuận lợi", "Tâm luôn an tĩnh"];
-const WELCOME = "Gửi lời nguyện của bạn.";
 
 const buttonDark =
   "inline-flex items-center justify-center rounded-full bg-black px-7 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
@@ -55,78 +51,42 @@ const SMOKE_PATHS = [
 ] as const;
 const SMOKE_WIDTH = [[2.4, 2, 2.2], [2.2, 2, 2.4]] as const;
 
-function Stick({ incense, index, x, remaining, fresh, selected, fancy, onSelect, onHover }: {
+function Stick({ ballot, index, x, remaining, fresh, selected, onSelect, onHover }: {
   incense: Incense;
   index: number;
   x: number;
   remaining: number;
   fresh: boolean;
   selected: boolean;
-  fancy: boolean;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }) {
-  const topY = TOP_Y + BURN_RANGE * (1 - remaining);
-  const dy = topY - TOP_Y;
-  const out = Boolean(incense.extinguished_at);
-  const blessed = incense.blessing_count > 0 && !out;
-  const variant = index % 2;
-  const delay = (base: number) => ({ animationDelay: `${-(base + index * 1.3)}s` });
-  const hitTop = topY - 40;
-
+  const withdrawn = Boolean(incense.extinguished_at);
+  const slide = Math.round((1 - remaining) * 34);
   return (
     <g transform={`translate(${x} 0)`} className={selected ? "inc-sel" : undefined}>
-      <g className={fresh ? "inc-drop" : undefined}>
-        <ellipse cx="0" cy="546" rx="8" ry="3" fill="url(#incGoldRod)" />
-        <rect x="-1.8" y="404" width="3.6" height="142" fill="url(#incBamboo)" />
-        <rect x="-3" y={topY} width="6" height={BODY_BOTTOM - topY} fill="url(#incBrown)" />
-        <rect x="-3" y="400" width="6" height="6" fill="#5a3520" opacity=".7" />
-
-        <g transform={`translate(0 ${dy})`}>
-          <path d="M-3.2 69 L-3 59 L-2 55 L-.6 53 L1 56 L2.6 54 L3.2 60 L3.2 69Z" fill="url(#incAsh)" />
-          <path d="M-1.6 62 L-.4 60 L.8 63 M1.2 58 L2.4 59" stroke="#7d7870" strokeWidth=".7" fill="none" opacity=".8" />
-          <rect x="-3" y="68" width="6" height="6" fill="#2a1a12" />
-          {out ? (
-            // Put out: dark, cold tip, no glow and no smoke.
-            <rect x="-3" y="68" width="6" height="6" fill="#4a3a32" />
-          ) : (
-            <>
-              <g className="inc-ember">
-                <circle className="inc-halo inc-flick-h" cx="0" cy="71" r="20" fill="url(#incHalo)" style={delay(0.4)} />
-                <rect x="-3" y="74" width="6" height="12" fill="url(#incCoal)" />
-                <rect x="-3" y="68" width="6" height="6" fill="#d9300e" />
-                <rect className="inc-flick" x="-3" y="68" width="6" height="6" fill="#ff8a3a" style={delay(1.1)} />
-              </g>
-              <g transform="translate(0 50)">
-                <g filter={fancy ? "url(#incSmokeFx)" : undefined}>
-                  {SMOKE_PATHS[variant]?.map((d, i) => (
-                    <path key={i} className="inc-wisp" strokeWidth={SMOKE_WIDTH[variant]?.[i] ?? 2.2} d={d} style={delay(2.7 * i)} />
-                  ))}
-                </g>
-              </g>
-            </>
-          )}
-          {blessed && STARS.map(([sx, sy, dl], i) => (
-            <g key={i} transform={`translate(${sx} ${sy})`}>
-              <g className="inc-star" style={{ animationDelay: `${-(dl + index * 0.6)}s` }}>
-                <circle r="11" fill="url(#incSparkGlow)" />
-                <path d={STAR} fill="#e8a91f" />
-                <path d={STAR} fill="#fff3c4" transform="scale(.5)" />
-              </g>
-            </g>
-          ))}
-        </g>
-
+      <g className={fresh ? "inc-drop" : undefined} transform={`translate(0 ${slide})`}>
+        <ellipse cx="0" cy="532" rx="56" ry="8" fill="#000" opacity=".12" />
+        <rect x="-58" y="308" width="116" height="178" rx="5" fill={withdrawn ? "#e5e7eb" : "#fffdf7"} stroke={withdrawn ? "#9ca3af" : "#1e3a8a"} strokeWidth="4" />
+        <path d="M-53 313 H53 V343 H-53Z" fill={withdrawn ? "#6b7280" : "#b91c1c"} />
+        <text x="0" y="334" textAnchor="middle" fontSize="13" fontWeight="800" fill="#fff" style={{ fontFamily: "inherit", letterSpacing: "1px" }}>UNITED STATES</text>
+        <text x="0" y="370" textAnchor="middle" fontSize="13" fontWeight="800" fill="#1e3a8a" style={{ fontFamily: "inherit", letterSpacing: "1px" }}>BALLOT</text>
+        <text x="0" y="392" textAnchor="middle" fontSize="10" fontWeight="700" fill="#374151" style={{ fontFamily: "inherit" }}>PRESIDENT</text>
+        <path d="M-37 409 H37 M-37 424 H37 M-37 439 H23" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+        <rect x="-35" y="452" width="13" height="13" rx="2" fill="none" stroke="#1e3a8a" strokeWidth="2" />
+        <path d="M-33 458 l4 4 8-10" fill="none" stroke={withdrawn ? "#9ca3af" : "#b91c1c"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        <text x="-13" y="463" textAnchor="start" fontSize="9" fontWeight="700" fill="#374151" style={{ fontFamily: "inherit" }}>YOUR CHOICE</text>
+        <path d="M-43 478 H43" stroke="#d1d5db" strokeWidth="1.5" />
         <rect
           className="inc-hit"
-          x="-45"
-          y={hitTop}
-          width="90"
-          height={560 - hitTop}
+          x="-70"
+          y="288"
+          width="140"
+          height="218"
           tabIndex={0}
           role="button"
           aria-pressed={selected}
-          aria-label={`Lời cúng dường của ${nfc(incense.donor_name)}${out ? `, đã được dập tắt bởi ${nfc(incense.extinguished_by_name ?? "một người")}` : ""}. Khẩn cầu: ${nfc(incense.message_text)}`}
+          aria-label={`Phiếu bầu của ${nfc(incense.donor_name)}${withdrawn ? `, đã được rút khỏi hòm bởi ${nfc(incense.extinguished_by_name ?? "một người")}` : ""}. Lựa chọn: ${nfc(incense.message_text)}`}
           onClick={() => onSelect(incense.id)}
           onPointerEnter={(e) => { if (e.pointerType === "mouse") onHover(incense.id); }}
           onPointerLeave={(e) => { if (e.pointerType === "mouse") onHover(null); }}
@@ -154,13 +114,12 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
   const cx = vbW / 2;
   const L = 170;
   const R = vbW - 170;
-  const fancy = items.filter((item) => !item.extinguished_at).length <= 6; // the animated smoke distortion is the costly part, so it is limited to a few sticks
   const displayW = Math.round(vbW * 0.62);
   const viewBox = n === 0 ? `0 330 ${vbW} 390` : `0 -190 ${vbW} 890`;
 
   return (
-    <div className="overflow-hidden" aria-label={`${n} lời cúng dường`}>
-      <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: "100%", maxWidth: `${displayW}px` }} role="group" aria-label="Bàn cúng dường">
+    <div className="overflow-hidden" aria-label={`${n} phiếu bầu`}>
+      <svg viewBox={viewBox} className="mx-auto block h-auto overflow-visible" style={{ width: "100%", maxWidth: `${displayW}px` }} role="group" aria-label="Khu vực trưng bày phiếu bầu">
         <defs>
           <linearGradient id="incLacquer" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#3b3b41" /><stop offset=".18" stopColor="#1b1b1e" /><stop offset=".7" stopColor="#0a0a0b" /><stop offset="1" stopColor="#000" />
@@ -237,7 +196,6 @@ function IncenseTable({ items, now, freshIds, shownId, onSelect, onHover }: {
               remaining={remaining}
               fresh={freshIds.has(item.id)}
               selected={item.id === shownId}
-              fancy={fancy}
               onSelect={onSelect}
               onHover={onHover}
             />
@@ -265,7 +223,7 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
   if (!incense) {
     return (
       <div className="flex min-h-[132px] items-center justify-center px-6 text-center text-sm text-neutral-400">
-        Chọn một lời nguyện để xem chi tiết.
+        Chọn một lá phiếu để xem chi tiết.
       </div>
     );
   }
@@ -283,11 +241,11 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
       {out ? (
         <>
           <p className="mt-3 text-sm text-neutral-600">
-            Đã được dập tắt bởi <span className="font-semibold text-neutral-900">{nfc(incense.extinguished_by_name ?? "một người")}</span>
+            Đã được rút khỏi hòm bởi <span className="font-semibold text-neutral-900">{nfc(incense.extinguished_by_name ?? "một người")}</span>
           </p>
           {incense.is_mine && (
             <button type="button" disabled={locked} onClick={() => onRelight(incense)} className={`mt-3 ${dark}`}>
-              {busyKind === "relight" ? "Đang thắp lại…" : "Thắp lại"}
+              {busyKind === "relight" ? "Đang khôi phục…" : "Khôi phục phiếu"}
             </button>
           )}
         </>
@@ -304,12 +262,12 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
               {canBless && (
                 <button type="button" disabled={locked} onClick={() => onBless(incense.id)} className={outline}>
-                  {busyKind === "bless" ? "Đang ban phước…" : "✦ Ban phước"}
+                  {busyKind === "bless" ? "Đang ghi nhận ủng hộ…" : "✦ Ủng hộ"}
                 </button>
               )}
               {canExtinguish && !incense.is_mine && (
                 <button type="button" disabled={locked} onClick={() => onExtinguish(incense)} className={outline}>
-                  {busyKind === "extinguish" ? "Đang dập…" : "Dập tắt"}
+                  {busyKind === "extinguish" ? "Đang rút phiếu…" : "Rút phiếu"}
                 </button>
               )}
             </div>
@@ -321,131 +279,47 @@ function Plaque({ incense, now, canBless, canExtinguish, locked, busyKind, onBle
 }
 
 // ---------------------------------------------------------------------------------------------
-// Merit box (Hòm công đức): tap it to see the QR code the admin manages
+// Ballot box: opens the ballot form
 // ---------------------------------------------------------------------------------------------
-function MeritBoxButton({ onClick }: { onClick: () => void }) {
+function BallotBoxButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Mở hòm công đức để xem mã QR"
-      className="mb-btn mx-auto block w-[150px] rounded-2xl text-center transition-transform duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900/40"
+      aria-label="Mở hòm bỏ phiếu"
+      className="mb-btn mx-auto block w-[170px] rounded-2xl text-center transition-transform duration-300 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-700/40"
     >
       <svg viewBox="0 0 200 150" className="block h-auto w-full" aria-hidden>
         <defs>
           <linearGradient id="mbLacquer" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#3b3b41" /><stop offset=".2" stopColor="#1b1b1e" /><stop offset=".75" stopColor="#0a0a0b" /><stop offset="1" stopColor="#000" />
+            <stop offset="0" stopColor="#2563eb" /><stop offset=".2" stopColor="#1d4ed8" /><stop offset=".75" stopColor="#1e3a8a" /><stop offset="1" stopColor="#172554" />
           </linearGradient>
           <linearGradient id="mbGoldH" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#7a5524" /><stop offset=".25" stopColor="#e6bd77" /><stop offset=".5" stopColor="#fbe3b0" /><stop offset=".75" stopColor="#d2a35a" /><stop offset="1" stopColor="#7a5524" />
+            <stop offset="0" stopColor="#bfdbfe" /><stop offset=".5" stopColor="#fff" /><stop offset="1" stopColor="#93c5fd" />
           </linearGradient>
-          <radialGradient id="mbCoinFill" cx=".4" cy=".35" r=".8">
-            <stop offset="0" stopColor="#fbe3b0" /><stop offset=".6" stopColor="#d2a35a" /><stop offset="1" stopColor="#8a622b" />
-          </radialGradient>
-          {/* Tall filter region so the soft shadow is not cut off. */}
           <filter id="mbSoft" x="-10%" y="-400%" width="120%" height="900%"><feGaussianBlur stdDeviation="6" /></filter>
         </defs>
         <ellipse cx="100" cy="138" rx="70" ry="7" fill="#000" opacity=".2" filter="url(#mbSoft)" />
-        <ellipse cx="54" cy="133" rx="10" ry="4" fill="url(#mbGoldH)" />
-        <ellipse cx="146" cy="133" rx="10" ry="4" fill="url(#mbGoldH)" />
-        {/* the coin falls into the slot on hover (it is drawn behind the lid, so it disappears into it) */}
-        <circle className="mb-coin" cx="100" cy="18" r="7" fill="url(#mbCoinFill)" />
+        <ellipse cx="54" cy="133" rx="10" ry="4" fill="#1e3a8a" />
+        <ellipse cx="146" cy="133" rx="10" ry="4" fill="#1e3a8a" />
+        <rect className="mb-coin" x="91" y="12" width="18" height="26" rx="2" fill="#fffdf7" stroke="#1e3a8a" strokeWidth="2" transform="rotate(-8 100 25)" />
         <rect x="34" y="52" width="132" height="80" rx="10" fill="url(#mbLacquer)" />
-        <rect x="28" y="38" width="144" height="24" rx="8" fill="url(#mbLacquer)" />
-        <rect x="31" y="40" width="138" height="8" rx="4" fill="#26262a" />
-        <path d="M30 49 Q30 39 52 39 H148 Q170 39 170 49" fill="none" stroke="url(#mbGoldH)" strokeWidth="2.6" strokeLinecap="round" />
-        <rect x="30" y="59" width="140" height="3" rx="1.5" fill="url(#mbGoldH)" />
-        <rect x="76" y="43" width="48" height="5" rx="2.5" fill="#000" stroke="url(#mbGoldH)" strokeWidth=".8" />
-        <rect x="58" y="76" width="84" height="36" rx="7" fill="#0c0c0d" stroke="url(#mbGoldH)" strokeWidth="1.6" />
-        <text x="100" y="99" textAnchor="middle" fontSize="15" fontWeight="500" fill="#ecd29a" style={{ fontFamily: "inherit" }}>Công đức</text>
+        <rect x="28" y="38" width="144" height="24" rx="5" fill="#1e3a8a" />
+        <rect x="31" y="40" width="138" height="8" rx="3" fill="#2563eb" />
+        <rect x="30" y="59" width="140" height="4" rx="2" fill="#b91c1c" />
+        <rect x="76" y="43" width="48" height="5" rx="2.5" fill="#111827" stroke="#fff" strokeWidth="1" />
+        <rect x="58" y="76" width="84" height="36" rx="7" fill="#172554" stroke="#bfdbfe" strokeWidth="1.6" />
+        <text x="100" y="99" textAnchor="middle" fontSize="13" fontWeight="800" fill="#fff" style={{ fontFamily: "inherit", letterSpacing: "1px" }}>BỎ PHIẾU</text>
       </svg>
-      <span className="mt-1 block text-xs text-neutral-400">Hòm công đức</span>
+      <span className="mt-1 block text-xs font-medium text-neutral-500">Hòm bỏ phiếu</span>
     </button>
   );
 }
 
-type MeritState = { status: "loading" } | { status: "error" } | { status: "empty" } | { status: "ready"; qr: MeritBoxQr };
-
-function MeritBoxDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [state, setState] = useState<MeritState>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
-
-  // Load the QR each time the dialog opens, so a change made by the admin shows up straight away.
-  useEffect(() => {
-    if (!open) return;
-    let alive = true;
-    setState({ status: "loading" });
-    getMeritBoxQr()
-      .then((qr) => { if (alive) setState(qr ? { status: "ready", qr } : { status: "empty" }); })
-      .catch((err) => {
-        console.error(err);
-        if (alive) setState({ status: "error" });
-      });
-    return () => { alive = false; };
-  }, [open, attempt]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  return createPortal(
-    <div
-      className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 backdrop-blur-sm sm:place-items-center sm:p-4"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div role="dialog" aria-modal="true" aria-labelledby="merit-title" className="dialog-pop relative w-full max-w-sm rounded-t-3xl bg-white p-6 pb-8 text-center shadow-2xl sm:rounded-3xl sm:pb-6">
-        <button type="button" onClick={onClose} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
-          ×
-        </button>
-        <h2 id="merit-title" className="text-xl font-semibold tracking-wide">Hòm công đức</h2>
-        <p className="mt-1 text-sm text-neutral-500">Quét mã để gửi công đức.</p>
-
-        <div className="mt-5">
-          {state.status === "loading" && <div className="mx-auto h-64 w-64 animate-pulse rounded-2xl bg-neutral-100" aria-busy="true" />}
-          {state.status === "ready" && (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={state.qr.imageUrl}
-                alt="Mã QR hòm công đức"
-                decoding="async"
-                onError={() => setState({ status: "error" })}
-                className="mx-auto h-64 w-64 rounded-2xl border border-neutral-200 bg-white object-contain p-3"
-              />
-              {state.qr.title && <p className="mt-3 text-sm font-semibold text-neutral-900">{nfc(state.qr.title)}</p>}
-              {state.qr.note && <p className="mt-1 whitespace-pre-line text-sm text-neutral-500">{nfc(state.qr.note)}</p>}
-            </>
-          )}
-          {state.status === "empty" && <p className="px-4 py-10 text-sm text-neutral-400">Hiện chưa có mã QR công đức.</p>}
-          {state.status === "error" && (
-            <div>
-              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Chưa tải được mã QR. Vui lòng thử lại.</p>
-              <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-3 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-900">
-                Thử lại
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
 // ---------------------------------------------------------------------------------------------
-// Dialog: write a prayer and light the stick
+// Dialog: write a ballot and cast it
 // ---------------------------------------------------------------------------------------------
-function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
+function BallotDialog({ open, donorName, busy, error, onClose, onSubmit }: {
   open: boolean;
   donorName: string;
   busy: boolean;
@@ -475,11 +349,6 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
   if (!open) return null;
 
   const trimmed = prayer.trim();
-  function addSuggestion(text: string) {
-    setPrayer((current) => (current.trim() ? `${current.trim()}. ${text}` : text).slice(0, 240));
-    areaRef.current?.focus();
-  }
-
   return createPortal(
     <div
       className="dialog-fade fixed inset-0 z-50 grid place-items-end bg-black/40 backdrop-blur-sm sm:place-items-center sm:p-4"
@@ -499,12 +368,12 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
         <button type="button" onClick={onClose} disabled={busy} aria-label="Đóng" className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-xl text-neutral-400 transition hover:bg-neutral-100 hover:text-black">
           ×
         </button>
-        <h2 id="light-title" className="text-xl font-semibold tracking-wide">Cúng dường</h2>
+        <h2 id="light-title" className="text-xl font-semibold tracking-wide">Gửi phiếu bầu</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          Người cúng: <span className="font-medium text-neutral-900">{donorName}</span>
+          Cử tri: <span className="font-medium text-neutral-900">{donorName}</span>
         </p>
 
-        <label htmlFor="prayer" className="mt-5 block text-sm font-medium text-neutral-700">Lời khẩn cầu</label>
+        <label htmlFor="prayer" className="mt-5 block text-sm font-medium text-neutral-700">Tên ứng viên hoặc lựa chọn của bạn</label>
         <textarea
           id="prayer"
           ref={areaRef}
@@ -514,24 +383,15 @@ function LightDialog({ open, donorName, busy, error, onClose, onSubmit }: {
           rows={4}
           value={prayer}
           onChange={(e) => setPrayer(e.target.value)}
-          placeholder="Viết điều bạn muốn gửi gắm…"
+          placeholder="Nhập tên ứng viên bạn muốn bầu…"
           className="mt-1.5 w-full resize-none rounded-xl border border-neutral-300 px-3.5 py-3 text-[15px] leading-6 outline-none transition placeholder:text-neutral-400 focus:border-black focus:ring-4 focus:ring-black/10"
         />
-        <div className="mt-1.5 flex items-start justify-between gap-3">
-          <div className="flex flex-wrap gap-1.5">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} type="button" onClick={() => addSuggestion(s)} className="rounded-full border border-neutral-200 px-2.5 py-1 text-xs text-neutral-600 transition hover:border-neutral-900 hover:text-black">
-                {s}
-              </button>
-            ))}
-          </div>
-          <span className="shrink-0 pt-1 text-xs tabular-nums text-neutral-400">{prayer.length}/240</span>
-        </div>
+        <div className="mt-1.5 text-right text-xs tabular-nums text-neutral-400">{prayer.length}/240</div>
 
         {error && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
         <button type="submit" disabled={busy || trimmed.length < 2} className={`${buttonDark} mt-5 w-full`}>
-          {busy ? "Đang gửi…" : "Cúng dường"}
+          {busy ? "Đang gửi…" : "Gửi phiếu bầu"}
         </button>
       </form>
     </div>,
@@ -555,17 +415,14 @@ export function IncenseView() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [donorName, setDonorName] = useState("");
   const [nameLoading, setNameLoading] = useState(false);
-  const [npcMessage, setNpcMessage] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [meritOpen, setMeritOpen] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const [imageFailed, setImageFailed] = useState(false);
   const knownIds = useRef<Set<string> | null>(null);
 
   // Every list update goes through here so newly appeared sticks get their "ignite" animation.
@@ -581,8 +438,6 @@ export function IncenseView() {
       }
     }
     setIncense(list);
-    const latest = list[0]?.npc_message_text;
-    if (latest) setNpcMessage(latest);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -624,7 +479,7 @@ export function IncenseView() {
       if (availabilityResult.status === "fulfilled") setAcceptingIncense(availabilityResult.value);
       else {
         setAcceptingIncense(false);
-        problem ??= "Chưa kiểm tra được trạng thái nhận cúng dường.";
+        problem ??= "Chưa kiểm tra được trạng thái nhận bỏ phiếu.";
       }
       if (permissionsResult.status === "fulfilled") {
         setCanDonate(permissionsResult.value.canDonate);
@@ -674,32 +529,31 @@ export function IncenseView() {
 
   function putOut(item: Incense) {
     if (!user || item.is_mine) return;
-    void runAction(item.id, "extinguish", () => extinguishIncense(item.id), `Đã dập tắt lời cúng dường của ${nfc(item.donor_name)}.`, "Chưa dập tắt được. Vui lòng thử lại.");
+    void runAction(item.id, "extinguish", () => extinguishIncense(item.id), `Đã rút phiếu của ${nfc(item.donor_name)}.`, "Chưa dập tắt được. Vui lòng thử lại.");
   }
 
   function relight(item: Incense) {
     if (!item.is_mine) return;
-    void runAction(item.id, "relight", () => relightIncense(item.id), "Đã thắp lại.", "Chưa thắp lại được. Vui lòng thử lại sau.");
+    void runAction(item.id, "relight", () => relightIncense(item.id), "Đã khôi phục phiếu.", "Chưa khôi phục được phiếu. Vui lòng thử lại sau.");
   }
 
   async function lightOne(prayer: string): Promise<boolean> {
     setDialogError(null);
-    if (!user) { setDialogError("Vui lòng đăng nhập để cúng dường."); return false; }
-    if (!canDonate) { setDialogError("Tài khoản này không được phép cúng dường."); return false; }
-    if (acceptingIncense !== true) { setDialogError("Hiện đang tạm ngưng nhận cúng dường."); return false; }
+    if (!user) { setDialogError("Vui lòng đăng nhập để bỏ phiếu."); return false; }
+    if (!canDonate) { setDialogError("Tài khoản này không được phép bỏ phiếu."); return false; }
+    if (acceptingIncense !== true) { setDialogError("Hiện đang tạm ngưng nhận phiếu bầu."); return false; }
     setBusy(true);
     try {
       const offeringId = await lightIncense(prayer);
       try {
         const next = await refresh();
         const own = next.find((item) => item.id === offeringId);
-        if (own?.npc_message_text) setNpcMessage(own.npc_message_text);
       } catch {
         // the next poll will show the new stick
       }
       setSelectedId(offeringId);
       setDialogOpen(false);
-      setToast({ kind: "success", text: "Đã cúng dường." });
+      setToast({ kind: "success", text: "Đã gửi phiếu bầu." });
       return true;
     } catch (err) {
       const message = (err as { message?: string } | null)?.message ?? "";
@@ -710,11 +564,11 @@ export function IncenseView() {
         setCanDonate(false);
         setDialogError("Tài khoản này không được phép cúng dường.");
       } else if (message.includes("invalid_prayer")) {
-        setDialogError("Khẩn cầu cần từ 2 đến 240 ký tự.");
+        setDialogError("Phiếu bầu cần từ 2 đến 240 ký tự.");
       } else if (message.includes("npc_message_unavailable")) {
         setDialogError("Hiện chưa có thông điệp hiển thị. Vui lòng quay lại sau.");
       } else {
-        setDialogError("Chưa cúng dường được. Vui lòng thử lại.");
+        setDialogError("Chưa gửi được phiếu bầu. Vui lòng thử lại.");
       }
       await refresh().catch(() => undefined);
       return false;
@@ -741,45 +595,32 @@ export function IncenseView() {
     if (acceptingIncense === false) return <p role="status" className={note}>Hiện đang tạm ngưng nhận cúng dường.</p>;
     return (
       <button type="button" disabled={nameLoading || !donorName} onClick={() => { setDialogError(null); setDialogOpen(true); }} className={buttonDark}>
-        Cúng dường
+        Bỏ phiếu
       </button>
     );
   })();
 
   return (
     <div className="mx-auto max-w-3xl">
-      <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Bàn hương cúng dường">
-        {/* Hidden from view, kept for screen readers. */}
-        <header className="sr-only">
-          <h1>Cúng dường</h1>
-          <p aria-live="polite">
-            {loading ? "Đang tải…" : active.length === 0 ? "Chưa có lời cúng dường nào" : `${litCount} lời nguyện đang hiển thị${active.length > litCount ? ` · ${active.length - litCount} đã dập tắt` : ""}`}
-          </p>
+      <section className="px-4 pb-10 pt-10 sm:px-10" aria-label="Trang bỏ phiếu">
+        <header className="mx-auto max-w-2xl text-center">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight text-blue-950 sm:text-4xl">
+            Ai sẽ là tổng thống tiếp theo của nước Mỹ nào?
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-neutral-600 sm:text-base">Gửi lá phiếu của bạn vào hòm bỏ phiếu.</p>
         </header>
 
-        <div className="relative mx-auto mt-0 h-44 w-[min(60vw,14rem)] sm:h-56 sm:w-[18rem]">
-          {/* Soft grey aura with two fine rings. */}
-          <span className="pointer-events-none absolute left-1/2 top-[48%] aspect-square w-[82%] -translate-x-1/2 -translate-y-1/2" aria-hidden>
-            <span className="halo-pulse stage-glow absolute -inset-[24%] rounded-full" />
-            <span className="absolute inset-0 rounded-full border border-neutral-200" />
-            <span className="absolute inset-[8%] rounded-full border border-neutral-300" />
-          </span>
-          {!imageFailed && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={BUDDHA_IMAGE}
-              alt="Tượng Phật"
-              decoding="async"
-              onError={() => setImageFailed(true)}
-              className="buddha-float pointer-events-none relative h-full w-full object-contain object-top"
-            />
-          )}
+        <div className="mx-auto mt-8 grid h-36 w-36 place-items-center rounded-full bg-blue-50 ring-1 ring-blue-100 sm:h-44 sm:w-44" aria-hidden="true">
+          <svg viewBox="0 0 120 120" className="h-28 w-28 sm:h-32 sm:w-32">
+            <path d="M22 100h76M30 91h60M36 84h48V52H36zM29 52l31-22 31 22z" fill="#fff" stroke="#1e3a8a" strokeWidth="3" strokeLinejoin="round" />
+            <path d="M43 84V62m11 22V62m12 22V62m11 22V62" stroke="#1e3a8a" strokeWidth="3" />
+            <path d="M60 30V18" stroke="#1e3a8a" strokeWidth="2" />
+            <path d="M60 18h23v14H60z" fill="#b91c1c" />
+            <path d="M60 18h12v14H60z" fill="#fff" />
+            <path d="M72 18h11v14H72z" fill="#1d4ed8" />
+            <circle cx="60" cy="47" r="4" fill="#b91c1c" />
+          </svg>
         </div>
-
-        <p key={message} className="fade-up mx-auto mt-4 min-h-[3.5rem] max-w-md text-center text-[15px] leading-6 text-neutral-600" role="status" aria-live="polite">
-          {nfc(message)}
-          {npcMessage && <span className="mt-1 block text-xs text-neutral-400">Thích Khoai Tây</span>}
-        </p>
 
         {loadError && <p role="alert" className="mx-auto mt-4 max-w-md rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">{loadError}</p>}
 
@@ -795,7 +636,7 @@ export function IncenseView() {
           {!loading &&
             (active.length === 0 ? (
               <div className="flex min-h-[132px] items-center justify-center px-6 text-center text-sm text-neutral-400">
-                Hãy gửi lời cúng dường đầu tiên.
+                Hãy gửi lá phiếu đầu tiên.
               </div>
             ) : (
               <Plaque key={shown?.id ?? "none"} incense={shown} now={now} canBless={canBless} canExtinguish={Boolean(user)} locked={actionBusy !== null} busyKind={actionBusy && actionBusy.id === shown?.id ? actionBusy.kind : null} onBless={giveBlessing} onExtinguish={putOut} onRelight={relight} />
@@ -803,7 +644,7 @@ export function IncenseView() {
         </div>
 
         <div className="mt-8">
-          <MeritBoxButton onClick={() => setMeritOpen(true)} />
+          <BallotBoxButton onClick={() => { setDialogError(null); setDialogOpen(true); }} />
         </div>
 
         <div className="mt-6 flex flex-col items-center gap-2">
@@ -820,8 +661,7 @@ export function IncenseView() {
         </div>
       )}
 
-      <MeritBoxDialog open={meritOpen} onClose={() => setMeritOpen(false)} />
-      <LightDialog open={dialogOpen} donorName={donorName} busy={busy} error={dialogError} onClose={closeDialog} onSubmit={lightOne} />
+      <BallotDialog open={dialogOpen} donorName={donorName} busy={busy} error={dialogError} onClose={closeDialog} onSubmit={lightOne} />
     </div>
   );
 }
