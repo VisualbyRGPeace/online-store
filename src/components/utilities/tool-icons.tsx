@@ -109,3 +109,11 @@ export const ImageIcon = (p: IconProps) => (
     <path d="m21 16-5-5-8 8" />
   </Svg>
 );
+
+export const FrameIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <rect x="7" y="7" width="10" height="10" rx="1.5" />
+    <path d="M3 15.5c4-1.8 8-1.8 12 0s4 1.2 6 .2" />
+  </Svg>
+);

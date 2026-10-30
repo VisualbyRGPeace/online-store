@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRightIcon, FilmIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
+import { ArrowRightIcon, FilmIcon, FrameIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
 
 export const metadata: Metadata = { title: "Tiện ích" };
 
@@ -26,7 +26,13 @@ const tools = [
     tags: ["Tìm kiếm", "Điền biến", "Chia sẻ"],
     Icon: PromptIcon,
   },
-
+  {
+    href: "/utilities/add-frame/",
+    name: "Add frame",
+    description: "Tải ảnh lên, tự thêm frame theo khu vực kèm logo trái hoặc phải, xuất 3000 × 3000 px.",
+    tags: ["Theo danh mục", "Logo trái / phải", "JPG · PNG"],
+    Icon: FrameIcon,
+  },
 ];
 
 export default function UtilitiesPage() {
@@ -40,7 +46,7 @@ export default function UtilitiesPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tools.map(({ href, name, description, tags, Icon }) => (
           <Link
             key={href}
