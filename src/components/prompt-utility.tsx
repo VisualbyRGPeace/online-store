@@ -274,31 +274,8 @@ function PromptCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const variableCount = findVariables(prompt.content).length;
   return (
     <article className="group flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-400 hover:shadow-md">
-      <button type="button" onClick={onOpen} aria-label={`Mở prompt ${prompt.title}`} className="relative block aspect-[16/10] w-full overflow-hidden bg-slate-100 text-left">
-        {prompt.image_path ? (
-          <img
-            src={communityPromptImageUrl(prompt.image_path)}
-            alt=""
-            loading="lazy"
-            className="h-full w-full object-contain transition duration-300"
-          />
-        ) : (
-          <span className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-3xl font-semibold text-slate-400">Aa</span>
-        )}
-        {prompt.reference_image_path && (
-          <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-800 shadow-sm backdrop-blur">
-            Có ảnh mẫu
-          </span>
-        )}
-        {variableCount > 0 && (
-          <span className="absolute left-3 top-3 rounded-full bg-black/80 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-            {variableCount} biến
-          </span>
-        )}
-      </button>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="line-clamp-1 font-semibold text-slate-900">{prompt.title}</h3>
         <p className="mt-0.5 text-xs text-slate-500">
