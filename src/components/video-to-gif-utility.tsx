@@ -470,11 +470,7 @@ export function VideoToGifUtility() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       <div className="min-w-0 space-y-6">
-        <Section
-         
-          title="Chọn video & vùng cắt"
-          MB.`}
-        >
+        <Section title="Chọn video & vùng cắt">
           {!source && (
             <label
               onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}

@@ -1,6 +1,6 @@
 "use client";
 
-remove unused QR Link importimport { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useAuth } from "@/hooks/use-auth";
 import { recordQrGeneration } from "@/services/qr-history-service";
