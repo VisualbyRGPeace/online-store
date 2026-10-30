@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+remove unused QR Link importimport { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { useAuth } from "@/hooks/use-auth";
 import { recordQrGeneration } from "@/services/qr-history-service";
@@ -149,7 +148,7 @@ export function QrUtility() {
         saveBlob(await (await fetch(dataUrl)).blob(), "ma-qr.png");
       }
       if (!user) {
-        flash("Đã tải mã. Đăng nhập để lưu vào lịch sử.");
+        flash("Đã tải mã.");
         return;
       }
       try {
