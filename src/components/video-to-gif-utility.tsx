@@ -23,10 +23,10 @@ const PROFILES = [
 ] as const;
 type Profile = (typeof PROFILES)[number];
 
-const QUALITIES: { id: QualityId; label: string; hint: string; start: number }[] = [
-  { id: "light", label: "Gọn nhẹ", hint: "Nhỏ nhất", start: 4 },
-  { id: "balanced", label: "Cân bằng", hint: "Khuyên dùng", start: 2 },
-  { id: "sharp", label: "Nét", hint: "Ưu tiên chất lượng", start: 0 },
+const QUALITIES: { id: QualityId; label: string; start: number }[] = [
+  { id: "light", label: "Gọn nhẹ", start: 4 },
+  { id: "balanced", label: "Cân bằng", start: 2 },
+  { id: "sharp", label: "Nét", start: 0 },
 ];
 
 const CAPTION_SPOTS: { label: string; y: number }[] = [
@@ -432,7 +432,7 @@ export function VideoToGifUtility() {
           break;
         }
       }
-      if (!result) throw new Error("Đoạn này vẫn quá nặng. Hãy chọn đoạn ngắn hơn hoặc thu nhỏ khung cắt.");
+      if (!result) throw new Error("Đoạn video quá nặng để tạo GIF.");
       setBytes(result.size);
       setQualityLabel(resultQuality);
       setGif(URL.createObjectURL(result));
@@ -450,10 +450,10 @@ export function VideoToGifUtility() {
           }, result);
         } catch (historyError) {
           console.error(historyError);
-          setHistoryWarning("GIF đã tạo, nhưng chưa lưu được lịch sử. Hãy kiểm tra migration GIF trong Supabase.");
+          setHistoryWarning("GIF đã tạo nhưng chưa lưu được lịch sử.");
         }
       } else {
-        setHistoryWarning("Đăng nhập để lưu lịch sử tạo GIF cho quản trị viên.");
+        setHistoryWarning("GIF đã tạo.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thể tạo GIF từ video này.");
@@ -511,7 +511,7 @@ export function VideoToGifUtility() {
                     event.currentTarget.currentTime = start;
                     void event.currentTarget.play().catch(() => undefined);
                   }}
-                  onError={() => setError("Trình duyệt không đọc được định dạng video này. Hãy thử video MP4 (H.264) hoặc WebM.")}
+                  onError={() => setError("Trình duyệt không đọc được video này.")}
                   className="absolute inset-0 h-full w-full object-fill"
                 />
                 {dimensions && (
@@ -663,7 +663,6 @@ export function VideoToGifUtility() {
                       className={`rounded-xl border px-3 py-2.5 text-left transition ${quality === item.id ? "border-slate-900 bg-slate-950 text-white" : "border-slate-200 hover:border-slate-400"}`}
                     >
                       <span className="block text-sm font-semibold">{item.label}</span>
-                      <span className={`block text-xs ${quality === item.id ? "text-slate-300" : "text-slate-500"}`}>{item.hint}</span>
                     </button>
                   ))}
                 </div>
