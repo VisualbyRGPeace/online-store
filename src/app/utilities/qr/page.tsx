@@ -8,7 +8,6 @@ export default function QrPage() {
   return (
     <ToolShell
       title="Tạo mã QR"
-      description="Nhập nội dung, mã QR cập nhật ngay. Tải về dạng SVG sắc nét hoặc PNG để chèn vào tài liệu."
       width="max-w-5xl"
     >
       <QrUtility />
