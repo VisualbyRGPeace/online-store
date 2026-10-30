@@ -129,7 +129,7 @@ function PromptImageHoverZoom({
     const rect = image.getBoundingClientRect();
     const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
     const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
-    const scale = Math.max(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
+    const scale = Math.min(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
     const renderedWidth = image.naturalWidth * scale;
     const renderedHeight = image.naturalHeight * scale;
     const cropX = (renderedWidth - rect.width) / 2;
@@ -179,29 +179,23 @@ function PromptImageHoverZoom({
   );
 }
 
-async function compressIllustration(file: File, maxSide = 720): Promise<string> {
+async function compressIllustration(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Chọn một tệp hình ảnh.");
   if (file.size > 15 * 1024 * 1024) throw new Error("Ảnh tối đa 15 MB.");
 
   const bitmap = await createImageBitmap(file);
   try {
-    let longestSide = Math.min(maxSide, Math.max(bitmap.width, bitmap.height));
-    let latest = "";
-    while (longestSide >= 240) {
-      const scale = Math.min(1, longestSide / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Không xử lý được hình ảnh.");
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      for (const quality of [0.78, 0.66, 0.54]) {
-        latest = canvas.toDataURL("image/webp", quality);
-        if (latest.length <= 480_000) return latest;
-      }
-      longestSide = Math.floor(longestSide * 0.78);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Không xử lý được hình ảnh.");
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.86, 0.76, 0.66, 0.56, 0.46, 0.36, 0.26, 0.16, 0.1]) {
+      const compressed = canvas.toDataURL("image/webp", quality);
+      if (compressed.length <= 480_000) return compressed;
     }
-    return latest;
+    throw new Error("Ảnh vượt giới hạn dung lượng khi giữ nguyên kích thước. Hãy chọn ảnh có dung lượng nhỏ hơn.");
   } finally {
     bitmap.close();
   }
@@ -251,7 +245,7 @@ function ImagePicker({
         >
           <ImageIcon className="h-6 w-6 text-slate-400" />
           <span className="font-medium text-slate-700">Kéo ảnh vào đây hoặc bấm để chọn</span>
-          <span className="text-xs text-slate-400">Tối đa 15 MB · tự động nén</span>
+          <span className="text-xs text-slate-400">Tối đa 15 MB · giữ nguyên kích thước ảnh</span>
           <input type="file" accept="image/*" className="sr-only" onChange={(event) => { onFile(event.target.files?.[0]); event.target.value = ""; }} />
         </label>
       )}
@@ -289,7 +283,7 @@ function PromptCard({
             src={communityPromptImageUrl(prompt.image_path)}
             alt=""
             loading="lazy"
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain transition duration-300"
           />
         ) : (
           <span className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-3xl font-semibold text-slate-400">Aa</span>
@@ -465,8 +459,8 @@ export function PromptUtility() {
     if (!file) return;
     setFormError("");
     try {
-      if (kind === "thumb") setThumbData(await compressIllustration(file, 720));
-      else setReferenceData(await compressIllustration(file, 1280));
+      if (kind === "thumb") setThumbData(await compressIllustration(file));
+      else setReferenceData(await compressIllustration(file));
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Không xử lý được hình ảnh.");
     }
@@ -620,14 +614,20 @@ export function PromptUtility() {
       >
         {selected && (
           <div className="space-y-5">
-            {selected.image_path && (
-              <PromptImageHoverZoom
-                src={communityPromptImageUrl(selected.image_path)}
-                alt={`Thumbnail: ${selected.title}`}
-                className="max-h-72 w-full rounded-2xl bg-slate-100 object-cover"
-                wrapperClassName="block w-full"
-              />
-            )}
+            <div className={selected.image_path ? "grid gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]" : "grid grid-cols-1"}>
+              {selected.image_path && (
+                <PromptImageHoverZoom
+                  src={communityPromptImageUrl(selected.image_path)}
+                  alt={`Thumbnail: ${selected.title}`}
+                  className="h-full w-full rounded-2xl bg-slate-100 object-contain"
+                  wrapperClassName="flex h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+                />
+              )}
+              <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-2 text-sm font-semibold text-slate-900">Prompt</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{selected.content}</p>
+              </div>
+            </div>
             {variables.length > 0 && (
               <div>
                 <p className="mb-3 text-sm font-semibold text-slate-900">Điền các biến</p>
