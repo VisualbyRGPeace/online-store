@@ -708,14 +708,12 @@ export function PromptUtility() {
             <ImagePicker
               title="Ảnh thumbnail"
               src={thumbData ?? (existingThumb ? communityPromptImageUrl(existingThumb) : null)}
-              isNew={Boolean(thumbData)}
               onFile={(file) => void chooseImage("thumb", file)}
               onRemove={() => { setThumbData(undefined); setExistingThumb(null); }}
             />
             <ImagePicker
               title="Ảnh mẫu (phác thảo)"
               src={referenceData ?? (existingReference ? communityPromptImageUrl(existingReference) : null)}
-              isNew={Boolean(referenceData)}
               onFile={(file) => void chooseImage("reference", file)}
               onRemove={() => { setReferenceData(undefined); setExistingReference(null); }}
             />
