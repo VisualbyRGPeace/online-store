@@ -4,7 +4,10 @@ export type CommunityPrompt = {
   id: string;
   title: string;
   content: string;
+  /** Thumbnail hiển thị cho người xem. */
   image_path: string | null;
+  /** Ảnh mẫu / phác thảo để AI hiểu; được sao chép kèm chữ. */
+  reference_image_path: string | null;
   created_at: string;
   creator_name: string;
   total_count: number;
@@ -38,36 +41,106 @@ export function communityPromptImageUrl(path: string): string {
   return createClient().storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+async function uploadImage(ownerId: string, dataUrl: string): Promise<string> {
+  const blob = await fetch(dataUrl).then((response) => response.blob());
+  const path = `${ownerId}/${crypto.randomUUID()}.webp`;
+  const { error } = await createClient()
+    .storage.from(IMAGE_BUCKET)
+    .upload(path, blob, { contentType: "image/webp", cacheControl: "31536000", upsert: false });
+  if (error) throw error;
+  return path;
+}
+
+async function removeImages(paths: (string | null | undefined)[]): Promise<void> {
+  const list = paths.filter((path): path is string => Boolean(path));
+  if (list.length === 0) return;
+  const { error } = await createClient().storage.from(IMAGE_BUCKET).remove(list);
+  if (error) console.error("Could not remove prompt illustration:", error);
+}
+
 export async function createCommunityPrompt(input: {
   userId: string;
   title: string;
   content: string;
-  imageData?: string;
+  thumbnailData?: string;
+  referenceData?: string;
 }): Promise<void> {
   const supabase = createClient();
-  let imagePath: string | null = null;
+  const uploaded: string[] = [];
+  try {
+    const imagePath = input.thumbnailData ? await uploadImage(input.userId, input.thumbnailData) : null;
+    if (imagePath) uploaded.push(imagePath);
+    const referencePath = input.referenceData ? await uploadImage(input.userId, input.referenceData) : null;
+    if (referencePath) uploaded.push(referencePath);
 
-  if (input.imageData) {
-    const blob = await fetch(input.imageData).then((response) => response.blob());
-    imagePath = `${input.userId}/${crypto.randomUUID()}.webp`;
-    const { error: uploadError } = await supabase.storage
-      .from(IMAGE_BUCKET)
-      .upload(imagePath, blob, { contentType: "image/webp", cacheControl: "31536000", upsert: false });
-    if (uploadError) throw uploadError;
+    const { error } = await supabase.from("community_prompts").insert({
+      user_id: input.userId,
+      title: input.title,
+      content: input.content,
+      image_path: imagePath,
+      reference_image_path: referencePath,
+    });
+    if (error) throw error;
+  } catch (err) {
+    await supabase.storage.from(IMAGE_BUCKET).remove(uploaded).catch(() => undefined);
+    throw err;
   }
+}
 
-  const { error } = await supabase.from("community_prompts").insert({
-    user_id: input.userId,
-    title: input.title,
-    content: input.content,
-    image_path: imagePath,
-  });
+/**
+ * Sửa tiêu đề, nội dung, thumbnail và ảnh mẫu. Ảnh mới nằm trong thư mục của chủ prompt
+ * (kể cả khi quản trị viên sửa). Với mỗi ảnh: có dữ liệu mới thì thay, remove = true thì bỏ, còn lại giữ nguyên.
+ */
+export async function updateCommunityPrompt(input: {
+  id: string;
+  title: string;
+  content: string;
+  thumbnailData?: string;
+  removeThumbnail?: boolean;
+  referenceData?: string;
+  removeReference?: boolean;
+}): Promise<void> {
+  const supabase = createClient();
+  const { data: row, error: readError } = await supabase
+    .from("community_prompts")
+    .select("user_id, image_path, reference_image_path")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!row) throw new Error("not_found");
 
-  if (error) {
-    if (imagePath) {
-      await supabase.storage.from(IMAGE_BUCKET).remove([imagePath]).catch(() => undefined);
+  const uploaded: string[] = [];
+  try {
+    let nextThumb: string | null = row.image_path;
+    if (input.thumbnailData) {
+      nextThumb = await uploadImage(row.user_id, input.thumbnailData);
+      uploaded.push(nextThumb);
+    } else if (input.removeThumbnail) {
+      nextThumb = null;
     }
-    throw error;
+
+    let nextReference: string | null = row.reference_image_path;
+    if (input.referenceData) {
+      nextReference = await uploadImage(row.user_id, input.referenceData);
+      uploaded.push(nextReference);
+    } else if (input.removeReference) {
+      nextReference = null;
+    }
+
+    const { data, error } = await supabase
+      .from("community_prompts")
+      .update({ title: input.title, content: input.content, image_path: nextThumb, reference_image_path: nextReference })
+      .eq("id", input.id)
+      .select("id");
+    if (error || !data || data.length === 0) throw error ?? new Error("update_denied");
+
+    await removeImages([
+      row.image_path !== nextThumb ? row.image_path : null,
+      row.reference_image_path !== nextReference ? row.reference_image_path : null,
+    ]);
+  } catch (err) {
+    await supabase.storage.from(IMAGE_BUCKET).remove(uploaded).catch(() => undefined);
+    throw err;
   }
 }
 
@@ -75,7 +148,7 @@ export async function deleteCommunityPrompt(id: string): Promise<void> {
   const supabase = createClient();
   const { data, error: readError } = await supabase
     .from("community_prompts")
-    .select("image_path")
+    .select("image_path, reference_image_path")
     .eq("id", id)
     .maybeSingle();
   if (readError) throw readError;
@@ -83,57 +156,5 @@ export async function deleteCommunityPrompt(id: string): Promise<void> {
   const { error } = await supabase.from("community_prompts").delete().eq("id", id);
   if (error) throw error;
 
-  if (data?.image_path) {
-    const { error: imageError } = await supabase.storage.from(IMAGE_BUCKET).remove([data.image_path]);
-    if (imageError) console.error("Could not remove prompt illustration:", imageError);
-  }
-}
-
-/** Sửa tiêu đề, nội dung và ảnh mẫu. Ảnh mới nằm trong thư mục của chủ prompt (kể cả khi quản trị viên sửa). */
-export async function updateCommunityPrompt(input: {
-  id: string;
-  title: string;
-  content: string;
-  imageData?: string;
-  removeImage?: boolean;
-}): Promise<void> {
-  const supabase = createClient();
-  const { data: row, error: readError } = await supabase
-    .from("community_prompts")
-    .select("user_id, image_path")
-    .eq("id", input.id)
-    .maybeSingle();
-  if (readError) throw readError;
-  if (!row) throw new Error("not_found");
-
-  let nextPath: string | null = row.image_path;
-  let uploadedPath: string | null = null;
-
-  if (input.imageData) {
-    const blob = await fetch(input.imageData).then((response) => response.blob());
-    uploadedPath = `${row.user_id}/${crypto.randomUUID()}.webp`;
-    const { error: uploadError } = await supabase.storage
-      .from(IMAGE_BUCKET)
-      .upload(uploadedPath, blob, { contentType: "image/webp", cacheControl: "31536000", upsert: false });
-    if (uploadError) throw uploadError;
-    nextPath = uploadedPath;
-  } else if (input.removeImage) {
-    nextPath = null;
-  }
-
-  const { data, error } = await supabase
-    .from("community_prompts")
-    .update({ title: input.title, content: input.content, image_path: nextPath })
-    .eq("id", input.id)
-    .select("id");
-
-  if (error || !data || data.length === 0) {
-    if (uploadedPath) await supabase.storage.from(IMAGE_BUCKET).remove([uploadedPath]).catch(() => undefined);
-    throw error ?? new Error("update_denied");
-  }
-
-  if (row.image_path && row.image_path !== nextPath) {
-    const { error: imageError } = await supabase.storage.from(IMAGE_BUCKET).remove([row.image_path]);
-    if (imageError) console.error("Could not remove old prompt illustration:", imageError);
-  }
+  await removeImages([data?.image_path, data?.reference_image_path]);
 }

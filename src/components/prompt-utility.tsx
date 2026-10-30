@@ -98,7 +98,7 @@ async function imageToPng(url: string): Promise<Blob> {
 
 type CopyOutcome = "both" | "text" | "failed";
 
-/** Sao chép chữ kèm hình ảnh mẫu (nếu có). Không kèm được hình thì vẫn sao chép chữ. */
+/** Sao chép chữ kèm ảnh mẫu (nếu có). Không kèm được ảnh thì vẫn sao chép chữ. Thumbnail không bao giờ được sao chép. */
 async function copyTextWithImage(text: string, imageUrl: string | null): Promise<CopyOutcome> {
   if (imageUrl && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
     try {
@@ -188,13 +188,13 @@ function PromptImageHoverZoom({
   );
 }
 
-async function compressIllustration(file: File): Promise<string> {
+async function compressIllustration(file: File, maxSide = 720): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Chọn một tệp hình ảnh.");
   if (file.size > 15 * 1024 * 1024) throw new Error("Ảnh tối đa 15 MB.");
 
   const bitmap = await createImageBitmap(file);
   try {
-    let longestSide = Math.min(720, Math.max(bitmap.width, bitmap.height));
+    let longestSide = Math.min(maxSide, Math.max(bitmap.width, bitmap.height));
     let latest = "";
     while (longestSide >= 240) {
       const scale = Math.min(1, longestSide / Math.max(bitmap.width, bitmap.height));
@@ -218,6 +218,55 @@ async function compressIllustration(file: File): Promise<string> {
 
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100";
+
+function ImagePicker({
+  title,
+  hint,
+  src,
+  isNew,
+  onFile,
+  onRemove,
+}: {
+  title: string;
+  hint: string;
+  src: string | null;
+  isNew: boolean;
+  onFile: (file?: File) => void;
+  onRemove: () => void;
+}) {
+  const [dragOver, setDragOver] = useState(false);
+  return (
+    <div>
+      <p className="text-sm font-medium">
+        {title} <span className="font-normal text-slate-400">(không bắt buộc)</span>
+      </p>
+      <p className="mb-2 mt-0.5 text-xs text-slate-500">{hint}</p>
+      {src ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
+          <img src={src} alt={title} className="h-16 w-16 rounded-xl object-cover" />
+          <p className="flex-1 text-sm text-slate-600">{isNew ? "Ảnh mới đã được nén tự động." : "Ảnh hiện tại."}</p>
+          <label className="cursor-pointer text-sm text-slate-700 underline">
+            Đổi ảnh
+            <input type="file" accept="image/*" className="sr-only" onChange={(event) => { onFile(event.target.files?.[0]); event.target.value = ""; }} />
+          </label>
+          <button type="button" onClick={onRemove} className="text-sm text-slate-500 underline">Bỏ ảnh</button>
+        </div>
+      ) : (
+        <label
+          onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(event: DragEvent<HTMLLabelElement>) => { event.preventDefault(); setDragOver(false); onFile(event.dataTransfer.files[0]); }}
+          className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border border-dashed px-4 py-5 text-center text-sm transition ${dragOver ? "border-slate-900 bg-slate-50" : "border-slate-300 hover:border-slate-500 hover:bg-slate-50"}`}
+        >
+          <ImageIcon className="h-6 w-6 text-slate-400" />
+          <span className="font-medium text-slate-700">Kéo ảnh vào đây hoặc bấm để chọn</span>
+          <span className="text-xs text-slate-400">Tối đa 15 MB · tự động nén</span>
+          <input type="file" accept="image/*" className="sr-only" onChange={(event) => { onFile(event.target.files?.[0]); event.target.value = ""; }} />
+        </label>
+      )}
+    </div>
+  );
+}
 
 function PromptCard({
   prompt,
@@ -252,6 +301,11 @@ function PromptCard({
         ) : (
           <span className="grid h-full w-full place-items-center bg-gradient-to-br from-slate-100 to-slate-200 text-3xl font-semibold text-slate-400">Aa</span>
         )}
+        {prompt.reference_image_path && (
+          <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-800 shadow-sm backdrop-blur">
+            Có ảnh mẫu
+          </span>
+        )}
         {variableCount > 0 && (
           <span className="absolute left-3 top-3 rounded-full bg-black/80 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
             {variableCount} biến
@@ -268,7 +322,7 @@ function PromptCard({
           <button type="button" onClick={onOpen} className="h-10 flex-1 rounded-xl bg-black px-4 text-sm font-semibold text-white transition hover:bg-slate-700">
             Dùng prompt
           </button>
-          <button type="button" onClick={onCopy} aria-label={prompt.image_path ? "Sao chép chữ và hình mẫu" : "Sao chép nội dung gốc"} title={prompt.image_path ? "Sao chép chữ và hình mẫu" : "Sao chép nội dung gốc"} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
+          <button type="button" onClick={onCopy} aria-label={prompt.reference_image_path ? "Sao chép chữ và ảnh mẫu" : "Sao chép nội dung gốc"} title={prompt.reference_image_path ? "Sao chép chữ và ảnh mẫu" : "Sao chép nội dung gốc"} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
             <CopyIcon className="h-4 w-4" />
           </button>
           {canEdit && (
@@ -303,13 +357,14 @@ export function PromptUtility() {
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editing, setEditing] = useState<CommunityPrompt | null>(null);
-  const [existingImage, setExistingImage] = useState<string | null>(null);
+  const [existingThumb, setExistingThumb] = useState<string | null>(null);
+  const [existingReference, setExistingReference] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [imageData, setImageData] = useState<string | undefined>();
+  const [thumbData, setThumbData] = useState<string | undefined>();
+  const [referenceData, setReferenceData] = useState<string | undefined>();
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState("");
-  const [dragOver, setDragOver] = useState(false);
 
   const state = useQuery(`community-prompts:${page}:${version}`, () => listCommunityPrompts(page));
   const totalPages = state.status === "success" ? Math.max(1, Math.ceil(state.data.total / state.data.pageSize)) : 1;
@@ -351,18 +406,18 @@ export function PromptUtility() {
 
   function reportCopy(outcome: CopyOutcome, hasImage: boolean) {
     if (outcome === "failed") showToast("Trình duyệt chưa cho phép sao chép.", false);
-    else if (outcome === "both") showToast("Đã sao chép chữ và hình ảnh mẫu.");
-    else showToast(hasImage ? "Đã sao chép chữ. Trình duyệt này chưa sao chép kèm được hình." : "Đã sao chép prompt gốc.");
+    else if (outcome === "both") showToast("Đã sao chép chữ và ảnh mẫu.");
+    else showToast(hasImage ? "Đã sao chép chữ. Trình duyệt này chưa sao chép kèm được ảnh mẫu." : "Đã sao chép prompt gốc.");
   }
 
   async function copyOriginal(prompt: CommunityPrompt) {
-    const imageUrl = prompt.image_path ? communityPromptImageUrl(prompt.image_path) : null;
+    const imageUrl = prompt.reference_image_path ? communityPromptImageUrl(prompt.reference_image_path) : null;
     reportCopy(await copyTextWithImage(prompt.content, imageUrl), Boolean(imageUrl));
   }
 
   async function copyResult() {
     if (!selected || !result.trim()) return;
-    const imageUrl = selected.image_path ? communityPromptImageUrl(selected.image_path) : null;
+    const imageUrl = selected.reference_image_path ? communityPromptImageUrl(selected.reference_image_path) : null;
     const outcome = await copyTextWithImage(result, imageUrl);
     if (outcome === "failed") {
       showToast("Trình duyệt chưa cho phép sao chép.", false);
@@ -375,10 +430,12 @@ export function PromptUtility() {
 
   function openCreate() {
     setEditing(null);
-    setExistingImage(null);
+    setExistingThumb(null);
+    setExistingReference(null);
     setTitle("");
     setContent("");
-    setImageData(undefined);
+    setThumbData(undefined);
+    setReferenceData(undefined);
     setFormError("");
     setUploadOpen(true);
   }
@@ -386,10 +443,12 @@ export function PromptUtility() {
   function openEdit(prompt: CommunityPrompt) {
     setSelected(null);
     setEditing(prompt);
-    setExistingImage(prompt.image_path);
+    setExistingThumb(prompt.image_path);
+    setExistingReference(prompt.reference_image_path);
     setTitle(prompt.title);
     setContent(prompt.content);
-    setImageData(undefined);
+    setThumbData(undefined);
+    setReferenceData(undefined);
     setFormError("");
     setUploadOpen(true);
   }
@@ -398,20 +457,15 @@ export function PromptUtility() {
     setUploadOpen(false);
   }
 
-  async function chooseImage(file?: File) {
+  async function chooseImage(kind: "thumb" | "reference", file?: File) {
     if (!file) return;
     setFormError("");
     try {
-      setImageData(await compressIllustration(file));
+      if (kind === "thumb") setThumbData(await compressIllustration(file, 720));
+      else setReferenceData(await compressIllustration(file, 1280));
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Không xử lý được hình ảnh.");
     }
-  }
-
-  function onDropImage(event: DragEvent<HTMLLabelElement>) {
-    event.preventDefault();
-    setDragOver(false);
-    void chooseImage(event.dataTransfer.files[0]);
   }
 
   async function uploadPrompt(event: React.FormEvent<HTMLFormElement>) {
@@ -429,18 +483,21 @@ export function PromptUtility() {
           id: editing.id,
           title: title.trim(),
           content: content.trim(),
-          imageData,
-          removeImage: Boolean(editing.image_path) && !existingImage && !imageData,
+          thumbnailData: thumbData,
+          removeThumbnail: Boolean(editing.image_path) && !existingThumb && !thumbData,
+          referenceData,
+          removeReference: Boolean(editing.reference_image_path) && !existingReference && !referenceData,
         });
         setVersion((current) => current + 1);
         setUploadOpen(false);
         setEditing(null);
         showToast("Đã lưu thay đổi.");
       } else {
-        await createCommunityPrompt({ userId: user.id, title: title.trim(), content: content.trim(), imageData });
+        await createCommunityPrompt({ userId: user.id, title: title.trim(), content: content.trim(), thumbnailData: thumbData, referenceData });
         setTitle("");
         setContent("");
-        setImageData(undefined);
+        setThumbData(undefined);
+        setReferenceData(undefined);
         setSearch("");
         setPage(1);
         setVersion((current) => current + 1);
@@ -561,7 +618,7 @@ export function PromptUtility() {
             {selected.image_path && (
               <PromptImageHoverZoom
                 src={communityPromptImageUrl(selected.image_path)}
-                alt={`Hình ảnh mẫu: ${selected.title}`}
+                alt={`Thumbnail: ${selected.title}`}
                 className="max-h-72 w-full rounded-2xl bg-slate-100 object-cover"
                 wrapperClassName="block w-full"
               />
@@ -597,6 +654,16 @@ export function PromptUtility() {
                 {renderResult(selected.content, values)}
               </p>
             </div>
+            {selected.reference_image_path && (
+              <div>
+                <p className="mb-2 text-sm font-semibold text-slate-900">Ảnh mẫu <span className="font-normal text-slate-500">· được sao chép kèm chữ</span></p>
+                <img
+                  src={communityPromptImageUrl(selected.reference_image_path)}
+                  alt={`Ảnh mẫu: ${selected.title}`}
+                  className="max-h-48 rounded-2xl border border-slate-200 bg-slate-50 object-contain"
+                />
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-400">Đăng lúc {formatDateTime(selected.created_at)}</p>
               <div className="flex items-center gap-2">
@@ -615,7 +682,7 @@ export function PromptUtility() {
                   className="inline-flex h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700"
                 >
                   {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
-                  {copied ? "Đã sao chép" : selected.image_path ? "Sao chép chữ + hình" : "Sao chép kết quả"}
+                  {copied ? "Đã sao chép" : selected.reference_image_path ? "Sao chép chữ + ảnh mẫu" : "Sao chép kết quả"}
                 </button>
               </div>
             </div>
@@ -653,32 +720,22 @@ export function PromptUtility() {
                 <span className="tabular-nums">{content.length}/5000</span>
               </div>
             </div>
-            <div>
-              <p className="mb-2 text-sm font-medium">Hình ảnh mẫu (phác thảo) <span className="font-normal text-slate-400">(không bắt buộc)</span></p>
-              {imageData || existingImage ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
-                  <img src={imageData ?? communityPromptImageUrl(existingImage ?? "")} alt="Hình ảnh mẫu" className="h-16 w-16 rounded-xl object-cover" />
-                  <p className="flex-1 text-sm text-slate-600">{imageData ? "Ảnh mới đã được thu nhỏ và nén tự động." : "Ảnh hiện tại."}</p>
-                  <label className="cursor-pointer text-sm text-slate-700 underline">
-                    Đổi ảnh
-                    <input type="file" accept="image/*" className="sr-only" onChange={(event) => { void chooseImage(event.target.files?.[0]); event.target.value = ""; }} />
-                  </label>
-                  <button type="button" onClick={() => { setImageData(undefined); setExistingImage(null); }} className="text-sm text-slate-500 underline">Bỏ ảnh</button>
-                </div>
-              ) : (
-                <label
-                  onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={onDropImage}
-                  className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border border-dashed px-4 py-6 text-center text-sm transition ${dragOver ? "border-slate-900 bg-slate-50" : "border-slate-300 hover:border-slate-500 hover:bg-slate-50"}`}
-                >
-                  <ImageIcon className="h-6 w-6 text-slate-400" />
-                  <span className="font-medium text-slate-700">Kéo ảnh vào đây hoặc bấm để chọn</span>
-                  <span className="text-xs text-slate-400">Tối đa 15 MB · tự động nén</span>
-                  <input type="file" accept="image/*" className="sr-only" onChange={(event) => void chooseImage(event.target.files?.[0])} />
-                </label>
-              )}
-            </div>
+            <ImagePicker
+              title="Ảnh thumbnail"
+              hint="Hiển thị trên thẻ prompt cho người xem. Không được sao chép."
+              src={thumbData ?? (existingThumb ? communityPromptImageUrl(existingThumb) : null)}
+              isNew={Boolean(thumbData)}
+              onFile={(file) => void chooseImage("thumb", file)}
+              onRemove={() => { setThumbData(undefined); setExistingThumb(null); }}
+            />
+            <ImagePicker
+              title="Ảnh mẫu (phác thảo)"
+              hint="Giúp AI hiểu prompt. Được sao chép kèm chữ khi bấm sao chép."
+              src={referenceData ?? (existingReference ? communityPromptImageUrl(existingReference) : null)}
+              isNew={Boolean(referenceData)}
+              onFile={(file) => void chooseImage("reference", file)}
+              onRemove={() => { setReferenceData(undefined); setExistingReference(null); }}
+            />
             {formError && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{formError}</p>}
             <div className="flex justify-end gap-2 pt-1">
               <button type="button" onClick={closeForm} className="h-11 rounded-xl px-4 text-sm font-medium text-slate-600 transition hover:bg-slate-100">Hủy</button>
