@@ -1,4 +1,4 @@
-remove Link importimport type { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 /** Khung tiêu đề dùng chung cho các trang tiện ích. */
 export function ToolShell({
