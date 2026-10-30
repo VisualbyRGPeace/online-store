@@ -13,10 +13,10 @@ type Security = "WPA" | "WEP" | "nopass";
 
 const MAX_LENGTH = 4000;
 const COLOR = "#171717";
-const LEVELS: { value: Level; label: string; hint: string }[] = [
-  { value: "M", label: "Tiêu chuẩn", hint: "Gọn, dễ quét" },
-  { value: "Q", label: "Cao", hint: "Chịu được trầy xước" },
-  { value: "H", label: "Rất cao", hint: "Dùng khi chèn logo" },
+const LEVELS: { value: Level; label: string }[] = [
+  { value: "M", label: "Tiêu chuẩn" },
+  { value: "Q", label: "Cao" },
+  { value: "H", label: "Rất cao" },
 ];
 const EXAMPLES = ["https://", "Xin chào!", "tel:+84"];
 
@@ -115,7 +115,7 @@ export function QrUtility() {
         if (!current) return;
         setSvg("");
         setRenderedKey("");
-        setError("Nội dung này quá dài để tạo mã QR ở độ bền đã chọn. Hãy rút gọn hoặc chọn độ bền thấp hơn.");
+        setError("Nội dung quá dài để tạo mã QR ở độ bền đã chọn.");
       }
     }, 150);
     return () => {
@@ -172,7 +172,7 @@ export function QrUtility() {
     <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <div>
-          <p className="mb-2 text-sm font-semibold text-slate-900">Bạn muốn mã QR chứa gì?</p>
+          <p className="mb-2 text-sm font-semibold text-slate-900">Loại nội dung</p>
           <Segmented
             label="Loại nội dung"
             value={mode}
@@ -193,7 +193,6 @@ export function QrUtility() {
               id="qr-content"
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder="Dán đường dẫn hoặc nhập nội dung…"
               maxLength={MAX_LENGTH}
               rows={4}
               className="w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
@@ -218,7 +217,7 @@ export function QrUtility() {
           <div className="space-y-4">
             <div>
               <label htmlFor="qr-ssid" className="mb-2 block text-sm font-semibold text-slate-900">Tên Wi‑Fi (SSID)</label>
-              <input id="qr-ssid" value={ssid} onChange={(event) => setSsid(event.target.value)} maxLength={64} placeholder="Ví dụ: Nha_Minh" className={inputClass} />
+              <input id="qr-ssid" value={ssid} onChange={(event) => setSsid(event.target.value)} maxLength={64} className={inputClass} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
@@ -231,17 +230,15 @@ export function QrUtility() {
               </div>
               <div>
                 <label htmlFor="qr-password" className="mb-2 block text-sm font-semibold text-slate-900">Mật khẩu</label>
-                <input id="qr-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={security === "nopass"} maxLength={64} placeholder={security === "nopass" ? "Không cần" : "Nhập mật khẩu"} className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`} />
+                <input id="qr-password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={security === "nopass"} maxLength={64} className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400`} />
               </div>
             </div>
-            <p className="text-xs text-slate-500">Mật khẩu chỉ nằm trong mã QR, không được lưu vào lịch sử.</p>
           </div>
         )}
 
         <div className="border-t border-slate-100 pt-6">
           <p className="mb-2 text-sm font-semibold text-slate-900">Độ bền</p>
           <Segmented label="Độ bền mã QR" value={level} onChange={setLevel} options={LEVELS.map(({ value, label }) => ({ value, label }))} />
-          <p className="mt-2 text-xs text-slate-500">{LEVELS.find((item) => item.value === level)?.hint}</p>
         </div>
       </div>
 
@@ -255,14 +252,12 @@ export function QrUtility() {
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           ) : (
-            <div className="px-6 text-center text-sm text-slate-400">
-              {mode === "wifi" ? "Nhập tên Wi‑Fi để tạo mã" : "Mã QR sẽ hiện ở đây"}
-            </div>
+            <div className="px-6 text-center text-sm text-slate-400" aria-hidden="true" />
           )}
         </div>
 
         <p role="status" className={`mt-3 min-h-5 text-center text-xs ${shownError ? "text-red-600" : "text-slate-500"}`}>
-          {shownError || notice || (ready ? "Quét thử bằng điện thoại trước khi in." : "")}
+          {shownError || notice}
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -285,13 +280,6 @@ export function QrUtility() {
             {saving === "png" ? "Đang tải…" : "Tải PNG"}
           </button>
         </div>
-        <p className="mt-3 text-center text-xs text-slate-400">
-          {user ? "Mỗi lần tải sẽ được lưu vào lịch sử quản trị." : !loading && (
-            <>
-              <Link href="/login/" className="font-medium text-slate-700 underline">Đăng nhập</Link> để lưu lịch sử tạo mã.
-            </>
-          )}
-        </p>
       </aside>
     </section>
   );
