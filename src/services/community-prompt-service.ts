@@ -8,6 +8,7 @@ export type CommunityPrompt = {
   created_at: string;
   creator_name: string;
   total_count: number;
+  user_id: string;
 };
 
 export type CommunityPromptPage = {
@@ -85,5 +86,54 @@ export async function deleteCommunityPrompt(id: string): Promise<void> {
   if (data?.image_path) {
     const { error: imageError } = await supabase.storage.from(IMAGE_BUCKET).remove([data.image_path]);
     if (imageError) console.error("Could not remove prompt illustration:", imageError);
+  }
+}
+
+/** Sửa tiêu đề, nội dung và ảnh mẫu. Ảnh mới nằm trong thư mục của chủ prompt (kể cả khi quản trị viên sửa). */
+export async function updateCommunityPrompt(input: {
+  id: string;
+  title: string;
+  content: string;
+  imageData?: string;
+  removeImage?: boolean;
+}): Promise<void> {
+  const supabase = createClient();
+  const { data: row, error: readError } = await supabase
+    .from("community_prompts")
+    .select("user_id, image_path")
+    .eq("id", input.id)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!row) throw new Error("not_found");
+
+  let nextPath: string | null = row.image_path;
+  let uploadedPath: string | null = null;
+
+  if (input.imageData) {
+    const blob = await fetch(input.imageData).then((response) => response.blob());
+    uploadedPath = `${row.user_id}/${crypto.randomUUID()}.webp`;
+    const { error: uploadError } = await supabase.storage
+      .from(IMAGE_BUCKET)
+      .upload(uploadedPath, blob, { contentType: "image/webp", cacheControl: "31536000", upsert: false });
+    if (uploadError) throw uploadError;
+    nextPath = uploadedPath;
+  } else if (input.removeImage) {
+    nextPath = null;
+  }
+
+  const { data, error } = await supabase
+    .from("community_prompts")
+    .update({ title: input.title, content: input.content, image_path: nextPath })
+    .eq("id", input.id)
+    .select("id");
+
+  if (error || !data || data.length === 0) {
+    if (uploadedPath) await supabase.storage.from(IMAGE_BUCKET).remove([uploadedPath]).catch(() => undefined);
+    throw error ?? new Error("update_denied");
+  }
+
+  if (row.image_path && row.image_path !== nextPath) {
+    const { error: imageError } = await supabase.storage.from(IMAGE_BUCKET).remove([row.image_path]);
+    if (imageError) console.error("Could not remove old prompt illustration:", imageError);
   }
 }
