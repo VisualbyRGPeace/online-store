@@ -195,7 +195,7 @@ async function compressIllustration(file: File): Promise<string> {
       const compressed = canvas.toDataURL("image/webp", quality);
       if (compressed.length <= 480_000) return compressed;
     }
-    throw new Error("Ảnh vượt giới hạn dung lượng khi giữ nguyên kích thước. Hãy chọn ảnh có dung lượng nhỏ hơn.");
+    throw new Error("Ảnh vượt giới hạn dung lượng khi giữ nguyên kích thước.");
   } finally {
     bitmap.close();
   }
@@ -392,7 +392,7 @@ export function PromptUtility() {
         showToast("Đã sao chép ảnh mẫu.");
       }
     } else {
-      showToast("Trình duyệt chưa sao chép được ảnh. Hãy bấm chuột phải vào ảnh mẫu để sao chép.", false);
+      showToast("Không thể sao chép ảnh mẫu.", false);
     }
   }
 
