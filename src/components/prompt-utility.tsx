@@ -96,24 +96,15 @@ async function imageToPng(url: string): Promise<Blob> {
   }
 }
 
-type CopyOutcome = "both" | "text" | "failed";
-
-/** Sao chép chữ kèm ảnh mẫu (nếu có). Không kèm được ảnh thì vẫn sao chép chữ. Thumbnail không bao giờ được sao chép. */
-async function copyTextWithImage(text: string, imageUrl: string | null): Promise<CopyOutcome> {
-  if (imageUrl && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          "text/plain": Promise.resolve(new Blob([text], { type: "text/plain" })),
-          "image/png": imageToPng(imageUrl),
-        }),
-      ]);
-      return "both";
-    } catch {
-      // Rơi xuống: chỉ sao chép chữ.
-    }
+/** Sao chép riêng ảnh mẫu. Thumbnail không bao giờ được sao chép. */
+async function copyImage(imageUrl: string): Promise<boolean> {
+  if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) return false;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": imageToPng(imageUrl) })]);
+    return true;
+  } catch {
+    return false;
   }
-  return (await copyText(text)) ? "text" : "failed";
 }
 
 function PromptImageHoverZoom({
@@ -275,6 +266,7 @@ function PromptCard({
   deleting,
   onOpen,
   onCopy,
+  onCopyImage,
   onEdit,
   onDelete,
 }: {
@@ -284,6 +276,7 @@ function PromptCard({
   deleting: boolean;
   onOpen: () => void;
   onCopy: () => void;
+  onCopyImage: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -322,9 +315,14 @@ function PromptCard({
           <button type="button" onClick={onOpen} className="h-10 flex-1 rounded-xl bg-black px-4 text-sm font-semibold text-white transition hover:bg-slate-700">
             Dùng prompt
           </button>
-          <button type="button" onClick={onCopy} aria-label={prompt.reference_image_path ? "Sao chép chữ và ảnh mẫu" : "Sao chép nội dung gốc"} title={prompt.reference_image_path ? "Sao chép chữ và ảnh mẫu" : "Sao chép nội dung gốc"} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
+          <button type="button" onClick={onCopy} aria-label="Sao chép chữ" title="Sao chép chữ" className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
             <CopyIcon className="h-4 w-4" />
           </button>
+          {prompt.reference_image_path && (
+            <button type="button" onClick={onCopyImage} aria-label="Sao chép ảnh mẫu" title="Sao chép ảnh mẫu" className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
+              <ImageIcon className="h-4 w-4" />
+            </button>
+          )}
           {canEdit && (
             <button type="button" onClick={onEdit} className="h-10 rounded-xl px-2 text-xs font-medium text-slate-700 underline-offset-2 hover:underline">
               Sửa
@@ -352,6 +350,7 @@ export function PromptUtility() {
   const isAdmin = Boolean(user) && adminUserId === user?.id;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedImage, setCopiedImage] = useState(false);
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -402,30 +401,35 @@ export function PromptUtility() {
     setSelected(prompt);
     setValues({});
     setCopied(false);
-  }
-
-  function reportCopy(outcome: CopyOutcome, hasImage: boolean) {
-    if (outcome === "failed") showToast("Trình duyệt chưa cho phép sao chép.", false);
-    else if (outcome === "both") showToast("Đã sao chép chữ và ảnh mẫu.");
-    else showToast(hasImage ? "Đã sao chép chữ. Trình duyệt này chưa sao chép kèm được ảnh mẫu." : "Đã sao chép prompt gốc.");
+    setCopiedImage(false);
   }
 
   async function copyOriginal(prompt: CommunityPrompt) {
-    const imageUrl = prompt.reference_image_path ? communityPromptImageUrl(prompt.reference_image_path) : null;
-    reportCopy(await copyTextWithImage(prompt.content, imageUrl), Boolean(imageUrl));
+    showToast((await copyText(prompt.content)) ? "Đã sao chép chữ." : "Trình duyệt chưa cho phép sao chép.", true);
   }
 
   async function copyResult() {
-    if (!selected || !result.trim()) return;
-    const imageUrl = selected.reference_image_path ? communityPromptImageUrl(selected.reference_image_path) : null;
-    const outcome = await copyTextWithImage(result, imageUrl);
-    if (outcome === "failed") {
+    if (!result.trim()) return;
+    if (await copyText(result)) {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } else {
       showToast("Trình duyệt chưa cho phép sao chép.", false);
-      return;
     }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-    if (imageUrl && outcome === "text") reportCopy(outcome, true);
+  }
+
+  async function copyReference(prompt: CommunityPrompt, fromModal = false) {
+    if (!prompt.reference_image_path) return;
+    if (await copyImage(communityPromptImageUrl(prompt.reference_image_path))) {
+      if (fromModal) {
+        setCopiedImage(true);
+        window.setTimeout(() => setCopiedImage(false), 1800);
+      } else {
+        showToast("Đã sao chép ảnh mẫu.");
+      }
+    } else {
+      showToast("Trình duyệt chưa sao chép được ảnh. Hãy bấm chuột phải vào ảnh mẫu để sao chép.", false);
+    }
   }
 
   function openCreate() {
@@ -591,6 +595,7 @@ export function PromptUtility() {
               deleting={deletingId === prompt.id}
               onOpen={() => openPrompt(prompt)}
               onCopy={() => void copyOriginal(prompt)}
+              onCopyImage={() => void copyReference(prompt)}
               onEdit={() => openEdit(prompt)}
               onDelete={() => void removePrompt(prompt)}
             />
@@ -656,7 +661,17 @@ export function PromptUtility() {
             </div>
             {selected.reference_image_path && (
               <div>
-                <p className="mb-2 text-sm font-semibold text-slate-900">Ảnh mẫu <span className="font-normal text-slate-500">· được sao chép kèm chữ</span></p>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-900">Ảnh mẫu</p>
+                  <button
+                    type="button"
+                    onClick={() => void copyReference(selected, true)}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-900 transition hover:border-slate-900"
+                  >
+                    {copiedImage ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
+                    {copiedImage ? "Đã sao chép ảnh" : "Sao chép ảnh mẫu"}
+                  </button>
+                </div>
                 <img
                   src={communityPromptImageUrl(selected.reference_image_path)}
                   alt={`Ảnh mẫu: ${selected.title}`}
@@ -682,7 +697,7 @@ export function PromptUtility() {
                   className="inline-flex h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700"
                 >
                   {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
-                  {copied ? "Đã sao chép" : selected.reference_image_path ? "Sao chép chữ + ảnh mẫu" : "Sao chép kết quả"}
+                  {copied ? "Đã sao chép chữ" : "Sao chép chữ"}
                 </button>
               </div>
             </div>
@@ -730,7 +745,7 @@ export function PromptUtility() {
             />
             <ImagePicker
               title="Ảnh mẫu (phác thảo)"
-              hint="Giúp AI hiểu prompt. Được sao chép kèm chữ khi bấm sao chép."
+              hint="Giúp AI hiểu prompt. Có nút sao chép ảnh mẫu riêng."
               src={referenceData ?? (existingReference ? communityPromptImageUrl(existingReference) : null)}
               isNew={Boolean(referenceData)}
               onFile={(file) => void chooseImage("reference", file)}
