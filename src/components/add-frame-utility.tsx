@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
-import { CATEGORIES, SIZE, framesOf, frameUrl, logoUrl, type Frame } from "@/lib/add-frame-library";
+import { CATEGORIES, framesOf, frameUrl, logoUrl, type Frame } from "@/lib/add-frame-library";
 import {
   DEFAULT_ADJUST,
   compose,
@@ -14,7 +14,7 @@ import {
   type Photo,
 } from "@/utils/add-frame";
 import { validateImageFile } from "@/utils/image";
-import { CheckIcon, CloseIcon, DownloadIcon, ImageIcon, UploadIcon } from "@/components/utilities/tool-icons";
+import { CheckIcon, CloseIcon, DownloadIcon, UploadIcon } from "@/components/utilities/tool-icons";
 
 const PREVIEW_SIZE = 720;
 
@@ -52,11 +52,10 @@ function Segmented<T extends string>({
   );
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <p className="text-sm font-semibold text-slate-900">{title}</p>
-      {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
       <div className="mt-2.5">{children}</div>
     </div>
   );
@@ -339,21 +338,20 @@ export function AddFrameUtility() {
   return (
     <section className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
       <aside className="space-y-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-24">
-        <Section title="1. Ảnh của bạn" hint="JPG, PNG hoặc WebP, tối đa 15 MB. Ảnh chỉ xử lý trên thiết bị.">
+        <Section title="Ảnh">
           {!photo ? (
             <label
               onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
-              className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition ${
+              className={`flex min-h-36 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition ${
                 dragOver ? "border-slate-900 bg-slate-50" : "border-slate-300 hover:border-slate-500 hover:bg-slate-50"
               }`}
             >
               <span className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-950 text-white">
                 <UploadIcon className="h-5 w-5" />
               </span>
-              <span className="text-sm font-semibold text-slate-900">{loadingPhoto ? "Đang đọc ảnh…" : "Kéo ảnh vào đây hoặc bấm để chọn"}</span>
-              <span className="text-xs text-slate-500">Frame và logo được thêm tự động</span>
+              <span className="text-sm font-semibold text-slate-900">{loadingPhoto ? "Đang đọc ảnh…" : "Chọn ảnh"}</span>
               <input
                 className="sr-only"
                 type="file"
@@ -392,7 +390,7 @@ export function AddFrameUtility() {
           )}
         </Section>
 
-        <Section title="2. Logo" hint="Logo nằm ở góc trên của ảnh.">
+        <Section title="Logo">
           <Segmented
             label="Vị trí logo"
             value={logoSide}
@@ -406,7 +404,7 @@ export function AddFrameUtility() {
           />
         </Section>
 
-        <Section title="3. Căn ảnh" hint="Áp dụng cho mọi frame đang hiển thị.">
+        <Section title="Căn ảnh">
           <div className="space-y-3">
             <Segmented
               label="Cách đặt ảnh"
@@ -431,7 +429,7 @@ export function AddFrameUtility() {
           </div>
         </Section>
 
-        <Section title="4. Định dạng xuất" hint={`Kích thước cố định ${SIZE} × ${SIZE} px.`}>
+        <Section title="Định dạng">
           <Segmented
             label="Định dạng tệp"
             value={format}
@@ -481,7 +479,7 @@ export function AddFrameUtility() {
               </h2>
               {isAll && (
                 <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
-                  <span>{selected.size > 0 ? `Đã chọn ${selected.size}/${count}` : "Chọn frame để xuất, hoặc tải riêng từng frame"}</span>
+                  <span>{selected.size > 0 ? `Đã chọn ${selected.size}/${count}` : ""}</span>
                   <button
                     type="button"
                     disabled={busy}
@@ -511,7 +509,7 @@ export function AddFrameUtility() {
           )}
 
           <p role="status" className={`mb-4 min-h-5 text-xs ${error ? "text-red-600" : "text-slate-500"}`}>
-            {error || notice || (!photo ? "Tải ảnh lên để thấy kết quả trên từng frame. Bên dưới là khung mẫu." : "")}
+            {error || notice}
           </p>
 
           <div className={`grid gap-4 ${gridClass}`}>
@@ -530,13 +528,6 @@ export function AddFrameUtility() {
               />
             ))}
           </div>
-
-          {!photo && (
-            <div className="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-slate-50 py-3 text-xs text-slate-500">
-              <ImageIcon className="h-4 w-4" />
-              Chưa có ảnh: khung đang hiển thị trên nền xám.
-            </div>
-          )}
         </div>
       </div>
     </section>
