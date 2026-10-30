@@ -8,7 +8,6 @@ export default function VideoToGifPage() {
   return (
     <ToolShell
       title="Chuyển video thành GIF"
-      description="Tải video, kéo chọn đoạn cần cắt, xem thử rồi tạo GIF vuông dưới 1 MB. Video được xử lý ngay trên thiết bị của bạn."
     >
       <VideoToGifUtility />
     </ToolShell>

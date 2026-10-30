@@ -261,7 +261,7 @@ export function AddFrameUtility() {
       setThumb(URL.createObjectURL(next));
     } catch (err) {
       console.error(err);
-      if (token === loadToken.current) setError("Không đọc được ảnh này. Hãy thử ảnh JPG, PNG hoặc WebP khác.");
+      if (token === loadToken.current) setError("Không đọc được ảnh này.");
     } finally {
       if (token === loadToken.current) setLoadingPhoto(false);
     }

@@ -195,7 +195,7 @@ async function compressIllustration(file: File): Promise<string> {
       const compressed = canvas.toDataURL("image/webp", quality);
       if (compressed.length <= 480_000) return compressed;
     }
-    throw new Error("Ảnh vượt giới hạn dung lượng khi giữ nguyên kích thước. Hãy chọn ảnh có dung lượng nhỏ hơn.");
+    throw new Error("Ảnh vượt giới hạn dung lượng khi giữ nguyên kích thước.");
   } finally {
     bitmap.close();
   }
@@ -206,16 +206,12 @@ const inputClass =
 
 function ImagePicker({
   title,
-  hint,
   src,
-  isNew,
   onFile,
   onRemove,
 }: {
   title: string;
-  hint: string;
   src: string | null;
-  isNew: boolean;
   onFile: (file?: File) => void;
   onRemove: () => void;
 }) {
@@ -223,13 +219,11 @@ function ImagePicker({
   return (
     <div>
       <p className="text-sm font-medium">
-        {title} <span className="font-normal text-slate-400">(không bắt buộc)</span>
+        {title}
       </p>
-      <p className="mb-2 mt-0.5 text-xs text-slate-500">{hint}</p>
       {src ? (
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
           <img src={src} alt={title} className="h-16 w-16 rounded-xl object-cover" />
-          <p className="flex-1 text-sm text-slate-600">{isNew ? "Ảnh mới đã được nén tự động." : "Ảnh hiện tại."}</p>
           <label className="cursor-pointer text-sm text-slate-700 underline">
             Đổi ảnh
             <input type="file" accept="image/*" className="sr-only" onChange={(event) => { onFile(event.target.files?.[0]); event.target.value = ""; }} />
@@ -244,8 +238,7 @@ function ImagePicker({
           className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border border-dashed px-4 py-5 text-center text-sm transition ${dragOver ? "border-slate-900 bg-slate-50" : "border-slate-300 hover:border-slate-500 hover:bg-slate-50"}`}
         >
           <ImageIcon className="h-6 w-6 text-slate-400" />
-          <span className="font-medium text-slate-700">Kéo ảnh vào đây hoặc bấm để chọn</span>
-          <span className="text-xs text-slate-400">Tối đa 15 MB · giữ nguyên kích thước ảnh</span>
+          <span className="font-medium text-slate-700">Chọn ảnh</span>
           <input type="file" accept="image/*" className="sr-only" onChange={(event) => { onFile(event.target.files?.[0]); event.target.value = ""; }} />
         </label>
       )}
@@ -399,7 +392,7 @@ export function PromptUtility() {
         showToast("Đã sao chép ảnh mẫu.");
       }
     } else {
-      showToast("Trình duyệt chưa sao chép được ảnh. Hãy bấm chuột phải vào ảnh mẫu để sao chép.", false);
+      showToast("Không thể sao chép ảnh mẫu.", false);
     }
   }
 
@@ -513,7 +506,7 @@ export function PromptUtility() {
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Tìm theo tiêu đề, nội dung hoặc tác giả…"
+            placeholder="Tìm prompt"
             aria-label="Tìm prompt"
             className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
           />
@@ -550,10 +543,10 @@ export function PromptUtility() {
       )}
       {state.status === "error" && <ErrorState />}
       {state.status === "success" && state.data.total === 0 && (
-        <EmptyState title="Chưa có prompt nào" description="Đăng prompt đầu tiên để chia sẻ với mọi người." />
+        <EmptyState title="Chưa có prompt nào" />
       )}
       {state.status === "success" && state.data.total > 0 && visible.length === 0 && (
-        <EmptyState title="Không tìm thấy prompt phù hợp" description="Thử từ khóa khác, hoặc chuyển sang trang khác của thư viện." />
+        <EmptyState title="Không tìm thấy prompt phù hợp" />
       )}
       {visible.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -682,20 +675,20 @@ export function PromptUtility() {
         )}
       </Modal>
 
-      <Modal open={uploadOpen} onClose={closeForm} title={editing ? "Sửa prompt" : "Đăng prompt"} description="Dùng {{tên biến}} để tạo ô điền nhanh cho người dùng.">
+      <Modal open={uploadOpen} onClose={closeForm} title={editing ? "Sửa prompt" : "Đăng prompt"} >
         {!authLoading && !user ? (
           <p className="text-sm text-slate-600">
-            <Link href="/login/" className="font-medium text-slate-900 underline">Đăng nhập</Link> để chia sẻ prompt.
+            <Link href="/login/" className="font-medium text-slate-900 underline">Đăng nhập</Link>
           </p>
         ) : (
           <form onSubmit={(event) => void uploadPrompt(event)} className="space-y-4">
             <div>
               <label htmlFor="community-prompt-title" className="mb-2 block text-sm font-medium">Tiêu đề</label>
-              <input id="community-prompt-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required placeholder="Ví dụ: Tạo ảnh sản phẩm" className={inputClass} />
+              <input id="community-prompt-title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required  className={inputClass} />
             </div>
             <div>
               <label htmlFor="community-prompt-content" className="mb-2 block text-sm font-medium">Nội dung</label>
-              <textarea id="community-prompt-content" value={content} onChange={(event) => setContent(event.target.value)} maxLength={5000} required rows={5} placeholder="Hãy tạo cho tôi một quả cam màu {{màu}}" className="w-full resize-y rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-100" />
+              <textarea id="community-prompt-content" value={content} onChange={(event) => setContent(event.target.value)} maxLength={5000} required rows={5} className="w-full resize-y rounded-2xl border border-slate-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-100" />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
                 <span className="flex flex-wrap items-center gap-1.5">
                   {draftVariables.length > 0 ? (
@@ -714,17 +707,13 @@ export function PromptUtility() {
             </div>
             <ImagePicker
               title="Ảnh thumbnail"
-              hint="Hiển thị trên thẻ prompt cho người xem. Không được sao chép."
               src={thumbData ?? (existingThumb ? communityPromptImageUrl(existingThumb) : null)}
-              isNew={Boolean(thumbData)}
               onFile={(file) => void chooseImage("thumb", file)}
               onRemove={() => { setThumbData(undefined); setExistingThumb(null); }}
             />
             <ImagePicker
               title="Ảnh mẫu (phác thảo)"
-              hint="Giúp AI hiểu prompt. Có nút sao chép ảnh mẫu riêng."
               src={referenceData ?? (existingReference ? communityPromptImageUrl(existingReference) : null)}
-              isNew={Boolean(referenceData)}
               onFile={(file) => void chooseImage("reference", file)}
               onRemove={() => { setReferenceData(undefined); setExistingReference(null); }}
             />

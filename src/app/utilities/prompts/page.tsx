@@ -8,7 +8,6 @@ export default function PromptPage() {
   return (
     <ToolShell
       title="Thư viện prompt"
-      description="Chọn một prompt, điền các biến cần thay rồi sao chép dùng ngay. Bạn cũng có thể đăng prompt của mình."
     >
       <PromptUtility />
     </ToolShell>

@@ -23,10 +23,10 @@ const PROFILES = [
 ] as const;
 type Profile = (typeof PROFILES)[number];
 
-const QUALITIES: { id: QualityId; label: string; hint: string; start: number }[] = [
-  { id: "light", label: "Gọn nhẹ", hint: "Nhỏ nhất", start: 4 },
-  { id: "balanced", label: "Cân bằng", hint: "Khuyên dùng", start: 2 },
-  { id: "sharp", label: "Nét", hint: "Ưu tiên chất lượng", start: 0 },
+const QUALITIES: { id: QualityId; label: string; start: number }[] = [
+  { id: "light", label: "Gọn nhẹ", start: 4 },
+  { id: "balanced", label: "Cân bằng", start: 2 },
+  { id: "sharp", label: "Nét", start: 0 },
 ];
 
 const CAPTION_SPOTS: { label: string; y: number }[] = [
@@ -173,15 +173,11 @@ function encode(frames: ImageData[], profile: Profile, seconds: number) {
   return new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], { type: "image/gif" });
 }
 
-function Section({ step, title, hint, children }: { step: number; title: string; hint?: string; children: ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="mb-4 flex items-start gap-3">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-950 text-xs font-semibold text-white">{step}</span>
-        <div>
-          <h2 className="font-semibold leading-7 text-slate-950">{title}</h2>
-          {hint && <p className="text-sm text-slate-500">{hint}</p>}
-        </div>
+      <div className="mb-4">
+        <h2 className="font-semibold leading-7 text-slate-950">{title}</h2>
       </div>
       {children}
     </section>
@@ -436,7 +432,7 @@ export function VideoToGifUtility() {
           break;
         }
       }
-      if (!result) throw new Error("Đoạn này vẫn quá nặng. Hãy chọn đoạn ngắn hơn hoặc thu nhỏ khung cắt.");
+      if (!result) throw new Error("Đoạn video quá nặng để tạo GIF.");
       setBytes(result.size);
       setQualityLabel(resultQuality);
       setGif(URL.createObjectURL(result));
@@ -454,10 +450,10 @@ export function VideoToGifUtility() {
           }, result);
         } catch (historyError) {
           console.error(historyError);
-          setHistoryWarning("GIF đã tạo, nhưng chưa lưu được lịch sử. Hãy kiểm tra migration GIF trong Supabase.");
+          setHistoryWarning("GIF đã tạo nhưng chưa lưu được lịch sử.");
         }
       } else {
-        setHistoryWarning("Đăng nhập để lưu lịch sử tạo GIF cho quản trị viên.");
+        setHistoryWarning("GIF đã tạo.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không thể tạo GIF từ video này.");
@@ -475,9 +471,9 @@ export function VideoToGifUtility() {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       <div className="min-w-0 space-y-6">
         <Section
-          step={1}
+         
           title="Chọn video & vùng cắt"
-          hint={ready ? "Kéo khung trắng để chọn vùng vuông muốn giữ lại." : `MP4, MOV, WebM… tối đa ${MAX_VIDEO_MB} MB.`}
+          MB.`}
         >
           {!source && (
             <label
@@ -487,8 +483,7 @@ export function VideoToGifUtility() {
               className={`flex min-h-52 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-10 text-center transition ${dragOver ? "border-slate-900 bg-slate-50" : "border-slate-300 hover:border-slate-500 hover:bg-slate-50"}`}
             >
               <span className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-950 text-white"><UploadIcon className="h-6 w-6" /></span>
-              <span className="font-semibold text-slate-900">Kéo video vào đây hoặc bấm để chọn</span>
-              <span className="text-sm text-slate-500">Video không bị tải lên máy chủ</span>
+              <span className="font-semibold text-slate-900">Chọn video</span>
               <input className="sr-only" type="file" accept="video/*" onChange={(event) => chooseFile(event.target.files?.[0])} />
             </label>
           )}
@@ -516,7 +511,7 @@ export function VideoToGifUtility() {
                     event.currentTarget.currentTime = start;
                     void event.currentTarget.play().catch(() => undefined);
                   }}
-                  onError={() => setError("Trình duyệt không đọc được định dạng video này. Hãy thử video MP4 (H.264) hoặc WebM.")}
+                  onError={() => setError("Trình duyệt không đọc được video này.")}
                   className="absolute inset-0 h-full w-full object-fill"
                 />
                 {dimensions && (
@@ -578,7 +573,7 @@ export function VideoToGifUtility() {
         </Section>
 
         {ready && (
-          <Section step={2} title="Chọn đoạn cần cắt" hint="Kéo hai đầu hoặc cả thanh trên timeline, rồi bấm xem thử để kiểm tra.">
+          <Section title="Chọn đoạn cần cắt">
             <TimelineTrimmer
               videoDuration={videoDuration}
               start={start}
@@ -625,12 +620,11 @@ export function VideoToGifUtility() {
                 giây
               </label>
             </div>
-            <p className="mt-2 text-xs text-slate-400">Tối đa {maxSeconds.toFixed(1)} giây. Đoạn xem thử lặp lại liên tục ngay trên video phía trên.</p>
           </Section>
         )}
 
         {ready && (
-          <Section step={3} title="Chèn chữ & tạo GIF" hint="Chữ không bắt buộc. Kéo chữ trực tiếp trên video để đổi vị trí.">
+          <Section title="Chèn chữ & tạo GIF">
             <div className="space-y-5">
               <div>
                 <label htmlFor="gif-caption" className="mb-2 block text-sm font-medium text-slate-800">Chữ trên GIF</label>
@@ -639,8 +633,7 @@ export function VideoToGifUtility() {
                   value={caption}
                   maxLength={80}
                   onChange={(event) => setCaption(event.target.value)}
-                  placeholder="Nhập chữ muốn chèn…"
-                  className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+                                    className="h-11 w-full rounded-xl border border-slate-200 px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
                 {caption && (
                   <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -670,12 +663,10 @@ export function VideoToGifUtility() {
                       className={`rounded-xl border px-3 py-2.5 text-left transition ${quality === item.id ? "border-slate-900 bg-slate-950 text-white" : "border-slate-200 hover:border-slate-400"}`}
                     >
                       <span className="block text-sm font-semibold">{item.label}</span>
-                      <span className={`block text-xs ${quality === item.id ? "text-slate-300" : "text-slate-500"}`}>{item.hint}</span>
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-xs text-slate-400">GIF luôn được tự nén xuống dưới 1 MB.</p>
-              </div>
+                  </div>
 
               <div>
                 <button
