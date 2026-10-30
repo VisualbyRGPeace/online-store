@@ -3,12 +3,10 @@ remove Link importimport type { ReactNode } from "react";
 /** Khung tiêu đề dùng chung cho các trang tiện ích. */
 export function ToolShell({
   title,
-  description,
   width = "max-w-6xl",
   children,
 }: {
   title: string;
-  description?: string;
   width?: string;
   children: ReactNode;
 }) {
@@ -16,7 +14,6 @@ export function ToolShell({
     <div className={`mx-auto w-full ${width}`}>
       <header className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">{description}</p>}
       </header>
       {children}
     </div>
