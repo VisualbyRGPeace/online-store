@@ -6,6 +6,7 @@ import TimelineTrimmer from "./timeline-trimmer";
 import { useAuth } from "@/hooks/use-auth";
 import { recordGifGeneration } from "@/services/gif-history-service";
 import { DownloadIcon, FilmIcon, PauseIcon, PlayIcon, UploadIcon } from "@/components/utilities/tool-icons";
+import { exportFileName } from "@/utils/file-name";
 
 type CropBox = { x: number; y: number; size: number };
 type CaptionPosition = { x: number; y: number };
@@ -194,6 +195,7 @@ export function VideoToGifUtility() {
 
   const [source, setSource] = useState("");
   const [gif, setGif] = useState("");
+  const [gifName, setGifName] = useState("");
   const [name, setName] = useState("video");
   const [sourceName, setSourceName] = useState("");
   const [dimensions, setDimensions] = useState<[number, number] | null>(null);
@@ -435,6 +437,8 @@ export function VideoToGifUtility() {
       if (!result) throw new Error("Đoạn video quá nặng để tạo GIF.");
       setBytes(result.size);
       setQualityLabel(resultQuality);
+      const fileName = exportFileName("gif");
+      setGifName(fileName);
       setGif(URL.createObjectURL(result));
       setProgress({ pct: 100, text: "Hoàn tất" });
       window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 100);
@@ -442,7 +446,7 @@ export function VideoToGifUtility() {
         try {
           await recordGifGeneration(user.id, {
             source_filename: sourceName || name,
-            gif_filename: `${name}.gif`,
+            gif_filename: fileName,
             duration_seconds: length,
             output_size_bytes: result.size,
             output_quality: resultQuality,
@@ -705,7 +709,7 @@ export function VideoToGifUtility() {
                   <div className="h-full rounded-full bg-black" style={{ width: `${Math.min(100, bytes / LIMIT * 100)}%` }} />
                 </div>
               </div>
-              <a href={gif} download={`${name}.gif`} className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-semibold text-white transition hover:bg-slate-700">
+              <a href={gif} download={gifName} className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-semibold text-white transition hover:bg-slate-700">
                 <DownloadIcon className="h-4 w-4" /> Tải GIF
               </a>
               {historyWarning && <p role="status" className="mt-3 text-xs text-slate-500">{historyWarning}</p>}

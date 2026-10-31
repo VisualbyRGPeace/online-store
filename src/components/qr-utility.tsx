@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { useAuth } from "@/hooks/use-auth";
 import { recordQrGeneration } from "@/services/qr-history-service";
 import { DownloadIcon } from "@/components/utilities/tool-icons";
+import { exportFileName } from "@/utils/file-name";
 
 type Mode = "text" | "wifi";
 type Level = "M" | "Q" | "H";
@@ -137,7 +138,7 @@ export function QrUtility() {
     setError("");
     try {
       if (format === "svg") {
-        saveBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), "ma-qr.svg");
+        saveBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), exportFileName("svg"));
       } else {
         const dataUrl = await QRCode.toDataURL(payload, {
           width: 1024,
@@ -145,7 +146,7 @@ export function QrUtility() {
           errorCorrectionLevel: level,
           color: { dark: COLOR, light: "#ffffff" },
         });
-        saveBlob(await (await fetch(dataUrl)).blob(), "ma-qr.png");
+        saveBlob(await (await fetch(dataUrl)).blob(), exportFileName("png"));
       }
       if (!user) {
         flash("Đã tải mã.");
