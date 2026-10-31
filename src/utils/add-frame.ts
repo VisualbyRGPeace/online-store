@@ -1,13 +1,8 @@
 import { SIZE, frameUrl, logoUrl, type Frame } from "@/lib/add-frame-library";
 import { createZip } from "@/utils/zip";
 
-export type FitMode = "cover" | "contain";
-export type LogoSide = "left" | "right" | "none";
+export type LogoSide = "none" | "left" | "right";
 export type ExportFormat = "jpg" | "png";
-
-/** Cách đặt ảnh vào khung: zoom từ 1 đến 2, dịch ngang/dọc từ -1 đến 1. */
-export type Adjust = { fit: FitMode; zoom: number; offsetX: number; offsetY: number };
-export const DEFAULT_ADJUST: Adjust = { fit: "cover", zoom: 1, offsetX: 0, offsetY: 0 };
 
 export type Photo = { source: CanvasImageSource; width: number; height: number };
 
@@ -77,7 +72,6 @@ export function compose(
   ctx: CanvasRenderingContext2D,
   size: number,
   photo: Photo | null,
-  adjust: Adjust,
   frame: CanvasImageSource,
   logo: CanvasImageSource | null,
 ) {
@@ -87,13 +81,10 @@ export function compose(
   ctx.fillRect(0, 0, size, size);
 
   if (photo) {
-    const base = adjust.fit === "cover" ? Math.max(size / photo.width, size / photo.height) : Math.min(size / photo.width, size / photo.height);
-    const scale = base * adjust.zoom;
+    const scale = Math.max(size / photo.width, size / photo.height);
     const width = photo.width * scale;
     const height = photo.height * scale;
-    const x = (size - width) / 2 + adjust.offsetX * (Math.abs(width - size) / 2);
-    const y = (size - height) / 2 + adjust.offsetY * (Math.abs(height - size) / 2);
-    ctx.drawImage(photo.source, x, y, width, height);
+    ctx.drawImage(photo.source, (size - width) / 2, (size - height) / 2, width, height);
   }
 
   ctx.drawImage(frame, 0, 0, size, size);
@@ -115,6 +106,15 @@ export function safeName(value: string): string {
   return (cleaned || "anh").slice(0, 60);
 }
 
+/** Tên người dùng đặt: bỏ ký tự không hợp lệ trong tên file, giữ nguyên dấu tiếng Việt và khoảng trắng. */
+export function cleanName(value: string): string {
+  return value
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/^[\s.]+|[\s.]+$/g, "")
+    .slice(0, 100);
+}
+
 export function saveBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -128,22 +128,23 @@ export function saveBlob(blob: Blob, filename: string) {
 
 export type ExportJob = {
   file: File;
+  /** Tên đã đặt cho cả loạt ảnh (đã qua cleanName, không rỗng). */
+  name: string;
   frames: Frame[];
-  adjust: Adjust;
   logo: LogoSide;
   format: ExportFormat;
-  categoryName: string;
   onProgress?: (done: number, total: number) => void;
 };
 
 /**
- * Xuất ảnh 3000×3000. Một frame → tải thẳng file ảnh; nhiều frame → một file ZIP.
+ * Xuất ảnh 3000×3000. Một frame → tải thẳng file ảnh "<tên>.jpg"; nhiều frame → một file ZIP "<tên>.zip",
+ * mỗi ảnh trong đó là "<tên>-<tên frame>.jpg".
  * Mỗi lần chỉ giữ một canvas lớn trong bộ nhớ.
  */
 export async function exportFrames(job: ExportJob): Promise<void> {
-  const { file, frames, adjust, logo, format, categoryName, onProgress } = job;
+  const { file, name, frames, logo, format, onProgress } = job;
+  if (!name) throw new Error("name_required");
   const bitmap = await createImageBitmap(file);
-  const base = safeName(file.name);
   const [canvas, ctx] = makeCanvas(SIZE);
   const entries: { name: string; blob: Blob }[] = [];
 
@@ -154,9 +155,9 @@ export async function exportFrames(job: ExportJob): Promise<void> {
 
     for (const [index, frame] of frames.entries()) {
       const frameImage = await loadImage(frameUrl(frame));
-      compose(ctx, SIZE, photo, adjust, frameImage, logoImage);
+      compose(ctx, SIZE, photo, frameImage, logoImage);
       const blob = await toBlob(canvas, format);
-      entries.push({ name: `${base}-${safeName(frame.name)}.${format}`, blob });
+      entries.push({ name: frames.length === 1 ? `${name}.${format}` : `${name}-${safeName(frame.name)}.${format}`, blob });
       onProgress?.(index + 1, frames.length);
     }
   } finally {
@@ -169,5 +170,5 @@ export async function exportFrames(job: ExportJob): Promise<void> {
     saveBlob(entries[0].blob, entries[0].name);
     return;
   }
-  saveBlob(await createZip(entries), `${base}-${safeName(categoryName)}.zip`);
+  saveBlob(await createZip(entries), `${name}.zip`);
 }

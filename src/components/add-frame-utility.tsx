@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { CATEGORIES, framesOf, frameUrl, logoUrl, type Frame } from "@/lib/add-frame-library";
 import {
-  DEFAULT_ADJUST,
+  cleanName,
   compose,
   createPreviewPhoto,
   exportFrames,
   loadPreviewAsset,
-  type Adjust,
   type ExportFormat,
   type LogoSide,
   type Photo,
@@ -61,60 +60,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step,
-  display,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  display: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 flex items-center justify-between text-xs text-slate-600">
-        {label}
-        <span className="tabular-nums text-slate-400">{display}</span>
-      </span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-black"
-      />
-    </label>
-  );
-}
-
 function FramePreview({
   frame,
   photo,
-  adjust,
   logo,
   selectable,
   checked,
-  busy,
+  canExport,
   onToggle,
   onDownload,
 }: {
   frame: Frame;
   photo: Photo | null;
-  adjust: Adjust;
   logo: HTMLCanvasElement | null;
   selectable: boolean;
   checked: boolean;
-  busy: boolean;
+  canExport: boolean;
   onToggle: () => void;
   onDownload: () => void;
 }) {
@@ -137,8 +98,8 @@ function FramePreview({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || !asset) return;
-    compose(ctx, canvas.width, photo, adjust, asset, logo);
-  }, [asset, photo, adjust, logo]);
+    compose(ctx, canvas.width, photo, asset, logo);
+  }, [asset, photo, logo]);
 
   return (
     <figure className="group min-w-0">
@@ -167,7 +128,6 @@ function FramePreview({
             aria-checked={checked}
             aria-label={`Chọn frame ${frame.name}`}
             onClick={onToggle}
-            disabled={busy}
             className={`absolute left-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full border-2 shadow-sm transition ${
               checked ? "border-black bg-black text-white" : "border-white bg-white/90 text-transparent hover:border-slate-900"
             }`}
@@ -182,9 +142,8 @@ function FramePreview({
           <button
             type="button"
             onClick={onDownload}
-            disabled={!photo || busy}
+            disabled={!canExport}
             aria-label={`Tải riêng frame ${frame.name}`}
-            title="Tải riêng frame này"
             className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-700 transition hover:border-slate-900 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:border-slate-200 disabled:hover:bg-transparent"
           >
             <DownloadIcon className="h-4 w-4" />
@@ -202,9 +161,9 @@ export function AddFrameUtility() {
   const [loadingPhoto, setLoadingPhoto] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [categoryId, setCategoryId] = useState(CATEGORIES[0]?.id ?? "all");
-  const [logoSide, setLogoSide] = useState<LogoSide>("left");
+  const [name, setName] = useState("");
+  const [logoSide, setLogoSide] = useState<LogoSide>("none");
   const [logoAssets, setLogoAssets] = useState<{ left: HTMLCanvasElement | null; right: HTMLCanvasElement | null }>({ left: null, right: null });
-  const [adjust, setAdjust] = useState<Adjust>(DEFAULT_ADJUST);
   const [format, setFormat] = useState<ExportFormat>("jpg");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -219,6 +178,8 @@ export function AddFrameUtility() {
   const busy = progress !== null;
   const chosen = useMemo(() => (isAll ? frames.filter((frame) => selected.has(frame.id)) : frames), [isAll, frames, selected]);
   const logo = logoSide === "none" ? null : logoAssets[logoSide];
+  const exportName = cleanName(name);
+  const canExport = !!photo && exportName !== "" && !busy;
 
   useEffect(() => {
     let current = true;
@@ -257,7 +218,7 @@ export function AddFrameUtility() {
       if (token !== loadToken.current) return;
       setFile(next);
       setPhoto(preview);
-      setAdjust(DEFAULT_ADJUST);
+      setName("");
       setThumb(URL.createObjectURL(next));
     } catch (err) {
       console.error(err);
@@ -272,6 +233,7 @@ export function AddFrameUtility() {
     loadToken.current++;
     setFile(null);
     setPhoto(null);
+    setName("");
     setThumb("");
     setError("");
   }
@@ -298,17 +260,16 @@ export function AddFrameUtility() {
   }
 
   async function run(list: Frame[]) {
-    if (!file || list.length === 0 || busy) return;
+    if (!file || !exportName || list.length === 0 || busy) return;
     setError("");
     setProgress({ done: 0, total: list.length });
     try {
       await exportFrames({
         file,
+        name: exportName,
         frames: list,
-        adjust,
         logo: logoSide,
         format,
-        categoryName: category.name,
         onProgress: (done, total) => setProgress({ done, total }),
       });
       flash(list.length === 1 ? "Đã xuất ảnh 3000 × 3000 px." : `Đã xuất ${list.length} ảnh 3000 × 3000 px (ZIP).`);
@@ -390,6 +351,22 @@ export function AddFrameUtility() {
           )}
         </Section>
 
+        <Section title="Tên ảnh">
+          <input
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            disabled={busy}
+            maxLength={100}
+            placeholder="Nhập tên"
+            aria-label="Tên ảnh"
+            aria-invalid={!!photo && exportName === ""}
+            className={`h-11 w-full rounded-2xl border bg-white px-4 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-900 disabled:opacity-60 ${
+              photo && exportName === "" ? "border-red-300" : "border-slate-200"
+            }`}
+          />
+        </Section>
+
         <Section title="Logo">
           <Segmented
             label="Vị trí logo"
@@ -397,36 +374,11 @@ export function AddFrameUtility() {
             onChange={setLogoSide}
             disabled={busy}
             options={[
+              { value: "none", label: "Không logo" },
               { value: "left", label: "Trái" },
               { value: "right", label: "Phải" },
-              { value: "none", label: "Không logo" },
             ]}
           />
-        </Section>
-
-        <Section title="Căn ảnh">
-          <div className="space-y-3">
-            <Segmented
-              label="Cách đặt ảnh"
-              value={adjust.fit}
-              onChange={(fit) => setAdjust((prev) => ({ ...prev, fit }))}
-              disabled={busy}
-              options={[
-                { value: "cover", label: "Lấp đầy" },
-                { value: "contain", label: "Vừa khung" },
-              ]}
-            />
-            <Slider label="Phóng to" min={1} max={2} step={0.01} value={adjust.zoom} display={`${Math.round(adjust.zoom * 100)}%`} onChange={(zoom) => setAdjust((prev) => ({ ...prev, zoom }))} />
-            <Slider label="Dịch ngang" min={-1} max={1} step={0.01} value={adjust.offsetX} display={`${Math.round(adjust.offsetX * 100)}`} onChange={(offsetX) => setAdjust((prev) => ({ ...prev, offsetX }))} />
-            <Slider label="Dịch dọc" min={-1} max={1} step={0.01} value={adjust.offsetY} display={`${Math.round(adjust.offsetY * 100)}`} onChange={(offsetY) => setAdjust((prev) => ({ ...prev, offsetY }))} />
-            <button
-              type="button"
-              onClick={() => setAdjust(DEFAULT_ADJUST)}
-              className="text-xs font-medium text-slate-500 underline-offset-2 transition hover:text-slate-900 hover:underline"
-            >
-              Đặt lại căn chỉnh
-            </button>
-          </div>
         </Section>
 
         <Section title="Định dạng">
@@ -494,7 +446,7 @@ export function AddFrameUtility() {
             <button
               type="button"
               onClick={() => void run(chosen)}
-              disabled={!photo || chosen.length === 0 || busy}
+              disabled={!canExport || chosen.length === 0}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               <DownloadIcon className="h-4 w-4" />
@@ -518,11 +470,10 @@ export function AddFrameUtility() {
                 key={frame.id}
                 frame={frame}
                 photo={photo}
-                adjust={adjust}
                 logo={logo}
                 selectable={isAll}
                 checked={selected.has(frame.id)}
-                busy={busy}
+                canExport={canExport}
                 onToggle={() => toggle(frame.id)}
                 onDownload={() => void run([frame])}
               />
