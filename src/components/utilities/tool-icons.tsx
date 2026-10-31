@@ -117,3 +117,28 @@ export const FrameIcon = (p: IconProps) => (
     <path d="M3 15.5c4-1.8 8-1.8 12 0s4 1.2 6 .2" />
   </Svg>
 );
+
+/** Sao chép chữ: hai tờ giấy chồng nhau, tờ trước có dòng chữ. */
+export const CopyTextIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    <path d="M12 13h5M12 16.5h3" />
+  </Svg>
+);
+
+/** Sao chép hình: hai tờ giấy chồng nhau, tờ trước có hình núi và mặt trời. */
+export const CopyImageIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    <circle cx="13" cy="12.6" r="0.9" />
+    <path d="m9.5 19 3.6-3.4 2.4 2.2 1.6-1.5 2.9 2.7" />
+  </Svg>
+);
+
+export const EditIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+  </Svg>
+);

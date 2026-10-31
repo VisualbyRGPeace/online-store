@@ -15,7 +15,7 @@ import {
 } from "@/services/community-prompt-service";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { Modal } from "@/components/utilities/modal";
-import { CheckIcon, CopyIcon, ImageIcon, PlusIcon, SearchIcon } from "@/components/utilities/tool-icons";
+import { CheckIcon, CopyImageIcon, CopyTextIcon, EditIcon, ImageIcon, PlusIcon, SearchIcon } from "@/components/utilities/tool-icons";
 import { formatDateTime } from "@/utils/labels";
 
 const VARIABLE = /\{\{\s*([^{}]+?)\s*\}\}/g;
@@ -280,16 +280,16 @@ function PromptCard({
             Dùng prompt
           </button>
           <button type="button" onClick={onCopy} aria-label="Sao chép chữ" title="Sao chép chữ" className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
-            <CopyIcon className="h-4 w-4" />
+            <CopyTextIcon className="h-[18px] w-[18px]" />
           </button>
           {prompt.reference_image_path && (
             <button type="button" onClick={onCopyImage} aria-label="Sao chép ảnh mẫu" title="Sao chép ảnh mẫu" className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
-              <ImageIcon className="h-4 w-4" />
+              <CopyImageIcon className="h-[18px] w-[18px]" />
             </button>
           )}
           {canEdit && (
-            <button type="button" onClick={onEdit} className="h-10 rounded-xl px-2 text-xs font-medium text-slate-700 underline-offset-2 hover:underline">
-              Sửa
+            <button type="button" onClick={onEdit} aria-label="Sửa" title="Sửa" className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
+              <EditIcon className="h-[18px] w-[18px]" />
             </button>
           )}
           {isAdmin && (
@@ -631,17 +631,7 @@ export function PromptUtility() {
             </div>
             {selected.reference_image_path && (
               <div>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">Ảnh mẫu</p>
-                  <button
-                    type="button"
-                    onClick={() => void copyReference(selected, true)}
-                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-900 transition hover:border-slate-900"
-                  >
-                    {copiedImage ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
-                    {copiedImage ? "Đã sao chép ảnh" : "Sao chép ảnh mẫu"}
-                  </button>
-                </div>
+                <p className="mb-2 text-sm font-semibold text-slate-900">Ảnh mẫu</p>
                 <img
                   src={communityPromptImageUrl(selected.reference_image_path)}
                   alt={`Ảnh mẫu: ${selected.title}`}
@@ -656,18 +646,32 @@ export function PromptUtility() {
                   <button
                     type="button"
                     onClick={() => openEdit(selected)}
-                    className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-900 transition hover:border-slate-900"
+                    aria-label="Sửa"
+                    title="Sửa"
+                    className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 text-slate-900 transition hover:border-slate-900"
                   >
-                    Sửa
+                    <EditIcon className="h-5 w-5" />
+                  </button>
+                )}
+                {selected.reference_image_path && (
+                  <button
+                    type="button"
+                    onClick={() => void copyReference(selected, true)}
+                    aria-label="Sao chép ảnh mẫu"
+                    title="Sao chép ảnh mẫu"
+                    className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 text-slate-900 transition hover:border-slate-900"
+                  >
+                    {copiedImage ? <CheckIcon className="h-5 w-5" /> : <CopyImageIcon className="h-5 w-5" />}
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => void copyResult()}
-                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                  aria-label="Sao chép chữ"
+                  title="Sao chép chữ"
+                  className="grid h-11 w-11 place-items-center rounded-xl bg-black text-white transition hover:bg-slate-700"
                 >
-                  {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
-                  {copied ? "Đã sao chép chữ" : "Sao chép chữ"}
+                  {copied ? <CheckIcon className="h-5 w-5" /> : <CopyTextIcon className="h-5 w-5" />}
                 </button>
               </div>
             </div>
