@@ -118,27 +118,33 @@ export const FrameIcon = (p: IconProps) => (
   </Svg>
 );
 
-/** Sao chép chữ: hai tờ giấy chồng nhau, tờ trước có dòng chữ. */
+// Ba icon dưới đây lấy từ bộ Lucide (https://lucide.dev, giấy phép ISC).
+
+/** Sao chép chữ: tấm bìa kẹp giấy có chữ T. */
 export const CopyTextIcon = (p: IconProps) => (
   <Svg {...p}>
-    <rect x="9" y="9" width="11" height="11" rx="2" />
-    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
-    <path d="M12 13h5M12 16.5h3" />
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <path d="M9 12v-1h6v1" />
+    <path d="M11 17h2" />
+    <path d="M12 11v6" />
   </Svg>
 );
 
-/** Sao chép hình: hai tờ giấy chồng nhau, tờ trước có hình núi và mặt trời. */
+/** Sao chép hình: hai khung ảnh chồng nhau. */
 export const CopyImageIcon = (p: IconProps) => (
   <Svg {...p}>
-    <rect x="9" y="9" width="11" height="11" rx="2" />
-    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
-    <circle cx="13" cy="12.6" r="0.9" />
-    <path d="m9.5 19 3.6-3.4 2.4 2.2 1.6-1.5 2.9 2.7" />
+    <path d="m22 11-1.296-1.296a2.4 2.4 0 0 0-3.408 0L11 16" />
+    <path d="M4 8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2" />
+    <circle cx="13" cy="7" r="1" fill="currentColor" />
+    <rect x="8" y="2" width="14" height="14" rx="2" />
   </Svg>
 );
 
+/** Sửa: cây bút chì. */
 export const EditIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" />
+    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+    <path d="m15 5 4 4" />
   </Svg>
 );
