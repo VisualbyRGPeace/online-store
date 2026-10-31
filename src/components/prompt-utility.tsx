@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@/hooks/use-query";
 import { getMyRole } from "@/services/admin-order-service";
@@ -15,7 +15,7 @@ import {
 } from "@/services/community-prompt-service";
 import { EmptyState, ErrorState } from "@/components/ui/states";
 import { Modal } from "@/components/utilities/modal";
-import { CheckIcon, CopyImageIcon, CopyTextIcon, EditIcon, ImageIcon, PlusIcon, SearchIcon } from "@/components/utilities/tool-icons";
+import { ArrowRightIcon, CheckIcon, CopyImageIcon, CopyTextIcon, EditIcon, ImageIcon, PlusIcon, SearchIcon } from "@/components/utilities/tool-icons";
 import { formatDateTime } from "@/utils/labels";
 
 const VARIABLE = /\{\{\s*([^{}]+?)\s*\}\}/g;
@@ -241,6 +241,43 @@ function ImagePicker({
           <span className="font-medium text-slate-700">Chọn ảnh</span>
           <input type="file" accept="image/*" className="sr-only" onChange={(event) => { onFile(event.target.files?.[0]); event.target.value = ""; }} />
         </label>
+      )}
+    </div>
+  );
+}
+
+/** Prompt dài chỉ hiện 6 dòng đầu; có nút "Xem toàn bộ" để mở hết. Prompt ngắn không có nút. */
+function CollapsiblePrompt({ text }: { text: string }) {
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el || expanded) return;
+    const measure = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text, expanded]);
+
+  return (
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="mb-2 text-sm font-semibold text-slate-900">Prompt</p>
+      <p ref={textRef} className={`whitespace-pre-wrap break-words text-sm leading-6 text-slate-700 ${expanded ? "" : "line-clamp-6"}`}>
+        {text}
+      </p>
+      {overflowing && (
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 transition hover:text-slate-600"
+        >
+          {expanded ? "Thu gọn" : "Xem toàn bộ"}
+          <ArrowRightIcon className={`h-4 w-4 ${expanded ? "-rotate-90" : "rotate-90"}`} />
+        </button>
       )}
     </div>
   );
@@ -593,10 +630,7 @@ export function PromptUtility() {
                   wrapperClassName="flex h-36 w-36 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
                 />
               )}
-              <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="mb-2 text-sm font-semibold text-slate-900">Prompt</p>
-                <p className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">{selected.content}</p>
-              </div>
+              <CollapsiblePrompt key={selected.id} text={selected.content} />
             </div>
             {variables.length > 0 && (
               <div>
