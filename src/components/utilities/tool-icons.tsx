@@ -137,3 +137,20 @@ export const EditIcon = (p: IconProps) => (
     <path d="m14.5 7.5 3 3" />
   </Svg>
 );
+
+export const CopyTextIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="8" y="8" width="12" height="12" rx="2" />
+    <path d="M4 16V6a2 2 0 0 1 2-2h10" />
+    <path d="M11 12h6M11 16h4" />
+  </Svg>
+);
+
+export const CopyImageIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="8" y="8" width="12" height="12" rx="2" />
+    <path d="M4 16V6a2 2 0 0 1 2-2h10" />
+    <circle cx="12.5" cy="12.5" r="1" />
+    <path d="m9 19 4-4 3 3 1.5-1.5L20 19" />
+  </Svg>
+);
