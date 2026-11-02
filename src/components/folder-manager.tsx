@@ -452,9 +452,7 @@ function FolderManagerInner({ userId }: { userId: string }) {
 
   return (
     <section className="space-y-6">
-      {wsLoading ? (
-        <div className="h-20 animate-pulse rounded-2xl bg-slate-100" aria-busy="true" />
-      ) : (
+      {!wsLoading && workspaces.length > 1 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {workspaces.map((workspace) => (
             <WorkspaceCard
