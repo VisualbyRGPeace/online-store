@@ -16,8 +16,11 @@ import {
 import { AuthGate } from "@/components/auth-gate";
 import { Modal } from "@/components/utilities/modal";
 import {
+  CalendarIcon,
   CheckIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CloseIcon,
   CopyIcon,
   DownloadIcon,
@@ -788,6 +791,148 @@ function Dropdown({
   );
 }
 
+const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
+/** Lịch chọn ngày tự vẽ (thay cho <input type="date"> mặc định): đánh dấu ngày đã có thư mục. */
+function DatePicker({ label, value, onChange, marks }: { label: string; value: string; onChange: (value: string) => void; marks: Set<string> }) {
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState({ year: 2000, month: 0 });
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const today = todayIso();
+
+  function openPicker() {
+    const base = value || today;
+    setView({ year: Number(base.slice(0, 4)), month: Number(base.slice(5, 7)) - 1 });
+    setOpen(true);
+  }
+
+  function shift(delta: number) {
+    setView(({ year, month }) => {
+      const next = new Date(year, month + delta, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
+  }
+
+  function pick(iso: string) {
+    onChange(iso);
+    setOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const offset = (new Date(view.year, view.month, 1).getDay() + 6) % 7;
+  const dayCount = new Date(view.year, view.month + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array.from({ length: offset }, () => null), ...Array.from({ length: dayCount }, (_, index) => index + 1)];
+  const isoOf = (day: number) => `${view.year}-${String(view.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative shrink-0"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen(false);
+          buttonRef.current?.focus();
+        }
+      }}
+    >
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : openPicker())}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={`inline-flex h-9 items-center gap-1.5 rounded-xl border bg-white pl-3 pr-2.5 text-sm transition ${
+          open ? "border-slate-900 ring-4 ring-slate-100" : "border-slate-200 hover:border-slate-400"
+        }`}
+      >
+        <span className="text-xs text-slate-500">{label}</span>
+        <span className={value ? "font-medium text-slate-900" : "text-slate-400"}>{value ? formatDate(value) : "Chọn ngày"}</span>
+        <CalendarIcon className="h-4 w-4 shrink-0 text-slate-400" />
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Chọn ngày"
+          style={{ animationDuration: "150ms" }}
+          className="fade-up absolute left-0 top-full z-[15] mt-2 w-72 max-w-[calc(100vw-3rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-black/5"
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <button type="button" onClick={() => shift(-1)} aria-label="Tháng trước" className={iconButton}>
+              <ChevronLeftIcon className="h-4 w-4" />
+            </button>
+            <p className="text-sm font-semibold text-slate-950">
+              Tháng {view.month + 1} · {view.year}
+            </p>
+            <button type="button" onClick={() => shift(1)} aria-label="Tháng sau" className={iconButton}>
+              <ChevronRightIcon className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 text-center">
+            {WEEKDAYS.map((weekday) => (
+              <span key={weekday} className="py-1.5 text-xs font-medium text-slate-400">
+                {weekday}
+              </span>
+            ))}
+            {cells.map((day, index) => {
+              if (day === null) return <span key={`blank-${index}`} />;
+              const iso = isoOf(day);
+              const selected = iso === value;
+              const isToday = iso === today;
+              return (
+                <button
+                  key={iso}
+                  type="button"
+                  onClick={() => pick(iso)}
+                  aria-pressed={selected}
+                  aria-label={formatDate(iso)}
+                  className={`relative mx-auto grid h-9 w-9 place-items-center rounded-full text-sm transition ${
+                    selected
+                      ? "bg-black font-semibold text-white"
+                      : isToday
+                        ? "font-semibold text-slate-950 ring-1 ring-inset ring-slate-400 hover:bg-slate-100"
+                        : "text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {day}
+                  {marks.has(iso) && <span className={`absolute bottom-1 h-1 w-1 rounded-full ${selected ? "bg-white" : "bg-slate-400"}`} aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2.5">
+            <button
+              type="button"
+              onClick={() => pick("")}
+              disabled={!value}
+              className="h-8 rounded-lg px-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              Xóa
+            </button>
+            <button type="button" onClick={() => pick(today)} className="h-8 rounded-lg px-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100">
+              Hôm nay
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function chipClass(active: boolean): string {
   return `inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition ${
     active ? "border-black bg-black text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-900"
@@ -958,6 +1103,8 @@ function FolderManagerInner({ userId }: { userId: string }) {
     }
     return index;
   }, [entries]);
+
+  const dateMarks = useMemo(() => new Set(entries.map((entry) => entry.folder_date)), [entries]);
 
   const deferredQuery = useDeferredValue(query);
   const terms = useMemo(() => fold(deferredQuery.trim()).split(/\s+/).filter(Boolean), [deferredQuery]);
@@ -1298,10 +1445,7 @@ function FolderManagerInner({ userId }: { userId: string }) {
                 onChange={setMonthFilter}
                 options={[{ value: "", label: "Tất cả" }, ...monthOptions.map(([key, count]) => ({ value: key, label: monthLabel(key), hint: String(count) }))]}
               />
-              <label className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white pl-3 pr-1.5 text-xs text-slate-500 transition focus-within:border-slate-500 hover:border-slate-400">
-                Ngày
-                <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="h-8 rounded-lg bg-transparent text-sm font-medium text-slate-900 outline-none" />
-              </label>
+              <DatePicker label="Ngày" value={dateFilter} onChange={setDateFilter} marks={dateMarks} />
               <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" aria-hidden="true" />
               <Dropdown
                 label="Sắp xếp"
