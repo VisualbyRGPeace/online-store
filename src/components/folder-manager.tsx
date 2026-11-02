@@ -615,14 +615,182 @@ function EntryTile(props: EntryViewProps) {
   );
 }
 
-function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: ReactNode }) {
+type DropdownOption = { value: string; label: string; hint?: string };
+
+/** Danh sách xổ xuống tự vẽ (thay cho <select> mặc định): có tìm nhanh khi nhiều mục, hỗ trợ bàn phím. */
+function Dropdown({
+  label,
+  value,
+  options,
+  onChange,
+  variant = "field",
+  placeholder,
+  align = "left",
+}: {
+  label?: string;
+  value: string;
+  options: DropdownOption[];
+  onChange: (value: string) => void;
+  variant?: "field" | "chip";
+  placeholder?: string;
+  align?: "left" | "right";
+}) {
+  const [open, setOpen] = useState(false);
+  const [needle, setNeedle] = useState("");
+  const [highlight, setHighlight] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
+  const searchable = options.length > 8;
+  const selected = options.find((option) => option.value === value);
+
+  const shown = useMemo(() => {
+    const key = fold(needle.trim());
+    return key ? options.filter((option) => fold(option.label).includes(key)) : options;
+  }, [options, needle]);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setNeedle("");
+  }, []);
+
+  function openList() {
+    setHighlight(Math.max(0, options.findIndex((option) => option.value === value)));
+    setOpen(true);
+  }
+
+  function choose(next: string) {
+    onChange(next);
+    close();
+    buttonRef.current?.focus();
+  }
+
+  // Bấm ra ngoài thì đóng.
+  useEffect(() => {
+    if (!open) return;
+    function onDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) close();
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open, close]);
+
+  useEffect(() => {
+    if (open && searchable) searchRef.current?.focus();
+  }, [open, searchable]);
+
+  // Giữ mục đang chọn bằng phím luôn nằm trong vùng nhìn thấy.
+  useEffect(() => {
+    if (!open) return;
+    (listRef.current?.children.item(highlight) as HTMLElement | null)?.scrollIntoView({ block: "nearest" });
+  }, [open, highlight]);
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!open) {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        openList();
+      }
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlight((current) => Math.min(current + 1, shown.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight((current) => Math.max(current - 1, 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const picked = shown[highlight];
+      if (picked) choose(picked.value);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      buttonRef.current?.focus();
+    } else if (event.key === "Tab") {
+      close();
+    }
+  }
+
+  const triggerClass =
+    variant === "chip"
+      ? `inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-dashed bg-white px-3 text-sm font-medium transition ${
+          open ? "border-slate-900 text-slate-950" : "border-slate-300 text-slate-600 hover:border-slate-900"
+        }`
+      : `inline-flex h-9 items-center gap-1.5 rounded-xl border bg-white pl-3 pr-2 text-sm transition ${
+          open ? "border-slate-900 ring-4 ring-slate-100" : "border-slate-200 hover:border-slate-400"
+        }`;
+
   return (
-    <label className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white pl-3 pr-1.5 text-xs text-slate-500 transition focus-within:border-slate-500 hover:border-slate-400">
-      {label}
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-8 max-w-40 cursor-pointer rounded-lg bg-transparent text-sm font-medium text-slate-900 outline-none">
-        {children}
-      </select>
-    </label>
+    <div ref={rootRef} className="relative shrink-0" onKeyDown={onKeyDown}>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => (open ? close() : openList())}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        className={triggerClass}
+      >
+        {label && <span className="text-xs text-slate-500">{label}</span>}
+        <span className={`max-w-44 truncate ${variant === "field" ? "font-medium text-slate-900" : ""}`}>{selected?.label ?? placeholder ?? ""}</span>
+        <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div
+          style={{ animationDuration: "150ms" }}
+          className={`fade-up absolute top-full z-[15] mt-2 w-max min-w-[13rem] max-w-[min(20rem,calc(100vw-3rem))] rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5 ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
+          {searchable && (
+            <div className="relative mb-1.5">
+              <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={searchRef}
+                value={needle}
+                onChange={(event) => {
+                  setNeedle(event.target.value);
+                  setHighlight(0);
+                }}
+                placeholder="Tìm nhanh…"
+                aria-label="Tìm trong danh sách"
+                className="h-9 w-full rounded-lg bg-slate-50 pl-8 pr-2 text-sm outline-none transition placeholder:text-slate-400 focus:bg-slate-100"
+              />
+            </div>
+          )}
+          <ul ref={listRef} id={listId} role="listbox" aria-label={label} className="max-h-64 overflow-y-auto overscroll-contain">
+            {shown.length === 0 ? (
+              <li className="px-3 py-4 text-center text-sm text-slate-400">Không có kết quả</li>
+            ) : (
+              shown.map((option, index) => {
+                const isSelected = option.value === value;
+                return (
+                  <li
+                    key={option.value}
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => choose(option.value)}
+                    onMouseEnter={() => setHighlight(index)}
+                    className={`flex cursor-pointer items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors ${
+                      index === highlight ? "bg-slate-100" : ""
+                    } ${isSelected ? "font-semibold text-slate-950" : "text-slate-700"}`}
+                  >
+                    <span className="grid h-4 w-4 shrink-0 place-items-center">{isSelected && <CheckIcon className="h-4 w-4" />}</span>
+                    <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                    {option.hint && <span className="shrink-0 text-xs text-slate-400">{option.hint}</span>}
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1094,67 +1262,57 @@ function FolderManagerInner({ userId }: { userId: string }) {
               </div>
 
               {clientOptions.length > 0 && (
-                <div className="flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible" role="group" aria-label="Lọc theo khách">
-                  <button type="button" onClick={() => setClientFilter("")} aria-pressed={clientFilter === ""} className={chipClass(clientFilter === "")}>
-                    Tất cả
-                    <span className={`text-xs ${clientFilter === "" ? "text-white/70" : "text-slate-400"}`}>{entries.length}</span>
-                  </button>
-                  {clientChips.chips.map(([name, count]) => (
-                    <button key={name} type="button" onClick={() => setClientFilter(clientFilter === name ? "" : name)} aria-pressed={clientFilter === name} className={chipClass(clientFilter === name)}>
-                      <span className="max-w-40 truncate">{name}</span>
-                      <span className={`text-xs ${clientFilter === name ? "text-white/70" : "text-slate-400"}`}>{count}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible" role="group" aria-label="Lọc theo khách">
+                    <button type="button" onClick={() => setClientFilter("")} aria-pressed={clientFilter === ""} className={chipClass(clientFilter === "")}>
+                      Tất cả
+                      <span className={`text-xs ${clientFilter === "" ? "text-white/70" : "text-slate-400"}`}>{entries.length}</span>
                     </button>
-                  ))}
+                    {clientChips.chips.map(([name, count]) => (
+                      <button key={name} type="button" onClick={() => setClientFilter(clientFilter === name ? "" : name)} aria-pressed={clientFilter === name} className={chipClass(clientFilter === name)}>
+                        <span className="max-w-40 truncate">{name}</span>
+                        <span className={`text-xs ${clientFilter === name ? "text-white/70" : "text-slate-400"}`}>{count}</span>
+                      </button>
+                    ))}
+                  </div>
                   {clientChips.rest.length > 0 && (
-                    <label className="relative inline-flex h-8 shrink-0 items-center">
-                      <span className="sr-only">Khách khác</span>
-                      <select
-                        value=""
-                        onChange={(event) => setClientFilter(event.target.value)}
-                        className="h-8 cursor-pointer appearance-none rounded-full border border-dashed border-slate-300 bg-white pl-3 pr-8 text-sm font-medium text-slate-600 outline-none transition hover:border-slate-900 focus:border-slate-900"
-                      >
-                        <option value="">Khách khác ({clientChips.rest.length})</option>
-                        {clientChips.rest.map(([name, count]) => (
-                          <option key={name} value={name}>
-                            {name} ({count})
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDownIcon className="pointer-events-none absolute right-2.5 h-4 w-4 text-slate-400" />
-                    </label>
+                    <Dropdown
+                      variant="chip"
+                      align="right"
+                      value=""
+                      placeholder={`Khách khác (${clientChips.rest.length})`}
+                      onChange={setClientFilter}
+                      options={clientChips.rest.map(([name, count]) => ({ value: name, label: name, hint: String(count) }))}
+                    />
                   )}
                 </div>
               )}
             </div>
 
             <div className="mb-4 mt-3 flex flex-wrap items-center gap-2">
-              <FilterSelect label="Tháng" value={monthFilter} onChange={setMonthFilter}>
-                <option value="">Tất cả</option>
-                {monthOptions.map(([key, count]) => (
-                  <option key={key} value={key}>
-                    {monthLabel(key)} ({count})
-                  </option>
-                ))}
-              </FilterSelect>
+              <Dropdown
+                label="Tháng"
+                value={monthFilter}
+                onChange={setMonthFilter}
+                options={[{ value: "", label: "Tất cả" }, ...monthOptions.map(([key, count]) => ({ value: key, label: monthLabel(key), hint: String(count) }))]}
+              />
               <label className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white pl-3 pr-1.5 text-xs text-slate-500 transition focus-within:border-slate-500 hover:border-slate-400">
                 Ngày
                 <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="h-8 rounded-lg bg-transparent text-sm font-medium text-slate-900 outline-none" />
               </label>
               <span className="mx-1 hidden h-5 w-px bg-slate-200 sm:block" aria-hidden="true" />
-              <FilterSelect label="Sắp xếp" value={prefs.sort} onChange={(value) => updatePrefs({ sort: value as SortKey })}>
-                {SORT_OPTIONS.map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </FilterSelect>
-              <FilterSelect label="Nhóm theo" value={prefs.group} onChange={(value) => updatePrefs({ group: value as GroupKey })}>
-                {GROUP_OPTIONS.map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </FilterSelect>
+              <Dropdown
+                label="Sắp xếp"
+                value={prefs.sort}
+                onChange={(value) => updatePrefs({ sort: value as SortKey })}
+                options={SORT_OPTIONS.map(([key, label]) => ({ value: key, label }))}
+              />
+              <Dropdown
+                label="Nhóm theo"
+                value={prefs.group}
+                onChange={(value) => updatePrefs({ group: value as GroupKey })}
+                options={GROUP_OPTIONS.map(([key, label]) => ({ value: key, label }))}
+              />
               {hasFilter && (
                 <button type="button" onClick={clearFilters} className="h-9 rounded-xl px-2.5 text-sm font-medium text-slate-500 underline-offset-2 transition hover:text-slate-950 hover:underline">
                   Xóa bộ lọc
