@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { Modal } from "@/components/utilities/modal";
-import { CheckIcon, CloseIcon, CopyIcon, FolderIcon, LockIcon, PlusIcon, SearchIcon } from "@/components/utilities/tool-icons";
+import { CheckIcon, CloseIcon, CopyIcon, DownloadIcon, FolderIcon, LockIcon, PlusIcon, SearchIcon } from "@/components/utilities/tool-icons";
 import {
   approveAccess,
   createEntry,
@@ -25,6 +25,7 @@ import { createTinyThumbnail } from "@/utils/folder-thumbnail";
 import { validateImageFile } from "@/utils/image";
 
 const PAGE_SIZE = 24;
+const INSTALLER_URL = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/installers/FolderOpen-CaiDat.zip`;
 
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100";
@@ -585,21 +586,27 @@ function FolderManagerInner({ userId }: { userId: string }) {
             Thư mục {activeLabel}
             <span className="font-normal text-slate-500"> · {filtered.length}{hasFilter ? `/${entries.length}` : ""}</span>
           </h2>
-          {isOwn && (
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setAccessOpen(true)} className={`${outlineButton} relative`}>
-                <LockIcon className="h-4 w-4" />
-                Quyền xem
-                {pendingCount > 0 && (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">{pendingCount}</span>
-                )}
-              </button>
-              <button type="button" onClick={openCreate} className={blackButton}>
-                <PlusIcon className="h-4 w-4" />
-                Thêm thư mục
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <a href={INSTALLER_URL} download title="Tải công cụ giúp nút Mở hoạt động trên Windows" className={outlineButton}>
+              <DownloadIcon className="h-4 w-4" />
+              Cài đặt Windows
+            </a>
+            {isOwn && (
+              <>
+                <button type="button" onClick={() => setAccessOpen(true)} className={`${outlineButton} relative`}>
+                  <LockIcon className="h-4 w-4" />
+                  Quyền xem
+                  {pendingCount > 0 && (
+                    <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">{pendingCount}</span>
+                  )}
+                </button>
+                <button type="button" onClick={openCreate} className={blackButton}>
+                  <PlusIcon className="h-4 w-4" />
+                  Thêm thư mục
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {canView && (
