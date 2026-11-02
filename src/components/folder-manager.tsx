@@ -97,6 +97,11 @@ function todayIso(): string {
   return new Date().toLocaleDateString("en-CA");
 }
 
+function thumbKb(dataUrl: string): string {
+  const kb = (dataUrl.length * 0.75) / 1024;
+  return kb < 10 ? kb.toFixed(1) : String(Math.round(kb));
+}
+
 function cleanPath(value: string): string {
   return value.trim().replace(/^["']+|["']+$/g, "").trim();
 }
@@ -206,13 +211,12 @@ function compareEntries(sort: SortKey): (a: FolderEntry, b: FolderEntry) => numb
   }
 }
 
-type Group = { key: string; label: string; items: FolderEntry[]; pinned?: boolean };
+type Group = { key: string; label: string; items: FolderEntry[] };
 
-function buildGroups(pinned: FolderEntry[], rest: FolderEntry[], groupBy: GroupKey): Group[] {
+function buildGroups(rest: FolderEntry[], groupBy: GroupKey): Group[] {
   const groups: Group[] = [];
-  if (pinned.length > 0) groups.push({ key: "__pinned", label: "Đã ghim", items: pinned, pinned: true });
   if (groupBy === "none") {
-    if (rest.length > 0) groups.push({ key: "__rest", label: pinned.length > 0 ? "Thư mục khác" : "", items: rest });
+    if (rest.length > 0) groups.push({ key: "__rest", label: "", items: rest });
     return groups;
   }
   const map = new Map<string, Group>();
@@ -485,9 +489,9 @@ function EntryThumb({ thumb, className }: { thumb: string | null | undefined; cl
     <div className={`grid shrink-0 place-items-center overflow-hidden bg-slate-100 text-slate-300 ${className}`}>
       {thumb ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumb} alt="" width={64} height={64} loading="lazy" className="h-full w-full object-cover" />
+        <img src={thumb} alt="" width={48} height={48} loading="lazy" className="h-full w-full object-cover" />
       ) : (
-        <FolderIcon className="h-6 w-6" />
+        <FolderIcon className="h-5 w-5" />
       )}
     </div>
   );
@@ -505,7 +509,7 @@ function PathText({ path, terms }: { path: string; terms: string[] }) {
   );
 }
 
-function EntryActions({ entry, isOwn, onOpen, onCopy, onPin, onEdit, onDelete, grow }: EntryViewProps & { grow?: boolean }) {
+function EntryActions({ entry, isOwn, onOpen, onCopy, onPin, onEdit, onDelete, grow, hidePin }: EntryViewProps & { grow?: boolean; hidePin?: boolean }) {
   return (
     <div className="flex items-center gap-1">
       <button type="button" onClick={onOpen} className={`${blackButton} h-9 ${grow ? "flex-1" : ""}`}>
@@ -517,16 +521,18 @@ function EntryActions({ entry, isOwn, onOpen, onCopy, onPin, onEdit, onDelete, g
       </button>
       {isOwn && (
         <>
-          <button
-            type="button"
-            onClick={onPin}
-            aria-label={entry.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
-            aria-pressed={entry.pinned}
-            title={entry.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
-            className={`${iconButton} ${entry.pinned ? "text-slate-950" : ""}`}
-          >
-            <PinIcon className="h-4 w-4" filled={entry.pinned} />
-          </button>
+          {!hidePin && (
+            <button
+              type="button"
+              onClick={onPin}
+              aria-label={entry.pinned ? "Bỏ khỏi dùng hàng ngày" : "Đưa lên dùng hàng ngày"}
+              aria-pressed={entry.pinned}
+              title={entry.pinned ? "Bỏ khỏi dùng hàng ngày" : "Đưa lên dùng hàng ngày"}
+              className={`${iconButton} ${entry.pinned ? "text-slate-950" : ""}`}
+            >
+              <PinIcon className="h-4 w-4" filled={entry.pinned} />
+            </button>
+          )}
           <button type="button" onClick={onEdit} aria-label="Sửa" title="Sửa" className={iconButton}>
             <EditIcon className="h-4 w-4" />
           </button>
@@ -543,13 +549,12 @@ function EntryRow(props: EntryViewProps) {
   const { entry, thumb, terms } = props;
   return (
     <li className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl border border-slate-200 bg-white p-3 transition hover:border-slate-400 hover:shadow-sm sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:p-3.5">
-      <EntryThumb thumb={thumb} className="h-16 w-16 rounded-xl" />
+      <EntryThumb thumb={thumb} className="h-12 w-12 rounded-xl" />
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-950">
           <span className="truncate">
             <Highlight text={entry.client} terms={terms} />
           </span>
-          {entry.pinned && <PinIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" filled />}
         </p>
         <p className="truncate text-sm text-slate-600">
           <Highlight text={entry.project} terms={terms} />
@@ -569,47 +574,36 @@ function EntryRow(props: EntryViewProps) {
 function EntryTile(props: EntryViewProps) {
   const { entry, thumb, terms, isOwn } = props;
   return (
-    <li className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-slate-400 hover:shadow-sm">
-      <div className="relative grid h-32 place-items-center bg-slate-100">
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" width={128} height={128} loading="lazy" className="max-h-full max-w-full object-contain" />
-        ) : (
-          <FolderIcon className="h-10 w-10 text-slate-300" />
-        )}
-        {entry.pinned && !isOwn && (
-          <span className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/90 shadow-sm">
-            <PinIcon className="h-3.5 w-3.5" filled />
-          </span>
-        )}
+    <li className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 transition hover:border-slate-400 hover:shadow-sm">
+      <div className="flex items-start gap-3">
+        <EntryThumb thumb={thumb} className="h-12 w-12 rounded-xl" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-slate-950">
+            <Highlight text={entry.client} terms={terms} />
+          </p>
+          <p className="line-clamp-2 text-sm leading-5 text-slate-600">
+            <Highlight text={entry.project} terms={terms} />
+          </p>
+        </div>
         {isOwn && (
           <button
             type="button"
             onClick={props.onPin}
-            aria-label={entry.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
+            aria-label={entry.pinned ? "Bỏ khỏi dùng hàng ngày" : "Đưa lên dùng hàng ngày"}
             aria-pressed={entry.pinned}
-            className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/90 shadow-sm transition hover:bg-white ${
-              entry.pinned ? "text-slate-950" : "text-slate-400 hover:text-slate-950"
-            }`}
+            title={entry.pinned ? "Bỏ khỏi dùng hàng ngày" : "Đưa lên dùng hàng ngày"}
+            className={`${iconButton} -mr-1.5 -mt-1 ${entry.pinned ? "text-slate-950" : "text-slate-400"}`}
           >
             <PinIcon className="h-4 w-4" filled={entry.pinned} />
           </button>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-1 p-3.5">
-        <p className="truncate text-sm font-semibold text-slate-950">
-          <Highlight text={entry.client} terms={terms} />
-        </p>
-        <p className="line-clamp-2 min-h-10 text-sm leading-5 text-slate-600">
-          <Highlight text={entry.project} terms={terms} />
-        </p>
-        <p className="flex items-center gap-2">
-          <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{formatDate(entry.folder_date)}</span>
-          <PathText path={entry.path} terms={terms} />
-        </p>
-        <div className="mt-auto pt-3">
-          <EntryActions {...props} grow />
-        </div>
+      <p className="flex items-center gap-2">
+        <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{formatDate(entry.folder_date)}</span>
+        <PathText path={entry.path} terms={terms} />
+      </p>
+      <div className="mt-auto">
+        <EntryActions {...props} grow hidePin />
       </div>
     </li>
   );
@@ -986,8 +980,7 @@ function FolderManagerInner({ userId }: { userId: string }) {
   const filterKey = `${ownerId}|${deferredQuery}|${clientFilter}|${monthFilter}|${dateFilter}|${prefs.sort}|${prefs.group}`;
   const visible = visibleState.key === filterKey ? visibleState.count : PAGE_SIZE;
   const shownRest = useMemo(() => restItems.slice(0, visible), [restItems, visible]);
-  const groups = useMemo(() => buildGroups(pinnedItems, shownRest, prefs.group), [pinnedItems, shownRest, prefs.group]);
-  const shownCount = pinnedItems.length + shownRest.length;
+  const groups = useMemo(() => buildGroups(shownRest, prefs.group), [shownRest, prefs.group]);
 
   // Chỉ tải ảnh siêu nhỏ của các mục đang hiển thị.
   useEffect(() => {
@@ -1121,10 +1114,10 @@ function FolderManagerInner({ userId }: { userId: string }) {
     try {
       await setPinned(entry.id, next);
       setLoaded((prev) => (prev ? { ...prev, rows: prev.rows.map((row) => (row.id === entry.id ? { ...row, pinned: next } : row)) } : prev));
-      showToast(next ? "Đã ghim lên đầu." : "Đã bỏ ghim.");
+      showToast(next ? "Đã đưa lên Dùng hàng ngày." : "Đã chuyển về Lưu trữ.");
     } catch (err) {
       console.error(err);
-      showToast("Chưa ghim được. Hãy chạy file migration ghim thư mục trong Supabase.", false);
+      showToast("Chưa đánh dấu được. Hãy chạy file SQL thêm cột ghim trong Supabase.", false);
     }
   }
 
@@ -1145,6 +1138,15 @@ function FolderManagerInner({ userId }: { userId: string }) {
 
   const activeLabel = isOwn ? "của tôi" : `của ${activeWorkspace?.owner_name ?? ""}`;
   const searching = terms.length > 0;
+  const showDaily = pinnedItems.length > 0 || (isOwn && !hasFilter && entries.length > 0);
+
+  function renderList(items: FolderEntry[]) {
+    return (
+      <ul className={prefs.view === "grid" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "space-y-2.5"}>
+        {items.map((entry) => (prefs.view === "grid" ? <EntryTile key={entry.id} {...entryProps(entry)} /> : <EntryRow key={entry.id} {...entryProps(entry)} />))}
+      </ul>
+    );
+  }
 
   function entryProps(entry: FolderEntry): EntryViewProps {
     return {
@@ -1353,45 +1355,62 @@ function FolderManagerInner({ userId }: { userId: string }) {
             )}
           </div>
         ) : (
-          <div className="space-y-6">
-            {groups.map((group) => {
-              const isCollapsed = !searching && collapsed[group.key] === true;
-              const showHeader = group.label !== "";
-              return (
-                <div key={group.key}>
-                  {showHeader && (
-                    <button
-                      type="button"
-                      onClick={() => setCollapsed((prev) => ({ ...prev, [group.key]: !prev[group.key] }))}
-                      aria-expanded={!isCollapsed}
-                      className="mb-3 flex w-full items-center gap-2 text-left"
-                    >
-                      <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
-                      {group.pinned && <PinIcon className="h-3.5 w-3.5 shrink-0" filled />}
-                      <span className="truncate text-sm font-semibold text-slate-900">{group.label}</span>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{group.items.length}</span>
-                      <span className="h-px flex-1 bg-slate-100" aria-hidden="true" />
-                    </button>
-                  )}
-                  {!isCollapsed && (
-                    <ul className={prefs.view === "grid" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "space-y-2.5"}>
-                      {group.items.map((entry) =>
-                        prefs.view === "grid" ? <EntryTile key={entry.id} {...entryProps(entry)} /> : <EntryRow key={entry.id} {...entryProps(entry)} />,
-                      )}
-                    </ul>
-                  )}
+          <div className="space-y-8">
+            {showDaily && (
+              <section aria-label="Dùng hàng ngày" className="rounded-2xl bg-slate-50 p-3 sm:p-4">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-950">
+                  <PinIcon className="h-4 w-4" filled />
+                  Dùng hàng ngày
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-slate-600">{pinnedItems.length}</span>
+                </h3>
+                {pinnedItems.length > 0 ? (
+                  renderList(pinnedItems)
+                ) : (
+                  <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm text-slate-500">
+                    Chưa có thư mục nào. Bấm dấu ★ ở thư mục lưu trữ bên dưới để đưa lên đây.
+                  </p>
+                )}
+              </section>
+            )}
+
+            {restItems.length > 0 && (
+              <section aria-label="Lưu trữ">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-950">
+                  <FolderIcon className="h-4 w-4" />
+                  Lưu trữ
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{restItems.length}</span>
+                </h3>
+                <div className="space-y-5">
+                  {groups.map((group) => {
+                    const isCollapsed = !searching && collapsed[group.key] === true;
+                    return (
+                      <div key={group.key}>
+                        {group.label !== "" && (
+                          <button
+                            type="button"
+                            onClick={() => setCollapsed((prev) => ({ ...prev, [group.key]: !prev[group.key] }))}
+                            aria-expanded={!isCollapsed}
+                            className="mb-2.5 flex w-full items-center gap-2 text-left"
+                          >
+                            <ChevronDownIcon className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} />
+                            <span className="truncate text-xs font-semibold uppercase tracking-wide text-slate-500">{group.label}</span>
+                            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{group.items.length}</span>
+                            <span className="h-px flex-1 bg-slate-100" aria-hidden="true" />
+                          </button>
+                        )}
+                        {!isCollapsed && renderList(group.items)}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-            {restItems.length > shownRest.length && (
-              <div className="text-center">
-                <button type="button" onClick={() => setVisibleState({ count: visible + PAGE_SIZE, key: filterKey })} className={outlineButton}>
-                  Xem thêm ({restItems.length - shownRest.length})
-                </button>
-                <p className="mt-2 text-xs text-slate-400">
-                  Đang hiển thị {shownCount}/{filtered.length}
-                </p>
-              </div>
+                {restItems.length > shownRest.length && (
+                  <div className="mt-5 text-center">
+                    <button type="button" onClick={() => setVisibleState({ count: visible + PAGE_SIZE, key: filterKey })} className={outlineButton}>
+                      Xem thêm ({restItems.length - shownRest.length})
+                    </button>
+                  </div>
+                )}
+              </section>
             )}
           </div>
         )}
@@ -1428,8 +1447,8 @@ function FolderManagerInner({ userId }: { userId: string }) {
                 return preview ? (
                   <div className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={preview} alt="" className="h-14 w-14 rounded-xl object-cover" />
-                    <span className="flex-1" />
+                    <img src={preview} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                    <span className="flex-1 text-xs text-slate-500">{typeof form.thumbnail === "string" ? `Đã tự nén còn ${thumbKb(form.thumbnail)} KB` : ""}</span>
                     <label className="cursor-pointer text-sm text-slate-700 underline">
                       Đổi ảnh
                       <input type="file" accept="image/*" className="sr-only" onChange={(event) => { void chooseThumbnail(event.target.files?.[0]); event.target.value = ""; }} />
@@ -1442,6 +1461,7 @@ function FolderManagerInner({ userId }: { userId: string }) {
                   <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 px-4 py-4 text-sm font-medium text-slate-700 transition hover:border-slate-500 hover:bg-slate-50">
                     <PlusIcon className="h-4 w-4" />
                     Chọn ảnh
+                    <span className="text-xs font-normal text-slate-400">(tự nén còn vài KB)</span>
                     <input type="file" accept="image/*" className="sr-only" onChange={(event) => { void chooseThumbnail(event.target.files?.[0]); event.target.value = ""; }} />
                   </label>
                 );
