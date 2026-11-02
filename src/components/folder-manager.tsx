@@ -385,6 +385,16 @@ function FolderManagerInner({ userId }: { userId: string }) {
     return [...counts].sort((a, b) => a[0].localeCompare(b[0], "vi"));
   }, [entries]);
 
+  // Gợi ý dự án: nếu khách đang chọn đã có dự án thì chỉ hiện dự án của khách đó, chưa có thì hiện tất cả.
+  const formClient = form?.client.trim() ?? "";
+  const projectOptions = useMemo(() => {
+    const ofClient = entries.filter((entry) => entry.client === formClient);
+    const source = ofClient.length > 0 ? ofClient : entries;
+    const counts = new Map<string, number>();
+    for (const entry of source) counts.set(entry.project, (counts.get(entry.project) ?? 0) + 1);
+    return [...counts].sort((a, b) => a[0].localeCompare(b[0], "vi"));
+  }, [entries, formClient]);
+
   const monthOptions = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of entries) counts.set(monthKey(entry.folder_date), (counts.get(monthKey(entry.folder_date)) ?? 0) + 1);
@@ -743,7 +753,7 @@ function FolderManagerInner({ userId }: { userId: string }) {
             </div>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">Dự án</span>
-              <input value={form.project} onChange={(event) => patchForm({ project: event.target.value })} maxLength={150} required placeholder="Tên dự án" className={inputClass} />
+              <NameCombobox value={form.project} onChange={(project) => patchForm({ project })} options={projectOptions} placeholder="Tên dự án" maxLength={150} />
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-medium">Đường dẫn thư mục</span>
