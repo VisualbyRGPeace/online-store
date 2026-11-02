@@ -154,3 +154,39 @@ export const CopyImageIcon = (p: IconProps) => (
     <path d="m9 19 4-4 3 3 1.5-1.5L20 19" />
   </Svg>
 );
+
+export const TrashIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+  </Svg>
+);
+
+export const PinIcon = ({ filled = false, ...p }: IconProps & { filled?: boolean }) => (
+  <Svg {...p}>
+    <path
+      d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.65l5.9-.85z"
+      fill={filled ? "currentColor" : "none"}
+    />
+  </Svg>
+);
+
+export const GridIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="4" y="4" width="7" height="7" rx="1.5" />
+    <rect x="13" y="4" width="7" height="7" rx="1.5" />
+    <rect x="4" y="13" width="7" height="7" rx="1.5" />
+    <rect x="13" y="13" width="7" height="7" rx="1.5" />
+  </Svg>
+);
+
+export const ListIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
+  </Svg>
+);
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Svg>
+);

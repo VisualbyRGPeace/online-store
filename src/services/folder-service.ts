@@ -17,6 +17,7 @@ export type FolderEntry = {
   folder_date: string;
   path: string;
   created_at: string;
+  pinned: boolean;
 };
 
 export type FolderViewer = {
@@ -33,7 +34,8 @@ export type FolderInput = {
   path: string;
 };
 
-const ENTRY_COLUMNS = "id, user_id, client, project, folder_date, path, created_at";
+const BASE_COLUMNS = "id, user_id, client, project, folder_date, path, created_at";
+const ENTRY_COLUMNS = `${BASE_COLUMNS}, pinned`;
 const MAX_ENTRIES = 2000;
 
 export async function listWorkspaces(): Promise<FolderWorkspace[]> {
@@ -46,15 +48,22 @@ export async function listWorkspaces(): Promise<FolderWorkspace[]> {
 }
 
 export async function listEntries(ownerId: string): Promise<FolderEntry[]> {
-  const { data, error } = await createClient()
-    .from("folder_entries")
-    .select(ENTRY_COLUMNS)
-    .eq("user_id", ownerId)
-    .order("folder_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(MAX_ENTRIES);
-  if (error) throw error;
-  return (data ?? []) as FolderEntry[];
+  const run = (columns: string) =>
+    createClient()
+      .from("folder_entries")
+      .select(columns)
+      .eq("user_id", ownerId)
+      .order("folder_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(MAX_ENTRIES);
+
+  const first = await run(ENTRY_COLUMNS);
+  if (!first.error) return (first.data ?? []) as unknown as FolderEntry[];
+  // 42703: cột "pinned" chưa có (chưa chạy migration ghim) -> vẫn hiển thị danh sách, chỉ không có ghim.
+  if (first.error.code !== "42703") throw first.error;
+  const fallback = await run(BASE_COLUMNS);
+  if (fallback.error) throw fallback.error;
+  return ((fallback.data ?? []) as unknown as Omit<FolderEntry, "pinned">[]).map((row) => ({ ...row, pinned: false }));
 }
 
 /** Ảnh siêu nhỏ tải riêng theo từng trang để danh sách và tìm kiếm luôn nhẹ. */
@@ -89,6 +98,12 @@ export async function updateEntry(id: string, input: FolderInput, thumbnail?: st
   };
   if (thumbnail !== undefined) patch.thumbnail = thumbnail;
   const { data, error } = await createClient().from("folder_entries").update(patch).eq("id", id).select("id");
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error("update_denied");
+}
+
+export async function setPinned(id: string, pinned: boolean): Promise<void> {
+  const { data, error } = await createClient().from("folder_entries").update({ pinned }).eq("id", id).select("id");
   if (error) throw error;
   if (!data || data.length === 0) throw new Error("update_denied");
 }
