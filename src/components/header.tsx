@@ -1,5 +1,7 @@
 "use client";
 
+import { useQuery } from "@/hooks/use-query";
+import { getMyRole } from "@/services/admin-order-service";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Byline } from "@/components/byline";
@@ -16,6 +18,11 @@ export function LogoMark() {
 
 export function Header() {
   const { user, loading } = useAuth();
+  const role = useQuery(
+    user ? `header-role:${user.id}` : "header-role:anonymous",
+    () => user ? getMyRole(user.id) : Promise.resolve(null),
+  );
+  const canSeeFarm = !loading && !!user && role.status === "success" && role.data === "admin";
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
@@ -27,6 +34,7 @@ export function Header() {
           <Link href="/products/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">
             Tài nguyên
           </Link>
+          {canSeeFarm && <Link href="/farm/" className="rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100">Nông trại</Link>}
           <details className="group relative">
             <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-3.5 py-2 text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 [&::-webkit-details-marker]:hidden">
               Tiện ích
@@ -48,6 +56,10 @@ export function Header() {
               <Link href="/utilities/add-frame/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">FR</span>
                 <span>Add frame</span>
+              </Link>
+              <Link href="/utilities/folders/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">TM</span>
+                <span>Quản lý thư mục</span>
               </Link>
             </div>
           </details>
