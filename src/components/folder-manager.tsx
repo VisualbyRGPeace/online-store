@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { Modal } from "@/components/utilities/modal";
 import { CheckIcon, CloseIcon, CopyIcon, FolderIcon, LockIcon, PlusIcon, SearchIcon } from "@/components/utilities/tool-icons";
@@ -98,6 +98,117 @@ const EMPTY_FORM: FormState = {
   thumbnail: undefined,
   existingThumb: null,
 };
+
+/** Ô nhập kèm danh sách xổ xuống các tên đã dùng; vẫn gõ được tên mới. */
+function NameCombobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  maxLength,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: [name: string, count: number][];
+  placeholder: string;
+  maxLength: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(-1);
+  const listId = useId();
+  const needle = normalize(value.trim());
+  const matches = options.filter(([name]) => !needle || normalize(name).includes(needle));
+  const showList = open && matches.length > 0;
+
+  function choose(name: string) {
+    onChange(name);
+    setOpen(false);
+    setHighlight(-1);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setHighlight((current) => Math.min(current + 1, matches.length - 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight((current) => Math.max(current - 1, 0));
+    } else if (event.key === "Enter" && showList && highlight >= 0) {
+      event.preventDefault();
+      const picked = matches[highlight];
+      if (picked) choose(picked[0]);
+    } else if (event.key === "Escape" && showList) {
+      event.stopPropagation();
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <input
+        role="combobox"
+        aria-expanded={showList}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        autoComplete="off"
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+          setOpen(true);
+          setHighlight(-1);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={onKeyDown}
+        maxLength={maxLength}
+        required
+        placeholder={placeholder}
+        className={`${inputClass} pr-11`}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label="Mở danh sách"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          setOpen((current) => !current);
+        }}
+        className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 transition-transform ${showList ? "rotate-180" : ""}`} aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {showList && (
+        <ul
+          id={listId}
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-20 mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+        >
+          {matches.map(([name, count], index) => (
+            <li
+              key={name}
+              role="option"
+              aria-selected={name === value}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                choose(name);
+              }}
+              onMouseEnter={() => setHighlight(index)}
+              className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm ${
+                index === highlight ? "bg-slate-100" : ""
+              } ${name === value ? "font-semibold text-slate-950" : "text-slate-700"}`}
+            >
+              <span className="truncate">{name}</span>
+              <span className="shrink-0 text-xs text-slate-400">{count} thư mục</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function WorkspaceCard({
   workspace,
@@ -616,12 +727,7 @@ function FolderManagerInner({ userId }: { userId: string }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Làm cho ai</span>
-                <input list="folder-clients" value={form.client} onChange={(event) => patchForm({ client: event.target.value })} maxLength={100} required placeholder="Tên khách hàng" className={inputClass} />
-                <datalist id="folder-clients">
-                  {clientOptions.map(([name]) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
+                <NameCombobox value={form.client} onChange={(client) => patchForm({ client })} options={clientOptions} placeholder="Tên khách hàng" maxLength={100} />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Ngày</span>
