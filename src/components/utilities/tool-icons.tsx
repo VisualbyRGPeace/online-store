@@ -130,3 +130,10 @@ export const LockIcon = (p: IconProps) => (
     <path d="M8 11V8a4 4 0 0 1 8 0v3" />
   </Svg>
 );
+
+export const EditIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z" />
+    <path d="m14.5 7.5 3 3" />
+  </Svg>
+);
