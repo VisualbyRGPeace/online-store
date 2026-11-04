@@ -37,10 +37,10 @@ export function ProductsView({
   anchor?: string; // id of the section: page changes scroll back to it
 }) {
   const params = useSearchParams();
-  const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
-  const category = params.get("category") ?? undefined;
-  const q = params.get("q")?.slice(0, 100) || undefined;
-  const typeParam = params.get("type");
+  const page = Math.max(1, Number.parseInt(params?.get("page") ?? "1", 10) || 1);
+  const category = params?.get("category") ?? undefined;
+  const q = params?.get("q")?.slice(0, 100) || undefined;
+  const typeParam = params?.get("type");
   const type: Kind | undefined = typeParam === "free" || typeParam === "paid" ? typeParam : undefined;
 
   const categories = useQuery("categories", listCategories);

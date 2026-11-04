@@ -23,7 +23,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 }
 
 function RoleGate({ userId, children }: { userId: string; children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const role = useQuery(`role:${userId}`, () => getMyRole(userId));
 
   if (role.status === "loading") return <div className="h-40 animate-pulse rounded-lg bg-neutral-200" aria-busy="true" />;

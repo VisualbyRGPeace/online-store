@@ -71,7 +71,7 @@ export function OrdersAdmin() {
 }
 
 export function OrderDetailAdmin() {
-  const id = useSearchParams().get("id") ?? "";
+  const id = useSearchParams()?.get("id") ?? "";
   const valid = UUID.test(id);
   const [version, setVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);

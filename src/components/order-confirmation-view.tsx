@@ -18,7 +18,7 @@ function subscribeHash(callback: () => void) {
 }
 
 export function OrderConfirmationView() {
-  const id = useSearchParams().get("id") ?? "";
+  const id = useSearchParams()?.get("id") ?? "";
   const hash = useSyncExternalStore(subscribeHash, () => window.location.hash, () => "");
   const token = new URLSearchParams(hash.slice(1)).get("t") ?? "";
   const [copied, setCopied] = useState(false);

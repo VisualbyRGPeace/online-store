@@ -12,7 +12,7 @@ import { formatDateTime } from "@/utils/labels";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function CustomerDownloadsView() {
-  const id = useSearchParams().get("id") ?? "";
+  const id = useSearchParams()?.get("id") ?? "";
   const valid = UUID.test(id);
   const customers = useQuery("admin-customers", listCustomers);
   const logs = useQuery(`admin-user-downloads:${id}`, () => (valid ? listDownloads(id, 1000) : Promise.resolve([])));

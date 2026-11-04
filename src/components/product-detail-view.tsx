@@ -12,7 +12,7 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 import type { ProductDetail } from "@/types";
 
 export function ProductDetailView() {
-  const slug = useSearchParams().get("slug") ?? "";
+  const slug = useSearchParams()?.get("slug") ?? "";
   const state = useQuery(`product:${slug}`, () => (slug ? getProductBySlug(slug) : Promise.resolve(null)));
 
   const title = state.status === "success" && state.data ? `${state.data.name} | ${SITE_NAME}` : null;

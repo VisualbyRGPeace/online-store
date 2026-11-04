@@ -39,7 +39,7 @@ export function NewProductView() {
 }
 
 export function EditProductView() {
-  const id = useSearchParams().get("id") ?? "";
+  const id = useSearchParams()?.get("id") ?? "";
   const valid = UUID.test(id);
   const product = useQuery(`admin-product:${id}`, () => (valid ? getAdminProduct(id) : Promise.resolve(null)));
   const driveUrl = useQuery(`admin-drive:${id}`, () => (valid ? getDriveUrl(id) : Promise.resolve("")));

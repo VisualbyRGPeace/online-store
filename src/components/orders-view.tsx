@@ -49,7 +49,7 @@ export function OrderDetailView() {
 }
 
 function OrderDetailContent({ userId }: { userId: string }) {
-  const id = useSearchParams().get("id") ?? "";
+  const id = useSearchParams()?.get("id") ?? "";
   const valid = UUID.test(id);
   const state = useQuery(`order:${userId}:${id}`, () => (valid ? getOrder(id) : Promise.resolve(null)));
 

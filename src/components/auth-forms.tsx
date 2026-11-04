@@ -14,7 +14,7 @@ const linkClass = "font-medium text-brand-600 hover:text-brand-700 hover:underli
 
 export function LoginForm() {
   const router = useRouter();
-  const next = safeNext(useSearchParams().get("next"));
+  const next = safeNext(useSearchParams()?.get("next"));
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,7 +53,7 @@ export function LoginForm() {
 
 export function RegisterForm() {
   const router = useRouter();
-  const next = safeNext(useSearchParams().get("next"));
+  const next = safeNext(useSearchParams()?.get("next"));
   const [errors, setErrors] = useState<Errors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
