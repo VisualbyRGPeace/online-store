@@ -1,16 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Byline } from "@/components/byline";
-import { DownloadIcon } from "@/components/ui/icons";
 import { SITE_NAME } from "@/lib/site-config";
 
 export function LogoMark() {
   return (
-    <span className="grid h-8 w-8 place-items-center rounded-lg bg-black text-white">
-      <DownloadIcon className="h-4 w-4" />
-    </span>
+    <Image src="/logo.svg" alt="" width={32} height={32} priority className="h-8 w-8" />
   );
 }
 
