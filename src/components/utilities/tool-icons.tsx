@@ -209,3 +209,11 @@ export const ChevronRightIcon = (p: IconProps) => (
     <path d="m9 6 6 6-6 6" />
   </Svg>
 );
+
+export const MemeIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <path d="M8.5 14.5c1 1.4 2.2 2 3.5 2s2.5-.6 3.5-2" />
+    <path d="M9 9.5h.01M15 9.5h.01" strokeWidth={2.4} />
+  </Svg>
+);

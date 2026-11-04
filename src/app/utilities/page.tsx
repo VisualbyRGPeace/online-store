@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRightIcon, FilmIcon, FolderIcon, FrameIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
+import { ArrowRightIcon, FilmIcon, FolderIcon, FrameIcon, MemeIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
 
 export const metadata: Metadata = { title: "Tiện ích" };
 
@@ -39,6 +39,13 @@ const tools = [
     description: "Lưu đường dẫn thư mục theo khách, dự án, ngày; tìm nhanh và mở bằng một cú bấm.",
     tags: ["Theo khách", "Theo tháng", "Riêng tư"],
     Icon: FolderIcon,
+  },
+  {
+    href: "/utilities/meme/",
+    name: "Bách Khoa meme",
+    description: "Kho GIF meme dùng chung: bấm để sao chép nhanh hoặc kéo thẳng sang ô chat để dán.",
+    tags: ["Sao chép nhanh", "Kéo thả", "Admin đăng"],
+    Icon: MemeIcon,
   },
 ];
 

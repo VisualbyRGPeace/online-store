@@ -53,6 +53,10 @@ export function Header() {
                 <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">TM</span>
                 <span>Quản lý thư mục</span>
               </Link>
+              <Link href="/utilities/meme/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
+                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">BK</span>
+                <span>Bách Khoa meme</span>
+              </Link>
             </div>
           </details>
           {!loading &&
