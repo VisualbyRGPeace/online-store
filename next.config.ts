@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// GitHub Pages serves static files under /online-store, so the base path is set in CI.
+// The custom domain serves from the root, so CI sets an empty base path.
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const nextConfig: NextConfig = {
