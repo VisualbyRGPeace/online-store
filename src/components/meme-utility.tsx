@@ -136,6 +136,7 @@ function MemeBoard({ userId }: { userId: string }) {
 
     for (let index = 0; index < list.length; index += 1) {
       const file = list[index];
+      if (!file) continue;
       const isGif = file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
       if (!isGif || file.size > MAX_MEME_BYTES) {
         skipped += 1;
