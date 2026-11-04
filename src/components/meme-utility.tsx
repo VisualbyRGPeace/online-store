@@ -68,7 +68,7 @@ function MemeTile({
 
   return (
     <div
-      className="group relative mb-1.5 break-inside-avoid overflow-hidden rounded-xl bg-slate-100"
+      className="group relative mx-auto mb-1.5 w-1/2 break-inside-avoid overflow-hidden rounded-xl bg-slate-100"
       style={ratio}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
