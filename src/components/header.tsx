@@ -8,7 +8,7 @@ import { SITE_NAME } from "@/lib/site-config";
 
 export function LogoMark() {
   return (
-    <Image src="/logo.svg" alt="" width={32} height={32} priority className="h-8 w-8" />
+    <Image src="/logo.svg" alt="" width={32} height={32} priority className="h-8 w-8 rounded-lg" />
   );
 }
 
