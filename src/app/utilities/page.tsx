@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRightIcon, FilmIcon, FolderIcon, FrameIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
+import { ArrowRightIcon, ClipboardIcon, FilmIcon, FolderIcon, FrameIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
 
 export const metadata: Metadata = { title: "Tiện ích" };
 
@@ -39,6 +39,13 @@ const tools = [
     description: "Lưu đường dẫn thư mục theo khách, dự án, ngày; tìm nhanh và mở bằng một cú bấm.",
     tags: ["Theo khách", "Theo tháng", "Riêng tư"],
     Icon: FolderIcon,
+  },
+  {
+    href: "/utilities/jobs/",
+    name: "Quản lý Job",
+    description: "Nối với Google Sheet để ghi công việc, xem ngay hôm nay cần làm gì và tick xong từng việc.",
+    tags: ["Việc hôm nay", "Google Sheet", "Hai chiều"],
+    Icon: ClipboardIcon,
   },
 ];
 

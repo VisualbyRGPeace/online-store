@@ -1,0 +1,950 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { AuthGate } from "@/components/auth-gate";
+import { Modal } from "@/components/utilities/modal";
+import {
+  CheckIcon,
+  ClipboardIcon,
+  CloseIcon,
+  CopyIcon,
+  EditIcon,
+  ExternalIcon,
+  PlusIcon,
+  RefreshIcon,
+  SearchIcon,
+  SettingsIcon,
+  TrashIcon,
+} from "@/components/utilities/tool-icons";
+import { JOB_APPS_SCRIPT } from "@/lib/job-apps-script";
+import {
+  PRIORITY_LABEL,
+  STATUS_LABEL,
+  clearLink,
+  createJob,
+  deleteJob,
+  describeError,
+  isValidScriptUrl,
+  listJobs,
+  loadLink,
+  saveLink,
+  updateJob,
+  type Job,
+  type JobInput,
+  type JobLink,
+  type JobPriority,
+  type JobStatus,
+} from "@/services/job-service";
+import { copyText } from "@/utils/clipboard";
+import { isAllowedDriveUrl } from "@/utils/drive";
+
+const STALE_AFTER_MS = 60_000;
+
+const inputClass =
+  "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100";
+const outlineButton =
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3.5 text-sm font-medium text-slate-800 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-50";
+const blackButton =
+  "inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300";
+const iconButton =
+  "grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-950";
+
+// ---- Ngày tháng (dạng yyyy-MM-dd, theo giờ máy người dùng) ----
+function todayIso(): string {
+  return new Date().toLocaleDateString("en-CA");
+}
+
+function parseIso(iso: string): Date {
+  const [year = 1970, month = 1, day = 1] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDays(iso: string, days: number): string {
+  const date = parseIso(iso);
+  date.setDate(date.getDate() + days);
+  return date.toLocaleDateString("en-CA");
+}
+
+/** Số ngày từ `from` đến `to` (dương nếu `to` ở sau). */
+function daysBetween(from: string, to: string): number {
+  const a = parseIso(from);
+  const b = parseIso(to);
+  return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86_400_000);
+}
+
+function formatDate(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+const WEEKDAYS = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+
+function dayLabel(iso: string, today: string): string {
+  const base = `${WEEKDAYS[parseIso(iso).getDay()]}, ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  const diff = daysBetween(today, iso);
+  if (diff === 0) return `Hôm nay · ${base}`;
+  if (diff === 1) return `Ngày mai · ${base}`;
+  return base;
+}
+
+/** Bỏ dấu + chữ thường để tìm kiếm tiếng Việt. */
+function fold(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .toLowerCase();
+}
+
+// ---- Sắp xếp / chia nhóm ----
+const STATUS_RANK: Record<JobStatus, number> = { doing: 0, todo: 1, done: 2 };
+const PRIORITY_RANK: Record<JobPriority, number> = { high: 0, medium: 1, low: 2 };
+
+function compareJobs(a: Job, b: Job): number {
+  return (
+    STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
+    PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
+    a.title.localeCompare(b.title, "vi")
+  );
+}
+
+type Tab = "today" | "upcoming" | "all" | "done";
+type Section = { key: string; label: string; danger?: boolean; items: Job[] };
+
+const TAB_LABEL: Record<Tab, string> = { today: "Hôm nay", upcoming: "Sắp tới", all: "Tất cả", done: "Đã xong" };
+
+function buildSections(tab: Tab, jobs: Job[], today: string): Section[] {
+  const open = jobs.filter((job) => job.status !== "done");
+
+  if (tab === "today") {
+    const overdue = open.filter((job) => job.date !== "" && job.date < today).sort((a, b) => a.date.localeCompare(b.date) || compareJobs(a, b));
+    const due = jobs.filter((job) => job.date === today).sort(compareJobs);
+    const sections: Section[] = [];
+    if (overdue.length > 0) sections.push({ key: "overdue", label: "Quá hạn", danger: true, items: overdue });
+    if (due.length > 0) sections.push({ key: "today", label: dayLabel(today, today), items: due });
+    return sections;
+  }
+
+  if (tab === "upcoming") {
+    const byDate = new Map<string, Job[]>();
+    for (const job of open) {
+      if (job.date !== "" && job.date > today) byDate.set(job.date, [...(byDate.get(job.date) ?? []), job]);
+    }
+    const sections: Section[] = [...byDate.keys()]
+      .sort()
+      .map((date) => ({ key: date, label: dayLabel(date, today), items: (byDate.get(date) ?? []).sort(compareJobs) }));
+    const undated = open.filter((job) => job.date === "").sort(compareJobs);
+    if (undated.length > 0) sections.push({ key: "undated", label: "Chưa đặt ngày", items: undated });
+    return sections;
+  }
+
+  if (tab === "done") {
+    const items = jobs.filter((job) => job.status === "done").sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title, "vi"));
+    return items.length > 0 ? [{ key: "done", label: "", items }] : [];
+  }
+
+  const items = [...jobs].sort((a, b) => {
+    const doneDiff = Number(a.status === "done") - Number(b.status === "done");
+    if (doneDiff !== 0) return doneDiff;
+    const dateA = a.date || "9999-99-99";
+    const dateB = b.date || "9999-99-99";
+    return dateA.localeCompare(dateB) || compareJobs(a, b);
+  });
+  return items.length > 0 ? [{ key: "all", label: "", items }] : [];
+}
+
+// ---- Giao diện nhỏ ----
+type Toast = { text: string; ok: boolean };
+
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: [T, string][];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium">{label}</p>
+      <div role="group" aria-label={label} className="flex rounded-xl border border-slate-200 bg-white p-1">
+        {options.map(([key, text]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChange(key)}
+            aria-pressed={value === key}
+            className={`h-9 flex-1 rounded-lg px-2 text-sm font-medium transition ${
+              value === key ? "bg-black text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+            }`}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JobRow({
+  job,
+  today,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  job: Job;
+  today: string;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const done = job.status === "done";
+  const late = !done && job.date !== "" && job.date < today;
+  const lateDays = late ? daysBetween(job.date, today) : 0;
+
+  return (
+    <li className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 transition hover:border-slate-400 hover:shadow-sm">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={done}
+        aria-label={done ? "Đánh dấu chưa xong" : "Đánh dấu đã xong"}
+        title={done ? "Đánh dấu chưa xong" : "Đánh dấu đã xong"}
+        className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition ${
+          done ? "border-black bg-black text-white" : "border-slate-300 text-transparent hover:border-slate-900 hover:text-slate-300"
+        }`}
+      >
+        <CheckIcon className="h-3.5 w-3.5" />
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p className={`text-sm font-semibold leading-6 ${done ? "text-slate-400 line-through" : "text-slate-950"}`}>{job.title}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {job.client && <span className="max-w-full truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{job.client}</span>}
+          {job.status === "doing" && <span className="rounded-md bg-slate-950 px-1.5 py-0.5 text-xs font-medium text-white">Đang làm</span>}
+          {job.priority === "high" && !done && <span className="rounded-md border border-slate-900 px-1.5 py-0.5 text-xs font-semibold text-slate-950">Ưu tiên cao</span>}
+          {job.priority === "low" && !done && <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-xs text-slate-500">Ưu tiên thấp</span>}
+          {late ? (
+            <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700">
+              Quá hạn {lateDays} ngày · {formatDate(job.date)}
+            </span>
+          ) : (
+            job.date !== "" && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{formatDate(job.date)}</span>
+          )}
+        </div>
+        {job.note && <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-xs leading-5 text-slate-500">{job.note}</p>}
+      </div>
+
+      <div className="flex shrink-0 items-center">
+        <button type="button" onClick={onEdit} aria-label="Sửa" title="Sửa" className={iconButton}>
+          <EditIcon className="h-4 w-4" />
+        </button>
+        <button type="button" onClick={onDelete} aria-label="Xóa" title="Xóa" className={`${iconButton} hover:bg-red-50 hover:text-red-600`}>
+          <TrashIcon className="h-4 w-4" />
+        </button>
+      </div>
+    </li>
+  );
+}
+
+const SETUP_STEPS: string[] = [
+  "Tạo một Google Sheet mới (hoặc dùng sheet có sẵn) rồi vào menu Tiện ích mở rộng → Apps Script.",
+  "Xóa mã mẫu, bấm “Sao chép mã script” bên dưới rồi dán vào. Đổi dòng TOKEN thành mật mã riêng của bạn, bấm Lưu.",
+  "Bấm Triển khai → Tùy chọn triển khai mới → loại “Ứng dụng web”. Chọn Thực thi dưới tên: Tôi; Người có quyền truy cập: Bất kỳ ai. Bấm Triển khai và cấp quyền khi Google hỏi.",
+  "Sao chép “URL ứng dụng web” (kết thúc bằng /exec), dán vào ô bên dưới cùng mật mã vừa đặt.",
+];
+
+/** Hướng dẫn + biểu mẫu nối với Google Sheet. Dùng cả khi chưa kết nối và trong hộp Cài đặt. */
+function SetupPanel({
+  userId,
+  initial,
+  onConnected,
+  onDisconnected,
+  onToast,
+}: {
+  userId: string;
+  initial: JobLink | null;
+  onConnected: (link: JobLink) => void;
+  onDisconnected: () => void;
+  onToast: (text: string, ok?: boolean) => void;
+}) {
+  const [scriptUrl, setScriptUrl] = useState(initial?.scriptUrl ?? "");
+  const [token, setToken] = useState(initial?.token ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [showCode, setShowCode] = useState(false);
+
+  async function connect(event: FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    const link: JobLink = { scriptUrl: scriptUrl.trim(), token: token.trim() };
+    if (!isValidScriptUrl(link.scriptUrl)) {
+      setError("Địa chỉ phải bắt đầu bằng https://script.google.com/ và kết thúc bằng /exec.");
+      return;
+    }
+    if (link.token.length < 8) {
+      setError("Mật mã cần ít nhất 8 ký tự (giống dòng TOKEN trong Apps Script).");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await listJobs(link); // thử kết nối thật trước khi lưu
+      await saveLink(userId, link);
+      onConnected(link);
+    } catch (err) {
+      console.error(err);
+      setError(describeError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disconnect() {
+    setBusy(true);
+    try {
+      await clearLink(userId);
+      onDisconnected();
+    } catch (err) {
+      console.error(err);
+      setError("Chưa ngắt kết nối được. Vui lòng thử lại.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <ol className="space-y-3">
+        {SETUP_STEPS.map((step, index) => (
+          <li key={step} className="flex gap-3 text-sm leading-6 text-slate-600">
+            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-slate-950 text-xs font-semibold text-white">{index + 1}</span>
+            <span>{step}</span>
+          </li>
+        ))}
+      </ol>
+
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void copyText(JOB_APPS_SCRIPT).then((ok) => onToast(ok ? "Đã sao chép mã script." : "Trình duyệt chưa cho phép sao chép.", ok))}
+            className={outlineButton}
+          >
+            <CopyIcon className="h-4 w-4" />
+            Sao chép mã script
+          </button>
+          <button type="button" onClick={() => setShowCode((current) => !current)} aria-expanded={showCode} className="h-10 rounded-xl px-2.5 text-sm font-medium text-slate-500 transition hover:text-slate-950">
+            {showCode ? "Ẩn mã" : "Xem mã"}
+          </button>
+        </div>
+        {showCode && (
+          <pre className="mt-3 max-h-64 overflow-auto rounded-2xl bg-slate-950 p-4 font-mono text-[11px] leading-5 text-slate-100">{JOB_APPS_SCRIPT}</pre>
+        )}
+      </div>
+
+      <form onSubmit={(event) => void connect(event)} className="space-y-4 rounded-2xl bg-slate-50 p-4">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">URL ứng dụng web</span>
+          <input
+            value={scriptUrl}
+            onChange={(event) => setScriptUrl(event.target.value)}
+            placeholder="https://script.google.com/macros/s/…/exec"
+            spellCheck={false}
+            autoComplete="off"
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">Mật mã (TOKEN)</span>
+          <input
+            type="password"
+            value={token}
+            onChange={(event) => setToken(event.target.value)}
+            placeholder="Giống dòng TOKEN trong Apps Script"
+            autoComplete="off"
+            className={inputClass}
+          />
+        </label>
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {initial ? (
+            <button type="button" onClick={() => void disconnect()} disabled={busy} className="h-10 rounded-xl px-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50">
+              Ngắt kết nối
+            </button>
+          ) : (
+            <span />
+          )}
+          <button type="submit" disabled={busy} className={`${blackButton} px-6`}>
+            {busy ? "Đang kết nối…" : initial ? "Lưu & kiểm tra" : "Kết nối Google Sheet"}
+          </button>
+        </div>
+      </form>
+
+      <p className="text-xs leading-5 text-slate-500">
+        Mật mã chỉ lưu trong tài khoản của bạn. Sau khi sửa mã Apps Script, nhớ Triển khai → Quản lý bản triển khai → chọn phiên bản mới để áp dụng.
+      </p>
+    </div>
+  );
+}
+
+type FormState = {
+  id: string | null;
+  title: string;
+  client: string;
+  date: string;
+  priority: JobPriority;
+  status: JobStatus;
+  note: string;
+};
+
+function JobManagerInner({ userId }: { userId: string }) {
+  const [link, setLink] = useState<JobLink | null>(null);
+  const [linkLoaded, setLinkLoaded] = useState(false);
+  const [linkError, setLinkError] = useState("");
+
+  const [loaded, setLoaded] = useState<{ key: string; jobs: Job[]; sheetUrl: string } | null>(null);
+  const [version, setVersion] = useState(0);
+  const [error, setError] = useState("");
+  const lastFetch = useRef(0);
+
+  const [today, setToday] = useState(todayIso);
+  const [tab, setTab] = useState<Tab>("today");
+  const [query, setQuery] = useState("");
+
+  const [form, setForm] = useState<FormState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [toDelete, setToDelete] = useState<Job | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
+
+  const showToast = useCallback((text: string, ok = true) => {
+    setToast({ text, ok });
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 3200);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  // Qua nửa đêm thì "hôm nay" tự đổi sang ngày mới.
+  useEffect(() => {
+    const timer = window.setInterval(() => setToday(todayIso()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  // Liên kết Google Sheet của tài khoản.
+  useEffect(() => {
+    let current = true;
+    loadLink(userId).then(
+      (value) => {
+        if (!current) return;
+        setLink(value);
+        setLinkLoaded(true);
+      },
+      (err) => {
+        console.error(err);
+        if (!current) return;
+        setLinkError("Không tải được cài đặt liên kết. Hãy tải lại trang.");
+        setLinkLoaded(true);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [userId]);
+
+  // Công việc từ Google Sheet.
+  const dataKey = link ? `${link.scriptUrl}|${version}` : "";
+  useEffect(() => {
+    if (!link) return;
+    let current = true;
+    listJobs(link).then(
+      (result) => {
+        if (!current) return;
+        lastFetch.current = Date.now();
+        setError("");
+        setLoaded({ key: dataKey, jobs: result.jobs, sheetUrl: result.sheetUrl });
+      },
+      (err) => {
+        console.error(err);
+        if (!current) return;
+        setError(describeError(err));
+        setLoaded((prev) => (prev ? { ...prev, key: dataKey } : { key: dataKey, jobs: [], sheetUrl: "" }));
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [link, dataKey]);
+
+  // Quay lại tab trình duyệt sau một lúc thì tự làm mới (phòng khi bạn vừa sửa trong Google Sheet).
+  useEffect(() => {
+    if (!link) return;
+    function onFocus() {
+      if (document.visibilityState === "visible" && Date.now() - lastFetch.current > STALE_AFTER_MS) {
+        setVersion((current) => current + 1);
+      }
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [link]);
+
+  const jobs = useMemo(() => loaded?.jobs ?? [], [loaded]);
+  const sheetUrl = loaded && isAllowedDriveUrl(loaded.sheetUrl) ? loaded.sheetUrl : "";
+  const refreshing = Boolean(link) && loaded?.key !== dataKey;
+  const firstLoad = Boolean(link) && loaded === null;
+
+  const patchJobs = useCallback((change: (rows: Job[]) => Job[]) => {
+    setLoaded((prev) => (prev ? { ...prev, jobs: change(prev.jobs) } : prev));
+  }, []);
+
+  const terms = useMemo(() => fold(query.trim()).split(/\s+/).filter(Boolean), [query]);
+  const visibleJobs = useMemo(() => {
+    if (terms.length === 0) return jobs;
+    return jobs.filter((job) => {
+      const haystack = fold(`${job.title} ${job.client} ${job.note}`);
+      return terms.every((term) => haystack.includes(term));
+    });
+  }, [jobs, terms]);
+
+  const counts = useMemo(() => {
+    const open = jobs.filter((job) => job.status !== "done");
+    const dueToday = jobs.filter((job) => job.date === today);
+    return {
+      overdue: open.filter((job) => job.date !== "" && job.date < today).length,
+      todayTotal: dueToday.length,
+      todayDone: dueToday.filter((job) => job.status === "done").length,
+      todayOpen: dueToday.filter((job) => job.status !== "done").length,
+      upcoming: open.filter((job) => job.date === "" || job.date > today).length,
+      all: jobs.length,
+      done: jobs.length - open.length,
+    };
+  }, [jobs, today]);
+
+  const tabCount: Record<Tab, number> = {
+    today: counts.overdue + counts.todayOpen,
+    upcoming: counts.upcoming,
+    all: counts.all,
+    done: counts.done,
+  };
+
+  const sections = useMemo(() => buildSections(tab, visibleJobs, today), [tab, visibleJobs, today]);
+
+  function openCreate() {
+    setFormError("");
+    setForm({ id: null, title: "", client: "", date: today, priority: "medium", status: "todo", note: "" });
+  }
+
+  function openEdit(job: Job) {
+    setFormError("");
+    setForm({ id: job.id, title: job.title, client: job.client, date: job.date, priority: job.priority, status: job.status, note: job.note });
+  }
+
+  function patchForm(patch: Partial<FormState>) {
+    setForm((prev) => (prev ? { ...prev, ...patch } : prev));
+  }
+
+  async function submitForm(event: FormEvent) {
+    event.preventDefault();
+    if (!form || !link || saving) return;
+    const input: JobInput = {
+      title: form.title.trim(),
+      client: form.client.trim(),
+      date: form.date,
+      priority: form.priority,
+      status: form.status,
+      note: form.note.trim(),
+    };
+    if (!input.title) {
+      setFormError("Hãy nhập tên công việc.");
+      return;
+    }
+    setSaving(true);
+    setFormError("");
+    try {
+      if (form.id) {
+        const saved = await updateJob(link, form.id, input);
+        patchJobs((rows) => rows.map((row) => (row.id === saved.id ? saved : row)));
+      } else {
+        const saved = await createJob(link, input);
+        patchJobs((rows) => [...rows, saved]);
+      }
+      setForm(null);
+      showToast(form.id ? "Đã lưu thay đổi." : "Đã thêm vào Google Sheet.");
+    } catch (err) {
+      console.error(err);
+      setFormError(describeError(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleDone(job: Job) {
+    if (!link) return;
+    const next: JobStatus = job.status === "done" ? "todo" : "done";
+    patchJobs((rows) => rows.map((row) => (row.id === job.id ? { ...row, status: next } : row))); // hiện ngay, lỗi thì hoàn lại
+    try {
+      const saved = await updateJob(link, job.id, { status: next });
+      patchJobs((rows) => rows.map((row) => (row.id === saved.id ? saved : row)));
+    } catch (err) {
+      console.error(err);
+      patchJobs((rows) => rows.map((row) => (row.id === job.id ? { ...row, status: job.status } : row)));
+      showToast(describeError(err), false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!toDelete || !link) return;
+    setDeleting(true);
+    try {
+      await deleteJob(link, toDelete.id);
+      const removed = toDelete.id;
+      patchJobs((rows) => rows.filter((row) => row.id !== removed));
+      setToDelete(null);
+      showToast("Đã xóa khỏi Google Sheet.");
+    } catch (err) {
+      console.error(err);
+      showToast(describeError(err), false);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  if (!linkLoaded) return <div className="h-40 animate-pulse rounded-3xl bg-slate-100" aria-busy="true" />;
+
+  if (!link) {
+    return (
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <div className="mb-5 flex items-start gap-4">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-slate-950 text-white">
+            <ClipboardIcon className="h-6 w-6" />
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Nối với Google Sheet của bạn</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              Công việc được lưu ngay trong Google Sheet. Bạn thêm, sửa, tick xong trên web hoặc gõ thẳng trong Sheet đều được. Chỉ cần cài đặt một lần, khoảng 3 phút.
+            </p>
+          </div>
+        </div>
+        {linkError && (
+          <p role="alert" className="mb-4 text-sm text-red-600">
+            {linkError}
+          </p>
+        )}
+        <SetupPanel
+          userId={userId}
+          initial={null}
+          onConnected={(value) => {
+            setLink(value);
+            showToast("Đã kết nối Google Sheet.");
+          }}
+          onDisconnected={() => undefined}
+          onToast={showToast}
+        />
+        {toast && <ToastView toast={toast} />}
+      </section>
+    );
+  }
+
+  const progress = counts.todayTotal > 0 ? Math.round((counts.todayDone / counts.todayTotal) * 100) : 0;
+
+  return (
+    <section className="space-y-5">
+      <div className="rounded-3xl bg-slate-950 p-5 text-white shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-white/60">{dayLabel(today, today).replace("Hôm nay · ", "")}</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight">
+              {counts.todayOpen > 0 ? `Hôm nay có ${counts.todayOpen} việc cần làm` : counts.todayTotal > 0 ? "Đã xong hết việc hôm nay 🎉" : "Hôm nay chưa có việc nào"}
+            </h2>
+            {counts.overdue > 0 && (
+              <button type="button" onClick={() => setTab("today")} className="mt-2 inline-flex items-center rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/30">
+                {counts.overdue} việc quá hạn
+              </button>
+            )}
+          </div>
+          <button type="button" onClick={openCreate} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-black transition hover:bg-slate-200">
+            <PlusIcon className="h-4 w-4" />
+            Thêm việc
+          </button>
+        </div>
+        {counts.todayTotal > 0 && (
+          <div className="mt-5">
+            <div className="mb-1.5 flex items-center justify-between text-xs text-white/70">
+              <span>
+                Đã xong {counts.todayDone}/{counts.todayTotal} việc của hôm nay
+              </span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Tiến độ hôm nay">
+              <div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div role="tablist" aria-label="Danh sách công việc" className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
+            {(Object.keys(TAB_LABEL) as Tab[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={tab === key}
+                onClick={() => setTab(key)}
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition ${
+                  tab === key ? "border-black bg-black text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-900"
+                }`}
+              >
+                {TAB_LABEL[key]}
+                <span className={`text-xs ${tab === key ? "text-white/70" : "text-slate-400"}`}>{tabCount[key]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setVersion((current) => current + 1)}
+              disabled={refreshing}
+              aria-label="Làm mới từ Google Sheet"
+              title="Làm mới từ Google Sheet"
+              className={`${outlineButton} w-10 px-0`}
+            >
+              <RefreshIcon className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+            {sheetUrl && (
+              <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={outlineButton}>
+                <ExternalIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Mở Google Sheet</span>
+                <span className="sm:hidden">Sheet</span>
+              </a>
+            )}
+            <button type="button" onClick={() => setSettingsOpen(true)} aria-label="Cài đặt liên kết" title="Cài đặt liên kết" className={`${outlineButton} w-10 px-0`}>
+              <SettingsIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <label className="relative mb-4 block">
+          <span className="sr-only">Tìm công việc</span>
+          <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setQuery("");
+            }}
+            placeholder="Tìm theo việc, khách / dự án, ghi chú…"
+            className={`${inputClass} pl-10 pr-10`}
+          />
+          {query && (
+            <button type="button" onClick={() => setQuery("")} aria-label="Xóa nội dung tìm" className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-900">
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          )}
+        </label>
+
+        {error && (
+          <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
+        {firstLoad ? (
+          <div className="space-y-3" aria-busy="true">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+            ))}
+          </div>
+        ) : sections.length === 0 ? (
+          <div className="grid place-items-center rounded-2xl bg-slate-50 px-4 py-14 text-center">
+            <ClipboardIcon className="h-9 w-9 text-slate-300" />
+            <p className="mt-3 text-sm font-medium text-slate-600">
+              {terms.length > 0
+                ? "Không tìm thấy công việc phù hợp"
+                : tab === "today"
+                  ? "Hôm nay trống việc. Nghỉ ngơi hoặc thêm việc mới nhé."
+                  : tab === "done"
+                    ? "Chưa có việc nào hoàn thành"
+                    : tab === "upcoming"
+                      ? "Không có việc sắp tới"
+                      : "Chưa có công việc nào"}
+            </p>
+            {terms.length > 0 ? (
+              <button type="button" onClick={() => setQuery("")} className={`${outlineButton} mt-4`}>
+                Xóa tìm kiếm
+              </button>
+            ) : (
+              <button type="button" onClick={openCreate} className={`${blackButton} mt-4`}>
+                <PlusIcon className="h-4 w-4" />
+                Thêm công việc
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {sections.map((section) => (
+              <section key={section.key} aria-label={section.label || TAB_LABEL[tab]}>
+                {section.label !== "" && (
+                  <h3 className={`mb-2.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${section.danger ? "text-red-600" : "text-slate-500"}`}>
+                    {section.label}
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium normal-case ${section.danger ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>{section.items.length}</span>
+                    <span className="h-px flex-1 bg-slate-100" aria-hidden="true" />
+                  </h3>
+                )}
+                <ul className="space-y-2.5">
+                  {section.items.map((job) => (
+                    <JobRow key={job.id} job={job} today={today} onToggle={() => void toggleDone(job)} onEdit={() => openEdit(job)} onDelete={() => setToDelete(job)} />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Modal open={form !== null} onClose={() => !saving && setForm(null)} title={form?.id ? "Sửa công việc" : "Thêm công việc"}>
+        {form && (
+          <form onSubmit={(event) => void submitForm(event)} className="space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium">Công việc</span>
+              <input value={form.title} onChange={(event) => patchForm({ title: event.target.value })} maxLength={200} required autoFocus placeholder="Ví dụ: Gửi báo giá cho khách" className={inputClass} />
+            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">
+                  Khách / dự án <span className="font-normal text-slate-400">(không bắt buộc)</span>
+                </span>
+                <input value={form.client} onChange={(event) => patchForm({ client: event.target.value })} maxLength={100} placeholder="Tên khách hoặc dự án" className={inputClass} />
+              </label>
+              <div>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-medium">Ngày làm</span>
+                  <input type="date" value={form.date} onChange={(event) => patchForm({ date: event.target.value })} className={inputClass} />
+                </label>
+                <div className="mt-1.5 flex gap-1.5">
+                  {([
+                    ["Hôm nay", today],
+                    ["Ngày mai", addDays(today, 1)],
+                    ["Tuần sau", addDays(today, 7)],
+                  ] as const).map(([text, value]) => (
+                    <button key={text} type="button" onClick={() => patchForm({ date: value })} className="h-7 rounded-full border border-slate-200 px-2.5 text-xs font-medium text-slate-600 transition hover:border-slate-900 hover:text-slate-950">
+                      {text}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Segmented<JobPriority>
+                label="Ưu tiên"
+                value={form.priority}
+                onChange={(priority) => patchForm({ priority })}
+                options={(Object.keys(PRIORITY_LABEL) as JobPriority[]).map((key) => [key, PRIORITY_LABEL[key]])}
+              />
+              <Segmented<JobStatus>
+                label="Trạng thái"
+                value={form.status}
+                onChange={(status) => patchForm({ status })}
+                options={(Object.keys(STATUS_LABEL) as JobStatus[]).map((key) => [key, STATUS_LABEL[key]])}
+              />
+            </div>
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium">
+                Ghi chú <span className="font-normal text-slate-400">(không bắt buộc)</span>
+              </span>
+              <textarea
+                value={form.note}
+                onChange={(event) => patchForm({ note: event.target.value })}
+                maxLength={2000}
+                rows={3}
+                className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+              />
+            </label>
+            {formError && (
+              <p role="alert" className="text-sm text-red-600">
+                {formError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setForm(null)} disabled={saving} className="h-11 rounded-xl px-4 text-sm font-medium text-slate-600 hover:text-slate-950">
+                Hủy
+              </button>
+              <button type="submit" disabled={saving} className={`${blackButton} h-11 px-6`}>
+                {saving ? "Đang lưu…" : form.id ? "Lưu thay đổi" : "Thêm"}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal open={toDelete !== null} onClose={() => !deleting && setToDelete(null)} title="Xóa công việc?">
+        {toDelete && (
+          <div className="space-y-4">
+            <p className="text-sm leading-6 text-slate-600">
+              <span className="font-semibold text-slate-900">{toDelete.title}</span> sẽ bị xóa khỏi Google Sheet.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setToDelete(null)} disabled={deleting} className="h-11 rounded-xl px-4 text-sm font-medium text-slate-600 hover:text-slate-950">
+                Hủy
+              </button>
+              <button type="button" onClick={() => void confirmDelete()} disabled={deleting} className="h-11 rounded-xl bg-red-600 px-6 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">
+                {deleting ? "Đang xóa…" : "Xóa"}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Liên kết Google Sheet" size="lg">
+        <SetupPanel
+          userId={userId}
+          initial={link}
+          onConnected={(value) => {
+            setLink(value);
+            setVersion((current) => current + 1);
+            setSettingsOpen(false);
+            showToast("Đã lưu liên kết.");
+          }}
+          onDisconnected={() => {
+            setLink(null);
+            setLoaded(null);
+            setSettingsOpen(false);
+          }}
+          onToast={showToast}
+        />
+      </Modal>
+
+      {toast && <ToastView toast={toast} />}
+    </section>
+  );
+}
+
+function ToastView({ toast }: { toast: Toast }) {
+  return (
+    <div role="status" className={`toast-in fixed bottom-6 left-1/2 z-[60] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-sm font-medium shadow-lg ${toast.ok ? "bg-black text-white" : "bg-red-600 text-white"}`}>
+      {toast.text}
+    </div>
+  );
+}
+
+export function JobManager() {
+  return <AuthGate>{(userId) => <JobManagerInner userId={userId} />}</AuthGate>;
+}
