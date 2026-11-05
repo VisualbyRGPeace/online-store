@@ -848,6 +848,9 @@ function JobManagerInner({ userId }: { userId: string }) {
     );
   }
 
+  const deploymentId = link.scriptUrl.match(/\/s\/([^/]+)\/exec/)?.[1] ?? "";
+  const shortId = deploymentId.length > 18 ? `${deploymentId.slice(0, 8)}…${deploymentId.slice(-8)}` : deploymentId;
+
   const progress = counts.todayTotal > 0 ? Math.round((counts.todayDone / counts.todayTotal) * 100) : 0;
 
   return (
@@ -1001,10 +1004,27 @@ function JobManagerInner({ userId }: { userId: string }) {
 
         {scriptOutdated && (
           <div role="alert" className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
-            <p className="font-semibold">Google Sheet đang chạy script bản cũ nên chỉ thấy được vài tab tháng.</p>
-            <p className="mt-0.5">
-              Vào Apps Script → Triển khai → Quản lý bản triển khai → bút chì → Phiên bản: <strong>Phiên bản mới</strong> → Triển khai. Sau đó bấm làm mới là hiện đủ T1…T12.
-            </p>
+            <p className="font-semibold">Script mà web đang gọi vẫn là bản cũ nên chỉ thấy vài tab tháng.</p>
+            <ul className="mt-1.5 list-disc space-y-1 pl-5">
+              <li>
+                Web đang gọi bản triển khai có mã <span className="font-mono text-xs">{shortId || "?"}</span> (so với “ID bản triển khai” trong Apps Script → Quản lý bản triển khai).
+              </li>
+              {sheetUrl && (
+                <li>
+                  Script này đang gắn với file Sheet này:{" "}
+                  <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+                    mở file
+                  </a>
+                  . Hãy mở Apps Script từ <strong>chính file đó</strong> (Tiện ích mở rộng → Apps Script) rồi dán mã mới, Lưu.
+                </li>
+              )}
+              <li>
+                Triển khai → Quản lý bản triển khai → chọn <strong>đúng bản triển khai có ID trên</strong> → bút chì → Phiên bản: <strong>Phiên bản mới</strong> → Triển khai.
+              </li>
+              <li>
+                Dán URL <span className="font-mono text-xs">…/exec</span> vào trình duyệt: phải thấy <span className="font-mono text-xs">&quot;version&quot;:2</span>. Rồi bấm làm mới.
+              </li>
+            </ul>
           </div>
         )}
 
