@@ -12,6 +12,7 @@ var TAB_PREFIX = 'T';   // tab tháng đặt tên T1, T2, ... T12
 var MONTHS_BACK = 1;    // ngoài tháng này, đọc thêm bao nhiêu tháng trước (để thấy việc quá hạn)
 var MONTHS_AHEAD = 1;   // và bao nhiêu tháng sau
 var KEEP_DAYS = 93;     // việc có deadline cũ hơn số ngày này sẽ không hiện trên web
+var CACHE_SECONDS = 15;  // giữ kết quả đọc bảng trong vài giây để nhiều người/nhiều lần làm mới không đọc Sheet liên tục
 
 function doGet() {
   return reply_({ ok: true, message: 'Job API dang chay' });
@@ -21,21 +22,29 @@ function doPost(e) {
   var lock = LockService.getScriptLock();
   var locked = false;
   try {
-    lock.waitLock(20000);
-    locked = true;
     var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (!TOKEN || TOKEN === PLACEHOLDER) return reply_({ ok: false, error: 'token_not_set' });
     if (req.token !== TOKEN) return reply_({ ok: false, error: 'unauthorized' });
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (req.action === 'list') return reply_(list_(ss));
+    // Chỉ đọc: không cần khóa, và dùng bản lưu tạm nếu còn mới.
+    if (req.action === 'list') return reply_(cachedList_(ss, req.tab));
+
+    lock.waitLock(20000);
+    locked = true;
     if (req.action === 'create') {
       var made = create_(ss, req.job || {});
+      dropCache_();
       return reply_({ ok: true, job: made.job, tabCreated: made.tabCreated });
     }
-    if (req.action === 'update') return reply_({ ok: true, job: update_(ss, req.id, req.expectedTitle, req.patch || {}) });
+    if (req.action === 'update') {
+      var updated = update_(ss, req.id, req.expectedTitle, req.patch || {});
+      dropCache_();
+      return reply_({ ok: true, job: updated });
+    }
     if (req.action === 'delete') {
       remove_(ss, req.id, req.expectedTitle);
+      dropCache_();
       return reply_({ ok: true });
     }
     return reply_({ ok: false, error: 'unknown_action' });
@@ -46,6 +55,31 @@ function doPost(e) {
   } finally {
     if (locked) lock.releaseLock();
   }
+}
+
+// ---------- Bản lưu tạm kết quả đọc bảng ----------
+function listKey_(tab) {
+  return 'list:' + (isMonthTab_(tab) ? tab : '');
+}
+
+function cachedList_(ss, tab) {
+  var cache = CacheService.getScriptCache();
+  var key = listKey_(tab);
+  try {
+    var hit = cache.get(key);
+    if (hit) return JSON.parse(hit);
+  } catch (err) {}
+  var result = list_(ss, tab);
+  if (result.ok) {
+    try { cache.put(key, JSON.stringify(result), CACHE_SECONDS); } catch (err) {}
+  }
+  return result;
+}
+
+function dropCache_() {
+  var keys = ['list:'];
+  for (var m = 1; m <= 12; m++) keys.push('list:' + TAB_PREFIX + m);
+  try { CacheService.getScriptCache().removeAll(keys); } catch (err) {}
 }
 
 function reply_(obj) {
@@ -166,25 +200,36 @@ function readTab_(ss, sheet, lay) {
   return jobs;
 }
 
-function list_(ss) {
+// wantedTab (tuỳ chọn): đọc thêm một tab tháng nằm ngoài phạm vi gần đây, ví dụ "T9".
+function list_(ss, wantedTab) {
   var names = tabNames_(ss);
+  var recent = names.slice();
+  var wanted = isMonthTab_(wantedTab) ? String(wantedTab) : '';
+  if (wanted && names.indexOf(wanted) < 0) names.push(wanted);
+  var thisTab = TAB_PREFIX + parseInt(todayText_(ss).slice(5, 7), 10);
+  var focusTab = wanted || thisTab;
+  var cutoff = cutoffText_(ss);
   var jobs = [];
   var found = 0;
-  var currentSheet = null;
-  var thisTab = TAB_PREFIX + parseInt(todayText_(ss).slice(5, 7), 10);
+  var focusSheet = null;
   for (var i = 0; i < names.length; i++) {
     var sheet = ss.getSheetByName(names[i]);
     if (!sheet) continue;
     var lay = layout_(sheet);
     if (!lay) continue;
     found++;
-    if (names[i] === thisTab) currentSheet = sheet;
-    var cutoff = cutoffText_(ss);
-    jobs = jobs.concat(readTab_(ss, sheet, lay).filter(function (j) { return !j.date || j.date >= cutoff; }));
+    if (names[i] === focusTab) focusSheet = sheet;
+    var rows = readTab_(ss, sheet, lay);
+    // Tab được chọn xem thì hiện đủ; các tab còn lại chỉ lấy việc chưa quá cũ.
+    if (names[i] !== wanted) rows = rows.filter(function (j) { return !j.date || j.date >= cutoff; });
+    jobs = jobs.concat(rows);
   }
   if (found === 0) return { ok: false, error: 'no_tab' };
-  var url = ss.getUrl() + (currentSheet ? '#gid=' + currentSheet.getSheetId() : '');
-  return { ok: true, jobs: jobs, sheetUrl: url };
+  var tabs = [];
+  var all = ss.getSheets();
+  for (var s = 0; s < all.length; s++) if (isMonthTab_(all[s].getName())) tabs.push(all[s].getName());
+  var url = ss.getUrl() + (focusSheet ? '#gid=' + focusSheet.getSheetId() : '');
+  return { ok: true, jobs: jobs, sheetUrl: url, tabs: tabs, currentTab: thisTab, recentTabs: recent };
 }
 
 // id có dạng "T11:31" (tab:dòng). Chỉ cho phép tab tháng để không ghi nhầm tab khác.

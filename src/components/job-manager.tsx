@@ -36,10 +36,14 @@ import {
   type JobLink,
   type JobStatus,
 } from "@/services/job-service";
+import { askNotifyPermission, diffJobs, jobKey, loadSeen, playChime, rememberJob, saveSeen, showSystemNotice, type SeenMap } from "@/lib/job-alerts";
 import { copyText } from "@/utils/clipboard";
 import { isAllowedDriveUrl } from "@/utils/drive";
 
-const STALE_AFTER_MS = 60_000;
+const STALE_AFTER_MS = 15_000; // quay lại tab trình duyệt sau chừng này thì làm mới ngay
+const POLL_VISIBLE_MS = 30_000; // đang mở trang: hỏi Google Sheet mỗi 30 giây
+const POLL_HIDDEN_MS = 60_000; // trang ở nền: mỗi 60 giây
+const ALERTS_KEY = "job-alerts-on";
 
 const inputClass =
   "h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100";
@@ -114,6 +118,14 @@ function readDesigner(): string {
   }
 }
 
+function readAlertsOn(): boolean {
+  try {
+    return window.localStorage.getItem(ALERTS_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
 /** Gộp gợi ý mặc định với các giá trị đang có trong bảng (không trùng, A → Z). */
 function mergeOptions(defaults: string[], found: string[]): string[] {
   return [...new Set([...defaults, ...found.filter(Boolean)])].sort((a, b) => a.localeCompare(b, "vi"));
@@ -164,7 +176,31 @@ function buildSections(tab: Tab, jobs: Job[], today: string): Section[] {
   return items.length > 0 ? [{ key: "all", label: "", items }] : [];
 }
 
+function computeCounts(list: Job[], today: string) {
+  const open = list.filter((job) => job.status !== "done");
+  const dueToday = list.filter((job) => job.date === today);
+  return {
+    overdue: open.filter((job) => job.date !== "" && job.date < today).length,
+    todayTotal: dueToday.length,
+    todayDone: dueToday.filter((job) => job.status === "done").length,
+    todayOpen: dueToday.filter((job) => job.status !== "done").length,
+    upcoming: open.filter((job) => job.date === "" || job.date > today).length,
+    all: list.length,
+    done: list.length - open.length,
+  };
+}
+
 // ---- Giao diện nhỏ ----
+function BellIcon({ className, off = false }: { className?: string; off?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      {off && <path d="M3 3l18 18" />}
+    </svg>
+  );
+}
+
 type Toast = { text: string; ok: boolean };
 
 function Segmented<T extends string>({
@@ -203,12 +239,14 @@ function Segmented<T extends string>({
 function JobRow({
   job,
   today,
+  fresh,
   onToggle,
   onEdit,
   onDelete,
 }: {
   job: Job;
   today: string;
+  fresh: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -218,7 +256,7 @@ function JobRow({
   const lateDays = late ? daysBetween(job.date, today) : 0;
 
   return (
-    <li className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 transition hover:border-slate-400 hover:shadow-sm">
+    <li className={`flex items-start gap-3 rounded-2xl border bg-white p-3.5 transition hover:border-slate-400 hover:shadow-sm ${fresh ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-200"}`}>
       <button
         type="button"
         onClick={onToggle}
@@ -235,6 +273,7 @@ function JobRow({
       <div className="min-w-0 flex-1">
         <p className={`text-sm font-semibold leading-6 ${done ? "text-slate-400 line-through" : "text-slate-950"}`}>{job.title}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {fresh && <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">MỚI</span>}
           {job.task && <span className="max-w-full truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{job.task}</span>}
           {job.status === "doing" && <span className="rounded-md bg-slate-950 px-1.5 py-0.5 text-xs font-medium text-white">Đang thực hiện</span>}
           {job.status === "priority" && <span className="rounded-md border border-slate-900 px-1.5 py-0.5 text-xs font-semibold text-slate-950">Ưu tiên</span>}
@@ -428,10 +467,18 @@ function JobManagerInner({ userId }: { userId: string }) {
   const [linkLoaded, setLinkLoaded] = useState(false);
   const [linkError, setLinkError] = useState("");
 
-  const [loaded, setLoaded] = useState<{ key: string; jobs: Job[]; sheetUrl: string } | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; jobs: Job[]; sheetUrl: string; tabs: string[]; currentTab: string; recentTabs: string[] } | null>(null);
   const [version, setVersion] = useState(0);
   const [error, setError] = useState("");
   const lastFetch = useRef(0);
+  const mutatedAt = useRef(0); // lần cuối bạn thêm/sửa/xóa trên web (để kết quả tải cũ không ghi đè)
+  const [updatedAt, setUpdatedAt] = useState(0);
+  const [viewTab, setViewTab] = useState(""); // "" = các tháng gần đây; "T9"… = xem tab tháng đó
+  const [freshKeys, setFreshKeys] = useState<Set<string>>(() => new Set());
+  const [alertsOn, setAlertsOn] = useState(readAlertsOn);
+  const seenRef = useRef<{ storeKey: string; seen: SeenMap } | null>(null);
+  const designerRef = useRef("");
+  const alertsRef = useRef(true);
 
   const [today, setToday] = useState(todayIso);
   const [tab, setTab] = useState<Tab>("today");
@@ -484,28 +531,69 @@ function JobManagerInner({ userId }: { userId: string }) {
   }, [userId]);
 
   // Công việc từ Google Sheet.
-  const dataKey = link ? `${link.scriptUrl}|${version}` : "";
+  const dataKey = link ? `${link.scriptUrl}|${version}|${viewTab}` : "";
   useEffect(() => {
     if (!link) return;
     let current = true;
-    listJobs(link).then(
+    const startedAt = Date.now();
+    lastFetch.current = startedAt;
+
+    // So với lần tải trước để biết có việc mới được book hay không.
+    function detectNewJobs(active: JobLink, rows: Job[]) {
+      const storeKey = `${userId}|${active.scriptUrl}`;
+      let state = seenRef.current;
+      if (!state || state.storeKey !== storeKey) state = { storeKey, seen: loadSeen(storeKey) };
+      const { fresh, next } = diffJobs(state.seen, rows);
+      seenRef.current = { storeKey, seen: next };
+      saveSeen(storeKey, next);
+      const mine = fresh.filter((job) => job.status !== "done" && (designerRef.current === "" || job.designer === designerRef.current));
+      if (mine.length === 0) return;
+      setFreshKeys((prev) => new Set([...prev, ...mine.map(jobKey)]));
+      showToast(mine.length === 1 ? `Việc mới: ${mine[0]?.title ?? ""}` : `Có ${mine.length} việc mới vừa được book`);
+      if (alertsRef.current) {
+        showSystemNotice(mine.length === 1 ? "Có việc mới" : `Có ${mine.length} việc mới`, mine.slice(0, 3).map((job) => job.title).join("\n"));
+        playChime();
+      }
+    }
+
+    listJobs(link, viewTab).then(
       (result) => {
         if (!current) return;
-        lastFetch.current = Date.now();
+        if (mutatedAt.current > startedAt) {
+          setVersion((value) => value + 1); // vừa sửa trong lúc đang tải: tải lại để không ghi đè bản mới
+          return;
+        }
         setError("");
-        setLoaded({ key: dataKey, jobs: result.jobs, sheetUrl: result.sheetUrl });
+        setUpdatedAt(Date.now());
+        setLoaded({ key: dataKey, jobs: result.jobs, sheetUrl: result.sheetUrl, tabs: result.tabs, currentTab: result.currentTab, recentTabs: result.recentTabs });
+        detectNewJobs(link, result.jobs);
       },
       (err) => {
         console.error(err);
         if (!current) return;
         setError(describeError(err));
-        setLoaded((prev) => (prev ? { ...prev, key: dataKey } : { key: dataKey, jobs: [], sheetUrl: "" }));
+        setLoaded((prev) => (prev ? { ...prev, key: dataKey } : { key: dataKey, jobs: [], sheetUrl: "", tabs: [], currentTab: "", recentTabs: [] }));
       },
     );
     return () => {
       current = false;
     };
-  }, [link, dataKey]);
+  }, [link, dataKey, userId, viewTab, showToast]);
+
+  useEffect(() => {
+    designerRef.current = designer;
+    alertsRef.current = alertsOn;
+  }, [designer, alertsOn]);
+
+  // Tự cập nhật liên tục: cứ vài chục giây hỏi lại Google Sheet (trang ở nền thì thưa hơn).
+  useEffect(() => {
+    if (!link) return;
+    const timer = window.setInterval(() => {
+      const wait = document.visibilityState === "visible" ? POLL_VISIBLE_MS : POLL_HIDDEN_MS;
+      if (Date.now() - lastFetch.current >= wait) setVersion((value) => value + 1);
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [link]);
 
   // Quay lại tab trình duyệt sau một lúc thì tự làm mới (phòng khi bạn vừa sửa trong Google Sheet).
   useEffect(() => {
@@ -527,9 +615,32 @@ function JobManagerInner({ userId }: { userId: string }) {
   const sheetUrl = loaded && isAllowedDriveUrl(loaded.sheetUrl) ? loaded.sheetUrl : "";
   const refreshing = Boolean(link) && loaded?.key !== dataKey;
   const firstLoad = Boolean(link) && loaded === null;
+  const tabs = useMemo(() => loaded?.tabs ?? [], [loaded]);
+  const recentTabs = useMemo(() => loaded?.recentTabs ?? [], [loaded]);
+  const currentTab = loaded?.currentTab ?? "";
+  // Vừa bấm sang một tab tháng mà dữ liệu của tab đó chưa về: hiện khung chờ thay vì "trống việc".
+  const switching = refreshing && viewTab !== "" && !jobs.some((job) => job.tab === viewTab);
 
   const patchJobs = useCallback((change: (rows: Job[]) => Job[]) => {
     setLoaded((prev) => (prev ? { ...prev, jobs: change(prev.jobs) } : prev));
+  }, []);
+
+  const freshJobs = useMemo(() => jobs.filter((job) => freshKeys.has(jobKey(job))), [jobs, freshKeys]);
+
+  // Tiêu đề tab trình duyệt hiện "(2)" khi có việc mới chưa xem.
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\) /, "");
+    document.title = freshJobs.length > 0 ? `(${freshJobs.length}) ${base}` : base;
+    return () => {
+      document.title = base;
+    };
+  }, [freshJobs.length]);
+
+  const remember = useCallback((job: Job) => {
+    const state = seenRef.current;
+    if (!state) return;
+    rememberJob(state.seen, job);
+    saveSeen(state.storeKey, state.seen);
   }, []);
 
   const designerOptions = useMemo(() => mergeOptions(DEFAULT_DESIGNERS, jobs.map((job) => job.designer)), [jobs]);
@@ -548,37 +659,54 @@ function JobManagerInner({ userId }: { userId: string }) {
     }
   }
 
+  const shown = useMemo(() => (viewTab ? scoped.filter((job) => job.tab === viewTab) : scoped), [scoped, viewTab]);
+
   const terms = useMemo(() => fold(query.trim()).split(/\s+/).filter(Boolean), [query]);
   const visibleJobs = useMemo(() => {
-    if (terms.length === 0) return scoped;
-    return scoped.filter((job) => {
+    if (terms.length === 0) return shown;
+    return shown.filter((job) => {
       const haystack = fold(`${job.title} ${job.task} ${job.designer} ${job.assigner}`);
       return terms.every((term) => haystack.includes(term));
     });
-  }, [scoped, terms]);
+  }, [shown, terms]);
 
-  const counts = useMemo(() => {
-    const open = scoped.filter((job) => job.status !== "done");
-    const dueToday = scoped.filter((job) => job.date === today);
-    return {
-      overdue: open.filter((job) => job.date !== "" && job.date < today).length,
-      todayTotal: dueToday.length,
-      todayDone: dueToday.filter((job) => job.status === "done").length,
-      todayOpen: dueToday.filter((job) => job.status !== "done").length,
-      upcoming: open.filter((job) => job.date === "" || job.date > today).length,
-      all: scoped.length,
-      done: scoped.length - open.length,
-    };
-  }, [scoped, today]);
+  // Khung đầu trang luôn tính trên các tháng gần đây, không đổi khi bạn xem một tab tháng cũ.
+  const headerJobs = useMemo(() => (recentTabs.length > 0 ? scoped.filter((job) => recentTabs.includes(job.tab)) : scoped), [scoped, recentTabs]);
+  const counts = useMemo(() => computeCounts(headerJobs, today), [headerJobs, today]);
+  const shownCounts = useMemo(() => computeCounts(shown, today), [shown, today]);
 
   const tabCount: Record<Tab, number> = {
-    today: counts.overdue + counts.todayOpen,
-    upcoming: counts.upcoming,
-    all: counts.all,
-    done: counts.done,
+    today: shownCounts.overdue + shownCounts.todayOpen,
+    upcoming: shownCounts.upcoming,
+    all: shownCounts.all,
+    done: shownCounts.done,
   };
 
   const sections = useMemo(() => buildSections(tab, visibleJobs, today), [tab, visibleJobs, today]);
+
+  function chooseMonth(name: string) {
+    setViewTab(name);
+    if (name !== "" && name !== currentTab) setTab("all"); // tháng khác tháng này: xem toàn bộ cho dễ thấy
+  }
+
+  async function toggleAlerts() {
+    const next = !alertsOn;
+    if (next) {
+      const permission = await askNotifyPermission();
+      if (permission === "denied") showToast("Trình duyệt đang chặn thông báo của trang này. Vẫn có biểu ngữ và âm báo.", false);
+      else if (permission === "unsupported") showToast("Trình duyệt này chỉ hỗ trợ biểu ngữ và âm báo trong trang.", false);
+      else showToast("Đã bật thông báo việc mới.");
+      playChime();
+    } else {
+      showToast("Đã tắt thông báo việc mới.");
+    }
+    setAlertsOn(next);
+    try {
+      window.localStorage.setItem(ALERTS_KEY, next ? "1" : "0");
+    } catch {
+      /* chỉ giữ trong phiên */
+    }
+  }
 
   function openCreate() {
     setFormError("");
@@ -624,13 +752,18 @@ function JobManagerInner({ userId }: { userId: string }) {
     setSaving(true);
     setFormError("");
     let createdNote = "";
+    mutatedAt.current = Date.now();
     try {
       if (form.id) {
         const saved = await updateJob(link, { id: form.id, title: form.expectedTitle }, input);
         patchJobs((rows) => rows.map((row) => (row.id === form.id ? saved : row)));
+        mutatedAt.current = Date.now();
+        remember(saved);
       } else {
         const { job: saved, tabCreated } = await createJob(link, input);
         patchJobs((rows) => [...rows, saved]);
+        mutatedAt.current = Date.now();
+        remember(saved);
         createdNote = tabCreated ? `Đã tạo tab ${saved.tab} mới và thêm việc.` : `Đã thêm vào tab ${saved.tab}.`;
       }
       setForm(null);
@@ -646,9 +779,11 @@ function JobManagerInner({ userId }: { userId: string }) {
   async function toggleDone(job: Job) {
     if (!link) return;
     const next: JobStatus = job.status === "done" ? "doing" : "done";
+    mutatedAt.current = Date.now();
     patchJobs((rows) => rows.map((row) => (row.id === job.id ? { ...row, status: next } : row))); // hiện ngay, lỗi thì hoàn lại
     try {
       const saved = await updateJob(link, job, { status: next });
+      mutatedAt.current = Date.now();
       patchJobs((rows) => rows.map((row) => (row.id === job.id ? saved : row)));
     } catch (err) {
       console.error(err);
@@ -661,7 +796,9 @@ function JobManagerInner({ userId }: { userId: string }) {
     if (!toDelete || !link) return;
     setDeleting(true);
     try {
+      mutatedAt.current = Date.now();
       await deleteJob(link, toDelete);
+      mutatedAt.current = Date.now();
       const removed = toDelete.id;
       patchJobs((rows) => rows.filter((row) => row.id !== removed));
       setToDelete(null);
@@ -748,6 +885,31 @@ function JobManagerInner({ userId }: { userId: string }) {
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div role="group" aria-label="Chọn tab tháng" className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+            {tabs.length > 0 && <span className="shrink-0 text-xs font-medium text-slate-500">Tab</span>}
+            {tabs.length > 0 &&
+              ([["", "Gần đây"], ...tabs.map((name): [string, string] => [name, name])] as [string, string][]).map(([key, text]) => (
+                <button
+                  key={key || "recent"}
+                  type="button"
+                  onClick={() => chooseMonth(key)}
+                  aria-pressed={viewTab === key}
+                  className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-sm font-medium transition ${
+                    viewTab === key ? "border-black bg-black text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-900"
+                  }`}
+                >
+                  {text}
+                  {key !== "" && key === currentTab && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" title="Tháng hiện tại" />}
+                </button>
+              ))}
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-slate-400" title="Web tự hỏi lại Google Sheet mỗi 30 giây">
+            <span className={`h-1.5 w-1.5 rounded-full ${error ? "bg-red-500" : "bg-emerald-500"}`} aria-hidden="true" />
+            {updatedAt > 0 ? `Cập nhật ${new Date(updatedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Đang tải…"}
+          </span>
+        </div>
+
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div role="tablist" aria-label="Danh sách công việc" className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
             {(Object.keys(TAB_LABEL) as Tab[]).map((key) => (
@@ -767,6 +929,16 @@ function JobManagerInner({ userId }: { userId: string }) {
             ))}
           </div>
           <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => void toggleAlerts()}
+              aria-pressed={alertsOn}
+              aria-label={alertsOn ? "Tắt thông báo việc mới" : "Bật thông báo việc mới"}
+              title={alertsOn ? "Đang bật thông báo việc mới (bấm để tắt)" : "Thông báo việc mới đang tắt (bấm để bật)"}
+              className={`${outlineButton} w-10 px-0 ${alertsOn ? "" : "text-slate-400"}`}
+            >
+              <BellIcon className="h-4 w-4" off={!alertsOn} />
+            </button>
             <button
               type="button"
               onClick={() => setVersion((current) => current + 1)}
@@ -826,13 +998,34 @@ function JobManagerInner({ userId }: { userId: string }) {
           ))}
         </div>
 
+        {freshJobs.length > 0 && (
+          <div role="status" className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <BellIcon className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="font-semibold text-emerald-900">{freshJobs.length === 1 ? "Có 1 việc mới vừa được book" : `Có ${freshJobs.length} việc mới vừa được book`}</p>
+              <ul className="mt-1 space-y-0.5 text-emerald-800">
+                {freshJobs.slice(0, 4).map((job) => (
+                  <li key={job.id} className="truncate">
+                    {[job.task, job.title].filter(Boolean).join(" · ")}
+                    {job.date !== "" && ` · ${formatDate(job.date)}`}
+                  </li>
+                ))}
+                {freshJobs.length > 4 && <li>… và {freshJobs.length - 4} việc khác</li>}
+              </ul>
+            </div>
+            <button type="button" onClick={() => setFreshKeys(new Set())} className="h-8 shrink-0 rounded-lg px-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100">
+              Đã xem
+            </button>
+          </div>
+        )}
+
         {error && (
           <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </p>
         )}
 
-        {firstLoad ? (
+        {firstLoad || switching ? (
           <div className="space-y-3" aria-busy="true">
             {[0, 1, 2].map((item) => (
               <div key={item} className="h-20 animate-pulse rounded-2xl bg-slate-100" />
@@ -876,7 +1069,7 @@ function JobManagerInner({ userId }: { userId: string }) {
                 )}
                 <ul className="space-y-2.5">
                   {section.items.map((job) => (
-                    <JobRow key={job.id} job={job} today={today} onToggle={() => void toggleDone(job)} onEdit={() => openEdit(job)} onDelete={() => setToDelete(job)} />
+                    <JobRow key={job.id} job={job} today={today} fresh={freshKeys.has(jobKey(job))} onToggle={() => void toggleDone(job)} onEdit={() => openEdit(job)} onDelete={() => setToDelete(job)} />
                   ))}
                 </ul>
               </section>

@@ -200,11 +200,35 @@ function requireJob(raw: unknown): Job {
   return job;
 }
 
-export async function listJobs(link: JobLink): Promise<{ jobs: Job[]; sheetUrl: string }> {
-  const body = await call(link, { action: "list" });
+export type JobList = {
+  jobs: Job[];
+  sheetUrl: string;
+  /** Tên các tab tháng trong file Sheet (T12, T11…), theo thứ tự trong file. */
+  tabs: string[];
+  /** Tab của tháng hiện tại. */
+  currentTab: string;
+  /** Các tab nằm trong phạm vi "gần đây" (tháng này ± 1). Rỗng nếu script cũ chưa cập nhật. */
+  recentTabs: string[];
+};
+
+function textList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+/** tab: tên tab tháng muốn xem thêm (ví dụ "T9"); bỏ trống = các tháng gần đây. */
+export async function listJobs(link: JobLink, tab = ""): Promise<JobList> {
+  const body = await call(link, tab ? { action: "list", tab } : { action: "list" });
   const rows = Array.isArray(body.jobs) ? (body.jobs as RawJob[]) : [];
   const jobs = rows.map(parseJob).filter((job): job is Job => job !== null);
-  return { jobs, sheetUrl: typeof body.sheetUrl === "string" ? body.sheetUrl : "" };
+  const tabs = textList(body.tabs);
+  return {
+    jobs,
+    sheetUrl: typeof body.sheetUrl === "string" ? body.sheetUrl : "",
+    // Script bản cũ chưa trả danh sách tab: tạm lấy từ chính dữ liệu.
+    tabs: tabs.length > 0 ? tabs : [...new Set(jobs.map((job) => job.tab).filter(Boolean))],
+    currentTab: typeof body.currentTab === "string" ? body.currentTab : "",
+    recentTabs: textList(body.recentTabs),
+  };
 }
 
 export async function createJob(link: JobLink, input: JobInput): Promise<{ job: Job; tabCreated: boolean }> {
