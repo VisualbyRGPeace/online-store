@@ -15,7 +15,7 @@ var KEEP_DAYS = 93;     // việc có deadline cũ hơn số ngày này sẽ kh�
 var CACHE_SECONDS = 15;  // giữ kết quả đọc bảng trong vài giây để nhiều người/nhiều lần làm mới không đọc Sheet liên tục
 
 function doGet() {
-  return reply_({ ok: true, message: 'Job API dang chay' });
+  return reply_({ ok: true, message: 'Job API dang chay', version: 2 });
 }
 
 function doPost(e) {

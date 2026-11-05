@@ -209,6 +209,8 @@ export type JobList = {
   currentTab: string;
   /** Các tab nằm trong phạm vi "gần đây" (tháng này ± 1). Rỗng nếu script cũ chưa cập nhật. */
   recentTabs: string[];
+  /** true nếu Apps Script trên Google còn là bản cũ (chưa trả danh sách tab). */
+  outdated: boolean;
 };
 
 function textList(value: unknown): string[] {
@@ -228,6 +230,7 @@ export async function listJobs(link: JobLink, tab = ""): Promise<JobList> {
     tabs: tabs.length > 0 ? tabs : [...new Set(jobs.map((job) => job.tab).filter(Boolean))],
     currentTab: typeof body.currentTab === "string" ? body.currentTab : "",
     recentTabs: textList(body.recentTabs),
+    outdated: !Array.isArray(body.tabs),
   };
 }
 

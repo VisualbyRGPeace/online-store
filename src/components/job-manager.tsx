@@ -467,7 +467,7 @@ function JobManagerInner({ userId }: { userId: string }) {
   const [linkLoaded, setLinkLoaded] = useState(false);
   const [linkError, setLinkError] = useState("");
 
-  const [loaded, setLoaded] = useState<{ key: string; jobs: Job[]; sheetUrl: string; tabs: string[]; currentTab: string; recentTabs: string[] } | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; jobs: Job[]; sheetUrl: string; tabs: string[]; currentTab: string; recentTabs: string[]; outdated: boolean } | null>(null);
   const [version, setVersion] = useState(0);
   const [error, setError] = useState("");
   const lastFetch = useRef(0);
@@ -565,14 +565,14 @@ function JobManagerInner({ userId }: { userId: string }) {
         }
         setError("");
         setUpdatedAt(Date.now());
-        setLoaded({ key: dataKey, jobs: result.jobs, sheetUrl: result.sheetUrl, tabs: result.tabs, currentTab: result.currentTab, recentTabs: result.recentTabs });
+        setLoaded({ key: dataKey, jobs: result.jobs, sheetUrl: result.sheetUrl, tabs: result.tabs, currentTab: result.currentTab, recentTabs: result.recentTabs, outdated: result.outdated });
         detectNewJobs(link, result.jobs);
       },
       (err) => {
         console.error(err);
         if (!current) return;
         setError(describeError(err));
-        setLoaded((prev) => (prev ? { ...prev, key: dataKey } : { key: dataKey, jobs: [], sheetUrl: "", tabs: [], currentTab: "", recentTabs: [] }));
+        setLoaded((prev) => (prev ? { ...prev, key: dataKey } : { key: dataKey, jobs: [], sheetUrl: "", tabs: [], currentTab: "", recentTabs: [], outdated: false }));
       },
     );
     return () => {
@@ -618,6 +618,7 @@ function JobManagerInner({ userId }: { userId: string }) {
   const tabs = useMemo(() => loaded?.tabs ?? [], [loaded]);
   const recentTabs = useMemo(() => loaded?.recentTabs ?? [], [loaded]);
   const currentTab = loaded?.currentTab ?? "";
+  const scriptOutdated = loaded?.outdated ?? false;
   // Vừa bấm sang một tab tháng mà dữ liệu của tab đó chưa về: hiện khung chờ thay vì "trống việc".
   const switching = refreshing && viewTab !== "" && !jobs.some((job) => job.tab === viewTab);
 
@@ -997,6 +998,15 @@ function JobManagerInner({ userId }: { userId: string }) {
             </button>
           ))}
         </div>
+
+        {scriptOutdated && (
+          <div role="alert" className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            <p className="font-semibold">Google Sheet đang chạy script bản cũ nên chỉ thấy được vài tab tháng.</p>
+            <p className="mt-0.5">
+              Vào Apps Script → Triển khai → Quản lý bản triển khai → bút chì → Phiên bản: <strong>Phiên bản mới</strong> → Triển khai. Sau đó bấm làm mới là hiện đủ T1…T12.
+            </p>
+          </div>
+        )}
 
         {freshJobs.length > 0 && (
           <div role="status" className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
