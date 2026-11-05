@@ -18,7 +18,9 @@ import {
 } from "@/components/utilities/tool-icons";
 import { JOB_APPS_SCRIPT } from "@/lib/job-apps-script";
 import {
-  PRIORITY_LABEL,
+  DEFAULT_ASSIGNERS,
+  DEFAULT_DESIGNERS,
+  DEFAULT_TASKS,
   STATUS_LABEL,
   clearLink,
   createJob,
@@ -32,7 +34,6 @@ import {
   type Job,
   type JobInput,
   type JobLink,
-  type JobPriority,
   type JobStatus,
 } from "@/services/job-service";
 import { copyText } from "@/utils/clipboard";
@@ -97,15 +98,25 @@ function fold(value: string): string {
 }
 
 // ---- Sắp xếp / chia nhóm ----
-const STATUS_RANK: Record<JobStatus, number> = { doing: 0, todo: 1, done: 2 };
-const PRIORITY_RANK: Record<JobPriority, number> = { high: 0, medium: 1, low: 2 };
+const STATUS_RANK: Record<JobStatus, number> = { priority: 0, doing: 1, received: 2, done: 3 };
+const STATUS_SHORT: Record<JobStatus, string> = { received: "Đã nhận", priority: "Ưu tiên", doing: "Đang làm", done: "Kết thúc" };
+const DESIGNER_KEY = "job-designer-filter";
 
 function compareJobs(a: Job, b: Job): number {
-  return (
-    STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
-    PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
-    a.title.localeCompare(b.title, "vi")
-  );
+  return STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.title.localeCompare(b.title, "vi");
+}
+
+function readDesigner(): string {
+  try {
+    return window.localStorage.getItem(DESIGNER_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Gộp gợi ý mặc định với các giá trị đang có trong bảng (không trùng, A → Z). */
+function mergeOptions(defaults: string[], found: string[]): string[] {
+  return [...new Set([...defaults, ...found.filter(Boolean)])].sort((a, b) => a.localeCompare(b, "vi"));
 }
 
 type Tab = "today" | "upcoming" | "all" | "done";
@@ -170,14 +181,14 @@ function Segmented<T extends string>({
   return (
     <div>
       <p className="mb-1.5 text-sm font-medium">{label}</p>
-      <div role="group" aria-label={label} className="flex rounded-xl border border-slate-200 bg-white p-1">
+      <div role="group" aria-label={label} className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:grid-cols-4">
         {options.map(([key, text]) => (
           <button
             key={key}
             type="button"
             onClick={() => onChange(key)}
             aria-pressed={value === key}
-            className={`h-9 flex-1 rounded-lg px-2 text-sm font-medium transition ${
+            className={`h-9 rounded-lg px-2 text-sm font-medium transition ${
               value === key ? "bg-black text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
             }`}
           >
@@ -224,10 +235,10 @@ function JobRow({
       <div className="min-w-0 flex-1">
         <p className={`text-sm font-semibold leading-6 ${done ? "text-slate-400 line-through" : "text-slate-950"}`}>{job.title}</p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          {job.client && <span className="max-w-full truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{job.client}</span>}
-          {job.status === "doing" && <span className="rounded-md bg-slate-950 px-1.5 py-0.5 text-xs font-medium text-white">Đang làm</span>}
-          {job.priority === "high" && !done && <span className="rounded-md border border-slate-900 px-1.5 py-0.5 text-xs font-semibold text-slate-950">Ưu tiên cao</span>}
-          {job.priority === "low" && !done && <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-xs text-slate-500">Ưu tiên thấp</span>}
+          {job.task && <span className="max-w-full truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{job.task}</span>}
+          {job.status === "doing" && <span className="rounded-md bg-slate-950 px-1.5 py-0.5 text-xs font-medium text-white">Đang thực hiện</span>}
+          {job.status === "priority" && <span className="rounded-md border border-slate-900 px-1.5 py-0.5 text-xs font-semibold text-slate-950">Ưu tiên</span>}
+          {job.status === "received" && <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-xs text-slate-500">Đã nhận</span>}
           {late ? (
             <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700">
               Quá hạn {lateDays} ngày · {formatDate(job.date)}
@@ -236,7 +247,11 @@ function JobRow({
             job.date !== "" && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{formatDate(job.date)}</span>
           )}
         </div>
-        {job.note && <p className="mt-1.5 line-clamp-3 whitespace-pre-line text-xs leading-5 text-slate-500">{job.note}</p>}
+        {(job.designer || job.assigner || job.quantity > 1) && (
+          <p className="mt-1.5 text-xs text-slate-500">
+            {[job.designer && `Designer: ${job.designer}`, job.assigner && `Giao: ${job.assigner}`, job.quantity > 1 && `SL: ${job.quantity}`].filter(Boolean).join(" · ")}
+          </p>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center">
@@ -252,7 +267,7 @@ function JobRow({
 }
 
 const SETUP_STEPS: string[] = [
-  "Tạo một Google Sheet mới (hoặc dùng sheet có sẵn) rồi vào menu Tiện ích mở rộng → Apps Script.",
+  "Mở file Google Sheet công việc (có các tab T1…T12) rồi vào menu Tiện ích mở rộng → Apps Script.",
   "Xóa mã mẫu, bấm “Sao chép mã script” bên dưới rồi dán vào. Đổi dòng TOKEN thành mật mã riêng của bạn, bấm Lưu.",
   "Bấm Triển khai → Tùy chọn triển khai mới → loại “Ứng dụng web”. Chọn Thực thi dưới tên: Tôi; Người có quyền truy cập: Bất kỳ ai. Bấm Triển khai và cấp quyền khi Google hỏi.",
   "Sao chép “URL ứng dụng web” (kết thúc bằng /exec), dán vào ô bên dưới cùng mật mã vừa đặt.",
@@ -398,12 +413,14 @@ function SetupPanel({
 
 type FormState = {
   id: string | null;
+  expectedTitle: string;
+  task: string;
   title: string;
-  client: string;
   date: string;
-  priority: JobPriority;
   status: JobStatus;
-  note: string;
+  designer: string;
+  quantity: string;
+  assigner: string;
 };
 
 function JobManagerInner({ userId }: { userId: string }) {
@@ -419,6 +436,7 @@ function JobManagerInner({ userId }: { userId: string }) {
   const [today, setToday] = useState(todayIso);
   const [tab, setTab] = useState<Tab>("today");
   const [query, setQuery] = useState("");
+  const [designer, setDesigner] = useState<string>(readDesigner);
 
   const [form, setForm] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -514,28 +532,44 @@ function JobManagerInner({ userId }: { userId: string }) {
     setLoaded((prev) => (prev ? { ...prev, jobs: change(prev.jobs) } : prev));
   }, []);
 
+  const designerOptions = useMemo(() => mergeOptions(DEFAULT_DESIGNERS, jobs.map((job) => job.designer)), [jobs]);
+  const taskOptions = useMemo(() => mergeOptions(DEFAULT_TASKS, jobs.map((job) => job.task)), [jobs]);
+  const assignerOptions = useMemo(() => mergeOptions(DEFAULT_ASSIGNERS, jobs.map((job) => job.assigner)), [jobs]);
+
+  // Chỉ xem việc của một designer (nhớ lựa chọn trên trình duyệt này).
+  const scoped = useMemo(() => (designer ? jobs.filter((job) => job.designer === designer) : jobs), [jobs, designer]);
+
+  function chooseDesigner(value: string) {
+    setDesigner(value);
+    try {
+      window.localStorage.setItem(DESIGNER_KEY, value);
+    } catch {
+      /* trình duyệt chặn lưu trữ: chỉ giữ trong phiên */
+    }
+  }
+
   const terms = useMemo(() => fold(query.trim()).split(/\s+/).filter(Boolean), [query]);
   const visibleJobs = useMemo(() => {
-    if (terms.length === 0) return jobs;
-    return jobs.filter((job) => {
-      const haystack = fold(`${job.title} ${job.client} ${job.note}`);
+    if (terms.length === 0) return scoped;
+    return scoped.filter((job) => {
+      const haystack = fold(`${job.title} ${job.task} ${job.designer} ${job.assigner}`);
       return terms.every((term) => haystack.includes(term));
     });
-  }, [jobs, terms]);
+  }, [scoped, terms]);
 
   const counts = useMemo(() => {
-    const open = jobs.filter((job) => job.status !== "done");
-    const dueToday = jobs.filter((job) => job.date === today);
+    const open = scoped.filter((job) => job.status !== "done");
+    const dueToday = scoped.filter((job) => job.date === today);
     return {
       overdue: open.filter((job) => job.date !== "" && job.date < today).length,
       todayTotal: dueToday.length,
       todayDone: dueToday.filter((job) => job.status === "done").length,
       todayOpen: dueToday.filter((job) => job.status !== "done").length,
       upcoming: open.filter((job) => job.date === "" || job.date > today).length,
-      all: jobs.length,
-      done: jobs.length - open.length,
+      all: scoped.length,
+      done: scoped.length - open.length,
     };
-  }, [jobs, today]);
+  }, [scoped, today]);
 
   const tabCount: Record<Tab, number> = {
     today: counts.overdue + counts.todayOpen,
@@ -548,12 +582,22 @@ function JobManagerInner({ userId }: { userId: string }) {
 
   function openCreate() {
     setFormError("");
-    setForm({ id: null, title: "", client: "", date: today, priority: "medium", status: "todo", note: "" });
+    setForm({ id: null, expectedTitle: "", task: "", title: "", date: today, status: "received", designer, quantity: "1", assigner: "" });
   }
 
   function openEdit(job: Job) {
     setFormError("");
-    setForm({ id: job.id, title: job.title, client: job.client, date: job.date, priority: job.priority, status: job.status, note: job.note });
+    setForm({
+      id: job.id,
+      expectedTitle: job.title,
+      task: job.task,
+      title: job.title,
+      date: job.date,
+      status: job.status,
+      designer: job.designer,
+      quantity: String(job.quantity),
+      assigner: job.assigner,
+    });
   }
 
   function patchForm(patch: Partial<FormState>) {
@@ -563,30 +607,34 @@ function JobManagerInner({ userId }: { userId: string }) {
   async function submitForm(event: FormEvent) {
     event.preventDefault();
     if (!form || !link || saving) return;
+    const quantity = Number(form.quantity);
     const input: JobInput = {
+      task: form.task.trim(),
       title: form.title.trim(),
-      client: form.client.trim(),
       date: form.date,
-      priority: form.priority,
       status: form.status,
-      note: form.note.trim(),
+      designer: form.designer.trim(),
+      quantity: Number.isFinite(quantity) && quantity >= 1 ? Math.min(Math.round(quantity), 999) : 1,
+      assigner: form.assigner.trim(),
     };
-    if (!input.title) {
-      setFormError("Hãy nhập tên công việc.");
+    if (!input.title || !input.task || !input.date || !input.designer) {
+      setFormError("Hãy nhập đủ: loại task, tên công việc, deadline và designer.");
       return;
     }
     setSaving(true);
     setFormError("");
+    let createdNote = "";
     try {
       if (form.id) {
-        const saved = await updateJob(link, form.id, input);
-        patchJobs((rows) => rows.map((row) => (row.id === saved.id ? saved : row)));
+        const saved = await updateJob(link, { id: form.id, title: form.expectedTitle }, input);
+        patchJobs((rows) => rows.map((row) => (row.id === form.id ? saved : row)));
       } else {
-        const saved = await createJob(link, input);
+        const { job: saved, tabCreated } = await createJob(link, input);
         patchJobs((rows) => [...rows, saved]);
+        createdNote = tabCreated ? `Đã tạo tab ${saved.tab} mới và thêm việc.` : `Đã thêm vào tab ${saved.tab}.`;
       }
       setForm(null);
-      showToast(form.id ? "Đã lưu thay đổi." : "Đã thêm vào Google Sheet.");
+      showToast(form.id ? "Đã lưu thay đổi." : createdNote);
     } catch (err) {
       console.error(err);
       setFormError(describeError(err));
@@ -597,11 +645,11 @@ function JobManagerInner({ userId }: { userId: string }) {
 
   async function toggleDone(job: Job) {
     if (!link) return;
-    const next: JobStatus = job.status === "done" ? "todo" : "done";
+    const next: JobStatus = job.status === "done" ? "doing" : "done";
     patchJobs((rows) => rows.map((row) => (row.id === job.id ? { ...row, status: next } : row))); // hiện ngay, lỗi thì hoàn lại
     try {
-      const saved = await updateJob(link, job.id, { status: next });
-      patchJobs((rows) => rows.map((row) => (row.id === saved.id ? saved : row)));
+      const saved = await updateJob(link, job, { status: next });
+      patchJobs((rows) => rows.map((row) => (row.id === job.id ? saved : row)));
     } catch (err) {
       console.error(err);
       patchJobs((rows) => rows.map((row) => (row.id === job.id ? { ...row, status: job.status } : row)));
@@ -613,11 +661,11 @@ function JobManagerInner({ userId }: { userId: string }) {
     if (!toDelete || !link) return;
     setDeleting(true);
     try {
-      await deleteJob(link, toDelete.id);
+      await deleteJob(link, toDelete);
       const removed = toDelete.id;
       patchJobs((rows) => rows.filter((row) => row.id !== removed));
       setToDelete(null);
-      showToast("Đã xóa khỏi Google Sheet.");
+      showToast("Đã xóa nội dung dòng trong Google Sheet.");
     } catch (err) {
       console.error(err);
       showToast(describeError(err), false);
@@ -751,7 +799,7 @@ function JobManagerInner({ userId }: { userId: string }) {
             onKeyDown={(event) => {
               if (event.key === "Escape") setQuery("");
             }}
-            placeholder="Tìm theo việc, khách / dự án, ghi chú…"
+            placeholder="Tìm theo tên việc, loại task, designer, người giao…"
             className={`${inputClass} pl-10 pr-10`}
           />
           {query && (
@@ -760,6 +808,23 @@ function JobManagerInner({ userId }: { userId: string }) {
             </button>
           )}
         </label>
+
+        <div role="group" aria-label="Lọc theo designer" className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-slate-500">Designer</span>
+          {["", ...designerOptions].map((name) => (
+            <button
+              key={name || "all"}
+              type="button"
+              onClick={() => chooseDesigner(name)}
+              aria-pressed={designer === name}
+              className={`inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium transition ${
+                designer === name ? "border-black bg-black text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-900"
+              }`}
+            >
+              {name || "Tất cả"}
+            </button>
+          ))}
+        </div>
 
         {error && (
           <p role="alert" className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -823,21 +888,21 @@ function JobManagerInner({ userId }: { userId: string }) {
       <Modal open={form !== null} onClose={() => !saving && setForm(null)} title={form?.id ? "Sửa công việc" : "Thêm công việc"}>
         {form && (
           <form onSubmit={(event) => void submitForm(event)} className="space-y-4">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">Công việc</span>
-              <input value={form.title} onChange={(event) => patchForm({ title: event.target.value })} maxLength={200} required autoFocus placeholder="Ví dụ: Gửi báo giá cho khách" className={inputClass} />
-            </label>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
               <label className="block">
-                <span className="mb-1.5 block text-sm font-medium">
-                  Khách / dự án <span className="font-normal text-slate-400">(không bắt buộc)</span>
-                </span>
-                <input value={form.client} onChange={(event) => patchForm({ client: event.target.value })} maxLength={100} placeholder="Tên khách hoặc dự án" className={inputClass} />
+                <span className="mb-1.5 block text-sm font-medium">Loại task</span>
+                <input list="job-task-options" value={form.task} onChange={(event) => patchForm({ task: event.target.value })} maxLength={60} required placeholder="Post Social, Thiệp…" className={inputClass} />
               </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">Tên công việc</span>
+                <input value={form.title} onChange={(event) => patchForm({ title: event.target.value })} maxLength={300} required autoFocus placeholder="Ví dụ: Thiệp Quốc khánh Ba Lan 11/11" className={inputClass} />
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="block">
-                  <span className="mb-1.5 block text-sm font-medium">Ngày làm</span>
-                  <input type="date" value={form.date} onChange={(event) => patchForm({ date: event.target.value })} className={inputClass} />
+                  <span className="mb-1.5 block text-sm font-medium">Deadline</span>
+                  <input type="date" value={form.date} onChange={(event) => patchForm({ date: event.target.value })} required className={inputClass} />
                 </label>
                 <div className="mt-1.5 flex gap-1.5">
                   {([
@@ -851,33 +916,45 @@ function JobManagerInner({ userId }: { userId: string }) {
                   ))}
                 </div>
               </div>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">Số lượng</span>
+                <input type="number" inputMode="numeric" min={1} max={999} value={form.quantity} onChange={(event) => patchForm({ quantity: event.target.value })} className={inputClass} />
+              </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Segmented<JobPriority>
-                label="Ưu tiên"
-                value={form.priority}
-                onChange={(priority) => patchForm({ priority })}
-                options={(Object.keys(PRIORITY_LABEL) as JobPriority[]).map((key) => [key, PRIORITY_LABEL[key]])}
-              />
-              <Segmented<JobStatus>
-                label="Trạng thái"
-                value={form.status}
-                onChange={(status) => patchForm({ status })}
-                options={(Object.keys(STATUS_LABEL) as JobStatus[]).map((key) => [key, STATUS_LABEL[key]])}
-              />
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">Designer</span>
+                <input list="job-designer-options" value={form.designer} onChange={(event) => patchForm({ designer: event.target.value })} maxLength={60} required placeholder="Vũ, Thành…" className={inputClass} />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">
+                  Người giao <span className="font-normal text-slate-400">(không bắt buộc)</span>
+                </span>
+                <input list="job-assigner-options" value={form.assigner} onChange={(event) => patchForm({ assigner: event.target.value })} maxLength={60} placeholder="Ms. Diệu…" className={inputClass} />
+              </label>
             </div>
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium">
-                Ghi chú <span className="font-normal text-slate-400">(không bắt buộc)</span>
-              </span>
-              <textarea
-                value={form.note}
-                onChange={(event) => patchForm({ note: event.target.value })}
-                maxLength={2000}
-                rows={3}
-                className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-              />
-            </label>
+            <Segmented<JobStatus>
+              label="Trạng thái"
+              value={form.status}
+              onChange={(status) => patchForm({ status })}
+              options={(Object.keys(STATUS_LABEL) as JobStatus[]).map((key) => [key, STATUS_SHORT[key]])}
+            />
+            <datalist id="job-task-options">
+              {taskOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            <datalist id="job-designer-options">
+              {designerOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            <datalist id="job-assigner-options">
+              {assignerOptions.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            <p className="text-xs leading-5 text-slate-500">Điểm (SCORE) và các cột công thức của bảng do Google Sheet tự tính, web không ghi đè.</p>
             {formError && (
               <p role="alert" className="text-sm text-red-600">
                 {formError}
@@ -899,7 +976,7 @@ function JobManagerInner({ userId }: { userId: string }) {
         {toDelete && (
           <div className="space-y-4">
             <p className="text-sm leading-6 text-slate-600">
-              <span className="font-semibold text-slate-900">{toDelete.title}</span> sẽ bị xóa khỏi Google Sheet.
+              <span className="font-semibold text-slate-900">{toDelete.title}</span> sẽ bị xóa nội dung ở tab {toDelete.tab} của Google Sheet. Công thức và bảng thống kê không bị ảnh hưởng.
             </p>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setToDelete(null)} disabled={deleting} className="h-11 rounded-xl px-4 text-sm font-medium text-slate-600 hover:text-slate-950">

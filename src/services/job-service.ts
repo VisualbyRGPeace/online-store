@@ -1,31 +1,47 @@
 import { createClient } from "@/lib/supabase/client";
 
-export type JobStatus = "todo" | "doing" | "done";
-export type JobPriority = "high" | "medium" | "low";
+export type JobStatus = "received" | "priority" | "doing" | "done";
 
 export type Job = {
-  id: string;
+  id: string; // dạng "T11:31" (tab:dòng) do script cấp
+  tab: string;
+  task: string; // loại task: Post Social, Sửa Ảnh, Thiệp…
   title: string;
-  client: string;
-  date: string; // yyyy-MM-dd, "" nếu chưa đặt ngày
-  priority: JobPriority;
+  date: string; // deadline, yyyy-MM-dd ("" nếu trống)
   status: JobStatus;
-  note: string;
-  updatedAt: string;
+  designer: string;
+  quantity: number;
+  assigner: string; // người giao (TASK ASSIGNMENT)
 };
 
-export type JobInput = Pick<Job, "title" | "client" | "date" | "priority" | "status" | "note">;
+export type JobInput = Pick<Job, "task" | "title" | "date" | "status" | "designer" | "quantity" | "assigner">;
 export type JobLink = { scriptUrl: string; token: string };
 
-/** Chữ ghi trong Google Sheet (người dùng cũng có thể gõ tay các giá trị này). */
-export const STATUS_LABEL: Record<JobStatus, string> = { todo: "Cần làm", doing: "Đang làm", done: "Xong" };
-export const PRIORITY_LABEL: Record<JobPriority, string> = { high: "Cao", medium: "Vừa", low: "Thấp" };
+/** Đúng chữ trong cột COMPLETED STATUS của bảng. */
+export const STATUS_LABEL: Record<JobStatus, string> = {
+  received: "Đã nhận",
+  priority: "Ưu tiên",
+  doing: "Đang thực hiện",
+  done: "Kết thúc",
+};
+
+/** Gợi ý ban đầu (lấy từ bảng); các giá trị có trong dữ liệu sẽ được gộp thêm. */
+export const DEFAULT_TASKS = ["Post Social", "Sửa Ảnh", "Banner", "Thiệp", "Task khác", "In ấn", "Sửa file ấn phẩm", "Mô hình 3D"];
+export const DEFAULT_DESIGNERS = ["Vũ", "Thành"];
+export const DEFAULT_ASSIGNERS = ["Ms. Ngân", "Ms. Diệu", "Ms. Tuyền", "Mr. Huy", "Mr. Vinh"];
 
 export type JobErrorCode =
   | "token_not_set"
   | "unauthorized"
   | "not_found"
   | "missing_title"
+  | "stale"
+  | "protected"
+  | "tab_other_year"
+  | "no_source_tab"
+  | "no_tab"
+  | "no_layout"
+  | "cell_has_formula"
   | "bad_response"
   | "network"
   | "timeout"
@@ -47,7 +63,20 @@ export function describeError(error: unknown): string {
     case "unauthorized":
       return "Mật mã không khớp với TOKEN trong Apps Script.";
     case "not_found":
-      return "Không tìm thấy công việc này trong Google Sheet (có thể đã bị xóa). Hãy bấm Làm mới.";
+    case "stale":
+      return "Bảng vừa thay đổi (dòng này đã bị sửa, xóa hoặc dời chỗ). Hãy bấm Làm mới rồi thử lại.";
+    case "protected":
+      return "Tab này đang bị khóa, tài khoản của bạn không có quyền sửa.";
+    case "tab_other_year":
+      return "Tab của tháng này đang chứa việc của năm khác. Hãy đổi tên tab cũ (ví dụ T1-2026) để web tạo tab mới.";
+    case "no_source_tab":
+      return "Chưa có tab tháng nào để làm mẫu. Hãy tạo tab T1…T12 đầu tiên theo đúng cấu trúc bảng.";
+    case "no_tab":
+      return "Không thấy tab tháng nào (T10, T11, T12…) có dòng tiêu đề TASK / TITLE / DEADLINE trong file này.";
+    case "no_layout":
+      return "Không nhận ra dòng tiêu đề của tab. Cần có các cột TITLE, DEADLINE và COMPLETED STATUS.";
+    case "cell_has_formula":
+      return "Ô cần ghi đang chứa công thức nên web không ghi đè. Hãy nhập tay dòng này trong Sheet.";
     case "missing_title":
       return "Hãy nhập tên công việc.";
     case "bad_response":
@@ -72,34 +101,34 @@ function plain(value: string): string {
 
 function parseStatus(raw: string): JobStatus {
   const text = plain(raw);
-  if (/xong|hoan thanh|done|complete/.test(text)) return "done";
+  if (/ket thuc|xong|hoan thanh|done/.test(text)) return "done";
   if (/dang|doing|progress/.test(text)) return "doing";
-  return "todo";
-}
-
-function parsePriority(raw: string): JobPriority {
-  const text = plain(raw);
-  if (/cao|high|gap|urgent/.test(text)) return "high";
-  if (/thap|low/.test(text)) return "low";
-  return "medium";
+  if (/uu tien|priority|gap/.test(text)) return "priority";
+  return "received";
 }
 
 type RawJob = Record<string, unknown>;
 
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function parseJob(raw: RawJob): Job | null {
-  const id = typeof raw.id === "string" ? raw.id : "";
-  const title = typeof raw.title === "string" ? raw.title.trim() : "";
+  const id = text(raw.id);
+  const title = text(raw.title);
   if (!id || !title) return null;
   const date = typeof raw.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.date) ? raw.date : "";
+  const quantity = typeof raw.quantity === "number" && Number.isFinite(raw.quantity) && raw.quantity > 0 ? raw.quantity : 1;
   return {
     id,
+    tab: text(raw.tab),
+    task: text(raw.task),
     title,
-    client: typeof raw.client === "string" ? raw.client : "",
     date,
-    priority: parsePriority(typeof raw.priority === "string" ? raw.priority : ""),
-    status: parseStatus(typeof raw.status === "string" ? raw.status : ""),
-    note: typeof raw.note === "string" ? raw.note : "",
-    updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : "",
+    status: parseStatus(text(raw.status)),
+    designer: text(raw.designer),
+    quantity,
+    assigner: text(raw.assigner),
   };
 }
 
@@ -145,22 +174,23 @@ async function call(link: JobLink, payload: Record<string, unknown>): Promise<Re
   const body = data as Record<string, unknown>;
   if (body.ok !== true) {
     const code = String(body.error ?? "");
-    if (code === "token_not_set" || code === "unauthorized" || code === "not_found" || code === "missing_title") {
-      throw new JobApiError(code);
-    }
+    const known: JobErrorCode[] = ["token_not_set", "unauthorized", "not_found", "missing_title", "stale", "protected", "tab_other_year", "no_source_tab", "no_tab", "no_layout", "cell_has_formula"];
+    const match = known.find((item) => item === code);
+    if (match) throw new JobApiError(match);
     throw new JobApiError("unknown", code);
   }
   return body;
 }
 
-function toSheetFields(input: Partial<JobInput>): Record<string, string> {
-  const out: Record<string, string> = {};
+function toSheetFields(input: Partial<JobInput>): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  if (input.task !== undefined) out.task = input.task;
   if (input.title !== undefined) out.title = input.title;
-  if (input.client !== undefined) out.client = input.client;
   if (input.date !== undefined) out.date = input.date;
-  if (input.priority !== undefined) out.priority = PRIORITY_LABEL[input.priority];
   if (input.status !== undefined) out.status = STATUS_LABEL[input.status];
-  if (input.note !== undefined) out.note = input.note;
+  if (input.designer !== undefined) out.designer = input.designer;
+  if (input.quantity !== undefined) out.quantity = input.quantity;
+  if (input.assigner !== undefined) out.assigner = input.assigner;
   return out;
 }
 
@@ -177,18 +207,19 @@ export async function listJobs(link: JobLink): Promise<{ jobs: Job[]; sheetUrl: 
   return { jobs, sheetUrl: typeof body.sheetUrl === "string" ? body.sheetUrl : "" };
 }
 
-export async function createJob(link: JobLink, input: JobInput): Promise<Job> {
+export async function createJob(link: JobLink, input: JobInput): Promise<{ job: Job; tabCreated: boolean }> {
   const body = await call(link, { action: "create", job: toSheetFields(input) });
+  return { job: requireJob(body.job), tabCreated: body.tabCreated === true };
+}
+
+/** expectedTitle: tên việc lúc web tải, để script chắc chắn đang sửa đúng dòng. */
+export async function updateJob(link: JobLink, job: Pick<Job, "id" | "title">, patch: Partial<JobInput>): Promise<Job> {
+  const body = await call(link, { action: "update", id: job.id, expectedTitle: job.title, patch: toSheetFields(patch) });
   return requireJob(body.job);
 }
 
-export async function updateJob(link: JobLink, id: string, patch: Partial<JobInput>): Promise<Job> {
-  const body = await call(link, { action: "update", id, patch: toSheetFields(patch) });
-  return requireJob(body.job);
-}
-
-export async function deleteJob(link: JobLink, id: string): Promise<void> {
-  await call(link, { action: "delete", id });
+export async function deleteJob(link: JobLink, job: Pick<Job, "id" | "title">): Promise<void> {
+  await call(link, { action: "delete", id: job.id, expectedTitle: job.title });
 }
 
 // ---- Lưu liên kết của từng tài khoản (Supabase; dự phòng trên trình duyệt nếu chưa chạy migration) ----
