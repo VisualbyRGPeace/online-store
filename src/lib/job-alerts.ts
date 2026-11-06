@@ -87,7 +87,6 @@ export type NotifyPermission = NotificationPermission | "unsupported";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const SOUND_URL = `${BASE}/thongbao.mp3`;
-const ICON_URL = `${BASE}/notify-icon.png`;
 
 function supportsNotifications(): boolean {
   return typeof window !== "undefined" && "Notification" in window;
@@ -126,7 +125,7 @@ export function registerNoticeWorker(): Promise<ServiceWorkerRegistration | null
   return workerReady;
 }
 
-type SystemNoticeOptions = NotificationOptions & { renotify?: boolean; requireInteraction?: boolean };
+type SystemNoticeOptions = NotificationOptions & { renotify?: boolean; requireInteraction?: boolean; actions?: { action: string; title: string }[] };
 
 /**
  * Thẻ thông báo của hệ điều hành (giống Zalo), hiện đè lên các cửa sổ khác và nằm lại đến khi bạn
@@ -140,8 +139,6 @@ export async function showSystemNotice(title: string, body: string, force = fals
     // silent: true vì web tự phát âm thanh riêng, tránh kêu hai lần.
     const options: SystemNoticeOptions = {
       body,
-      icon: ICON_URL,
-      badge: ICON_URL,
       tag: `job-new-${Date.now()}`, // mỗi lần một thẻ riêng, không đè lên thẻ cũ chưa đọc
       silent: true,
       requireInteraction: true,
@@ -149,7 +146,14 @@ export async function showSystemNotice(title: string, body: string, force = fals
     };
     const registration = await registerNoticeWorker();
     if (registration) {
-      await registration.showNotification(title, options);
+      // Nút bấm chỉ dùng được với thông báo gửi qua service worker.
+      await registration.showNotification(title, {
+        ...options,
+        actions: [
+          { action: "open", title: "Mở web" },
+          { action: "close", title: "Đóng" },
+        ],
+      } as SystemNoticeOptions);
       return true;
     }
     const notice = new Notification(title, options);

@@ -4,6 +4,7 @@ self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim(
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  if (event.action === "close") return; // bấm nút "Đóng": chỉ tắt thẻ
   const path = (event.notification.data && event.notification.data.path) || "/";
   event.waitUntil(
     (async () => {

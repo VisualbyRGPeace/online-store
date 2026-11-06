@@ -12,6 +12,7 @@ const font = Be_Vietnam_Pro({
   display: "swap",
 });
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
   description: SITE_TAGLINE,
+  manifest: `${basePath}/manifest.webmanifest`, // cho phép "Cài đặt ứng dụng": thông báo hiện tên app thay vì Google Chrome
   openGraph: { title: SITE_NAME, description: SITE_TAGLINE, type: "website", locale: "vi_VN" },
 };
 
