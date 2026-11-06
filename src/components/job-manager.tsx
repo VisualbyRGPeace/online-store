@@ -1,9 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { AuthGate } from "@/components/auth-gate";
+import { Combobox } from "@/components/utilities/combobox";
+import { DatePicker } from "@/components/utilities/date-picker";
 import { Modal } from "@/components/utilities/modal";
+import { SelectMenu } from "@/components/utilities/select-menu";
 import {
+  CalendarIcon,
   CheckIcon,
   ClipboardIcon,
   CloseIcon,
@@ -76,12 +80,6 @@ function todayIso(): string {
 function parseIso(iso: string): Date {
   const [year = 1970, month = 1, day = 1] = iso.split("-").map(Number);
   return new Date(year, month - 1, day);
-}
-
-function addDays(iso: string, days: number): string {
-  const date = parseIso(iso);
-  date.setDate(date.getDate() + days);
-  return date.toLocaleDateString("en-CA");
 }
 
 /** Số ngày từ `from` đến `to` (dương nếu `to` ở sau). */
@@ -257,12 +255,12 @@ function Segmented<T extends string>({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Meta({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-      <div className="mt-0.5 truncate text-sm text-slate-800">{children}</div>
-    </div>
+    <span className="inline-flex min-w-0 items-center gap-1 text-slate-800">
+      <span className="text-slate-400">{label}</span>
+      <span className="truncate font-medium">{children}</span>
+    </span>
   );
 }
 
@@ -270,6 +268,7 @@ function JobRow({
   job,
   today,
   fresh,
+  index,
   onToggle,
   onEdit,
   onDelete,
@@ -277,6 +276,7 @@ function JobRow({
   job: Job;
   today: string;
   fresh: boolean;
+  index: number;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -288,9 +288,10 @@ function JobRow({
 
   return (
     <li
-      className={`flex items-start gap-3 rounded-2xl border bg-white p-3.5 transition hover:border-slate-400 hover:shadow-sm ${
+      style={{ "--i": index } as CSSProperties}
+      className={`stagger-item flex items-start gap-3 rounded-2xl border bg-white px-3.5 py-3 transition hover:border-slate-300 hover:shadow-sm ${
         fresh ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-200"
-      }`}
+      } ${done ? "bg-slate-50/60" : ""}`}
     >
       <button
         type="button"
@@ -311,30 +312,23 @@ function JobRow({
           {fresh && <span className="mt-0.5 shrink-0 rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">MỚI</span>}
         </div>
 
-        <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-          <Field label="Phân loại">{job.task || <span className="text-slate-400">—</span>}</Field>
-          <Field label="Trạng thái">
-            <span className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${style.pill}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
-              {style.label}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+          {job.task && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700">{job.task}</span>}
+          <span className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-semibold ${style.pill}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
+            {style.label}
+          </span>
+          {job.date !== "" && (
+            <span className={`inline-flex items-center gap-1 ${late ? "font-semibold text-red-600" : "text-slate-700"}`}>
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {formatDate(job.date)}
+              {late && ` · trễ ${lateDays} ngày`}
             </span>
-          </Field>
-          <Field label="Deadline">
-            {job.date === "" ? (
-              <span className="text-slate-400">—</span>
-            ) : late ? (
-              <span className="font-semibold text-red-600">
-                {formatDate(job.date)} · trễ {lateDays} ngày
-              </span>
-            ) : (
-              formatDate(job.date)
-            )}
-          </Field>
-          <Field label="Designer">{job.designer || <span className="text-slate-400">—</span>}</Field>
-          <Field label="Người giao">{job.assigner || <span className="text-slate-400">—</span>}</Field>
-          <Field label="Số lượng">{job.quantity}</Field>
+          )}
+          {job.designer && <Meta label="Designer">{job.designer}</Meta>}
+          {job.assigner && <Meta label="Giao bởi">{job.assigner}</Meta>}
+          {job.quantity > 1 && <Meta label="SL">{job.quantity}</Meta>}
         </div>
-
       </div>
 
       <div className="flex shrink-0 items-center">
@@ -962,33 +956,38 @@ function JobManagerInner({ userId }: { userId: string }) {
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div role="group" aria-label="Chọn tab tháng" className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-            {tabs.length > 0 && <span className="shrink-0 text-xs font-medium text-slate-500">Tab</span>}
-            {tabs.length > 0 &&
-              ([["", "Gần đây"], ...tabs.map((name): [string, string] => [name, name])] as [string, string][]).map(([key, text]) => (
-                <button
-                  key={key || "recent"}
-                  type="button"
-                  onClick={() => chooseMonth(key)}
-                  aria-pressed={viewTab === key}
-                  className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-sm font-medium transition ${
-                    viewTab === key ? "border-black bg-black text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-900"
-                  }`}
-                >
-                  {text}
-                  {key !== "" && key === currentTab && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" title="Tháng hiện tại" />}
-                </button>
-              ))}
-          </div>
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-slate-400" title="Web tự hỏi lại Google Sheet mỗi 30 giây">
+        <div className="mb-3 flex items-center gap-2.5">
+          {tabs.length > 0 && (
+            <>
+              <span className="shrink-0 text-xs font-medium text-slate-500">Tháng</span>
+              <div role="group" aria-label="Chọn tab tháng" className="no-scrollbar flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded-xl bg-slate-100 p-1">
+                {([["", "Gần đây"], ...tabs.map((name): [string, string] => [name, name])] as [string, string][]).map(([key, text], index) => (
+                  <button
+                    key={key || "recent"}
+                    type="button"
+                    onClick={() => chooseMonth(key)}
+                    aria-pressed={viewTab === key}
+                    style={{ "--i": index } as CSSProperties}
+                    className={`stagger-item relative inline-flex h-8 shrink-0 items-center rounded-lg px-3 text-sm font-medium transition ${
+                      viewTab === key ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-950"
+                    }`}
+                  >
+                    {text}
+                    {key !== "" && key === currentTab && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" title="Tháng hiện tại" />}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 text-xs text-slate-400" title="Web tự hỏi lại Google Sheet mỗi 30 giây">
             <span className={`h-1.5 w-1.5 rounded-full ${error ? "bg-red-500" : "bg-emerald-500"}`} aria-hidden="true" />
-            {updatedAt > 0 ? `Cập nhật ${new Date(updatedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Đang tải…"}
+            <span className="hidden sm:inline">{updatedAt > 0 ? `Cập nhật ${new Date(updatedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}` : "Đang tải…"}</span>
+            <span className="sm:hidden">{updatedAt > 0 ? new Date(updatedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "…"}</span>
           </span>
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Danh sách công việc" className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div role="tablist" aria-label="Danh sách công việc" className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
             {(Object.keys(TAB_LABEL) as Tab[]).map((key) => (
               <button
                 key={key}
@@ -1027,7 +1026,7 @@ function JobManagerInner({ userId }: { userId: string }) {
               <RefreshIcon className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
             {sheetUrl && (
-              <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={outlineButton}>
+              <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={outlineButton} title="Mở Google Sheet">
                 <ExternalIcon className="h-4 w-4" />
                 <span className="hidden sm:inline">Mở Google Sheet</span>
                 <span className="sm:hidden">Sheet</span>
@@ -1039,40 +1038,32 @@ function JobManagerInner({ userId }: { userId: string }) {
           </div>
         </div>
 
-        <label className="relative mb-4 block">
-          <span className="sr-only">Tìm công việc</span>
-          <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") setQuery("");
-            }}
-            placeholder="Tìm theo tên việc, loại task, designer, người giao…"
-            className={`${inputClass} pl-10 pr-10`}
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+          <label className="relative block min-w-0 flex-1">
+            <span className="sr-only">Tìm công việc</span>
+            <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setQuery("");
+              }}
+              placeholder="Tìm theo tên việc, loại task, designer, người giao…"
+              className={`${inputClass} pl-10 pr-10`}
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} aria-label="Xóa nội dung tìm" className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-900">
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            )}
+          </label>
+          <SelectMenu
+            label="Designer"
+            value={designer}
+            onChange={chooseDesigner}
+            options={[{ value: "", label: "Tất cả" }, ...designerOptions.map((name) => ({ value: name, label: name }))]}
+            className="sm:w-52"
           />
-          {query && (
-            <button type="button" onClick={() => setQuery("")} aria-label="Xóa nội dung tìm" className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-900">
-              <CloseIcon className="h-4 w-4" />
-            </button>
-          )}
-        </label>
-
-        <div role="group" aria-label="Lọc theo designer" className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-slate-500">Designer</span>
-          {["", ...designerOptions].map((name) => (
-            <button
-              key={name || "all"}
-              type="button"
-              onClick={() => chooseDesigner(name)}
-              aria-pressed={designer === name}
-              className={`inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium transition ${
-                designer === name ? "border-black bg-black text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-900"
-              }`}
-            >
-              {name || "Tất cả"}
-            </button>
-          ))}
         </div>
 
         {popup && (
@@ -1209,23 +1200,26 @@ function JobManagerInner({ userId }: { userId: string }) {
             )}
           </div>
         ) : (
-          <div className="space-y-6">
-            {sections.map((section) => (
-              <section key={section.key} aria-label={section.label || TAB_LABEL[tab]}>
-                {section.label !== "" && (
-                  <h3 className={`mb-2.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${section.danger ? "text-red-600" : "text-slate-500"}`}>
-                    {section.label}
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium normal-case ${section.danger ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>{section.items.length}</span>
-                    <span className="h-px flex-1 bg-slate-100" aria-hidden="true" />
-                  </h3>
-                )}
-                <ul className="space-y-2.5">
-                  {section.items.map((job) => (
-                    <JobRow key={job.id} job={job} today={today} fresh={freshKeys.has(jobKey(job))} onToggle={() => void toggleDone(job)} onEdit={() => openEdit(job)} onDelete={() => setToDelete(job)} />
-                  ))}
-                </ul>
-              </section>
-            ))}
+          <div key={`${viewTab}|${tab}|${designer}`} className="space-y-6">
+            {sections.map((section, sectionIndex) => {
+              const base = sections.slice(0, sectionIndex).reduce((total, item) => total + item.items.length, 0);
+              return (
+                <section key={section.key} aria-label={section.label || TAB_LABEL[tab]}>
+                  {section.label !== "" && (
+                    <h3 className={`mb-2.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ${section.danger ? "text-red-600" : "text-slate-500"}`}>
+                      {section.label}
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium normal-case ${section.danger ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600"}`}>{section.items.length}</span>
+                      <span className="h-px flex-1 bg-slate-100" aria-hidden="true" />
+                    </h3>
+                  )}
+                  <ul className="space-y-2">
+                    {section.items.map((job, index) => (
+                      <JobRow key={job.id} job={job} today={today} fresh={freshKeys.has(jobKey(job))} index={base + index} onToggle={() => void toggleDone(job)} onEdit={() => openEdit(job)} onDelete={() => setToDelete(job)} />
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1236,7 +1230,7 @@ function JobManagerInner({ userId }: { userId: string }) {
             <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Loại task</span>
-                <input list="job-task-options" value={form.task} onChange={(event) => patchForm({ task: event.target.value })} maxLength={60} required placeholder="Post Social, Thiệp…" className={inputClass} />
+                <Combobox label="Loại task" value={form.task} onChange={(task) => patchForm({ task })} options={taskOptions} maxLength={60} required placeholder="Chọn hoặc gõ loại task" />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Tên công việc</span>
@@ -1245,21 +1239,8 @@ function JobManagerInner({ userId }: { userId: string }) {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-medium">Deadline</span>
-                  <input type="date" value={form.date} onChange={(event) => patchForm({ date: event.target.value })} required className={inputClass} />
-                </label>
-                <div className="mt-1.5 flex gap-1.5">
-                  {([
-                    ["Hôm nay", today],
-                    ["Ngày mai", addDays(today, 1)],
-                    ["Tuần sau", addDays(today, 7)],
-                  ] as const).map(([text, value]) => (
-                    <button key={text} type="button" onClick={() => patchForm({ date: value })} className="h-7 rounded-full border border-slate-200 px-2.5 text-xs font-medium text-slate-600 transition hover:border-slate-900 hover:text-slate-950">
-                      {text}
-                    </button>
-                  ))}
-                </div>
+                <span className="mb-1.5 block text-sm font-medium">Deadline</span>
+                <DatePicker label="Deadline" value={form.date} onChange={(date) => patchForm({ date })} required placeholder="Chọn deadline" />
               </div>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Số lượng</span>
@@ -1269,13 +1250,13 @@ function JobManagerInner({ userId }: { userId: string }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">Designer</span>
-                <input list="job-designer-options" value={form.designer} onChange={(event) => patchForm({ designer: event.target.value })} maxLength={60} required placeholder="Vũ, Thành…" className={inputClass} />
+                <Combobox label="Designer" value={form.designer} onChange={(designer) => patchForm({ designer })} options={designerOptions} maxLength={60} required placeholder="Chọn designer" />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">
                   Người giao <span className="font-normal text-slate-400">(không bắt buộc)</span>
                 </span>
-                <input list="job-assigner-options" value={form.assigner} onChange={(event) => patchForm({ assigner: event.target.value })} maxLength={60} placeholder="Ms. Diệu…" className={inputClass} />
+                <Combobox label="Người giao" value={form.assigner} onChange={(assigner) => patchForm({ assigner })} options={assignerOptions} maxLength={60} placeholder="Chọn người giao" />
               </label>
             </div>
             <Segmented<JobStatus>
@@ -1284,21 +1265,6 @@ function JobManagerInner({ userId }: { userId: string }) {
               onChange={(status) => patchForm({ status })}
               options={(Object.keys(STATUS_LABEL) as JobStatus[]).map((key) => [key, STATUS_SHORT[key]])}
             />
-            <datalist id="job-task-options">
-              {taskOptions.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-            <datalist id="job-designer-options">
-              {designerOptions.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-            <datalist id="job-assigner-options">
-              {assignerOptions.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
             <p className="text-xs leading-5 text-slate-500">Điểm (SCORE) và các cột công thức của bảng do Google Sheet tự tính, web không ghi đè.</p>
             {formError && (
               <p role="alert" className="text-sm text-red-600">

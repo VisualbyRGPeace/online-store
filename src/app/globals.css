@@ -72,3 +72,24 @@ body {
 }
 .toast-in { animation: toast-in .3s ease-out both; }
 
+
+/* Popover (lịch, danh sách xổ xuống): bật nhẹ từ trên xuống. */
+@keyframes pop-in {
+  from { transform: translateY(-4px) scale(.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.pop-in { animation: pop-in .16s ease-out both; transform-origin: top; }
+
+/* Danh sách hiện lần lượt: đặt style={{ "--i": index }} cho từng phần tử. */
+@keyframes stagger-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.stagger-item {
+  animation: stagger-in .35s cubic-bezier(.22, 1, .36, 1) both;
+  animation-delay: calc(min(var(--i, 0), 14) * 45ms);
+}
+
+/* Thanh cuộn ngang gọn (hàng chọn tab tháng). */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
