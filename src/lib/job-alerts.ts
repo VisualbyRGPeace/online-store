@@ -113,16 +113,45 @@ export function describeJob(job: Job): string {
   return [job.task, job.designer, date].filter(Boolean).join(" · ");
 }
 
+let workerReady: Promise<ServiceWorkerRegistration | null> | null = null;
+
+/** Đăng ký service worker để thông báo hiện ổn định ở ngoài trình duyệt (Windows, macOS…). */
+export function registerNoticeWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (workerReady) return workerReady;
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return Promise.resolve(null);
+  workerReady = navigator.serviceWorker
+    .register(`${BASE}/sw.js`, { scope: `${BASE}/` })
+    .then(() => navigator.serviceWorker.ready)
+    .catch(() => null);
+  return workerReady;
+}
+
+type SystemNoticeOptions = NotificationOptions & { renotify?: boolean; requireInteraction?: boolean };
+
 /**
- * Thẻ thông báo của hệ điều hành (giống Zalo). Mặc định chỉ hiện khi bạn đang ở tab/cửa sổ khác;
- * đang xem trang thì đã có thẻ thông báo ngay trong trang. force = true để thử.
+ * Thẻ thông báo của hệ điều hành (giống Zalo), hiện đè lên các cửa sổ khác và nằm lại đến khi bạn
+ * bấm hoặc tắt. Mặc định chỉ hiện khi bạn đang ở tab/cửa sổ khác (đang xem trang thì đã có thẻ trong trang).
+ * force = true để thử.
  */
-export function showSystemNotice(title: string, body: string, force = false): boolean {
+export async function showSystemNotice(title: string, body: string, force = false): Promise<boolean> {
   try {
     if (!supportsNotifications() || Notification.permission !== "granted") return false;
     if (!force && document.visibilityState === "visible" && document.hasFocus()) return false;
     // silent: true vì web tự phát âm thanh riêng, tránh kêu hai lần.
-    const options: NotificationOptions & { silent?: boolean } = { body, icon: ICON_URL, tag: "job-new", silent: true };
+    const options: SystemNoticeOptions = {
+      body,
+      icon: ICON_URL,
+      badge: ICON_URL,
+      tag: `job-new-${Date.now()}`, // mỗi lần một thẻ riêng, không đè lên thẻ cũ chưa đọc
+      silent: true,
+      requireInteraction: true,
+      data: { path: window.location.pathname },
+    };
+    const registration = await registerNoticeWorker();
+    if (registration) {
+      await registration.showNotification(title, options);
+      return true;
+    }
     const notice = new Notification(title, options);
     notice.onclick = () => {
       window.focus();

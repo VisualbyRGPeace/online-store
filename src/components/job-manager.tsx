@@ -49,18 +49,20 @@ import {
   loadSeen,
   playChime,
   preloadSound,
+  registerNoticeWorker,
   rememberJob,
   saveSeen,
   showSystemNotice,
   type NotifyPermission,
   type SeenMap,
 } from "@/lib/job-alerts";
+import { holdKeepAlive, startTicker } from "@/lib/background-ticker";
 import { copyText } from "@/utils/clipboard";
 import { isAllowedDriveUrl } from "@/utils/drive";
 
 const STALE_AFTER_MS = 15_000; // quay lại tab trình duyệt sau chừng này thì làm mới ngay
 const POLL_VISIBLE_MS = 30_000; // đang mở trang: hỏi Google Sheet mỗi 30 giây
-const POLL_HIDDEN_MS = 60_000; // trang ở nền: mỗi 60 giây
+const POLL_HIDDEN_MS = 30_000; // trang ở nền: cũng mỗi 30 giây để báo việc mới kịp lúc
 const ALERTS_KEY = "job-alerts-on";
 
 const inputClass =
@@ -596,7 +598,7 @@ function JobManagerInner({ userId }: { userId: string }) {
         const detail = describeJob(job);
         return mine.length === 1 ? `${job.title}\n${detail}`.trim() : `${job.title}${detail ? ` — ${detail}` : ""}`;
       });
-      showSystemNotice(mine.length === 1 ? "Có việc mới" : `Có ${mine.length} việc mới`, lines.join("\n"));
+      void showSystemNotice(mine.length === 1 ? "Có việc mới" : `Có ${mine.length} việc mới`, lines.join("\n"));
       playChime();
     }
 
@@ -626,6 +628,7 @@ function JobManagerInner({ userId }: { userId: string }) {
 
   useEffect(() => {
     preloadSound();
+    void registerNoticeWorker();
   }, []);
 
   useEffect(() => {
@@ -639,14 +642,18 @@ function JobManagerInner({ userId }: { userId: string }) {
     alertsRef.current = alertsOn;
   }, [designer, alertsOn]);
 
-  // Tự cập nhật liên tục: cứ vài chục giây hỏi lại Google Sheet (trang ở nền thì thưa hơn).
+  // Tự cập nhật liên tục kể cả khi bạn đang ở tab/phần mềm khác: đồng hồ chạy trong worker nên không bị trình duyệt làm chậm.
   useEffect(() => {
     if (!link) return;
-    const timer = window.setInterval(() => {
+    const stopTicker = startTicker(() => {
       const wait = document.visibilityState === "visible" ? POLL_VISIBLE_MS : POLL_HIDDEN_MS;
       if (Date.now() - lastFetch.current >= wait) setVersion((value) => value + 1);
     }, 5_000);
-    return () => window.clearInterval(timer);
+    const releaseLock = holdKeepAlive();
+    return () => {
+      stopTicker();
+      releaseLock();
+    };
   }, [link]);
 
   // Quay lại tab trình duyệt sau một lúc thì tự làm mới (phòng khi bạn vừa sửa trong Google Sheet).
@@ -751,7 +758,7 @@ function JobManagerInner({ userId }: { userId: string }) {
     const result = await askNotifyPermission();
     setPermission(result);
     if (result === "granted") {
-      showSystemNotice("Đã bật thông báo", "Khi có job mới, web sẽ báo ở đây kèm âm thanh.", true);
+      void showSystemNotice("Đã bật thông báo", "Khi có job mới, web sẽ báo ở đây kèm âm thanh.", true);
       playChime();
       showToast("Đã bật thông báo việc mới.");
     } else if (result === "denied") {
