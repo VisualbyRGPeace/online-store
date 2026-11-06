@@ -211,14 +211,12 @@ function list_(ss, wantedTab) {
   var cutoff = cutoffText_(ss);
   var jobs = [];
   var found = 0;
-  var focusSheet = null;
   for (var i = 0; i < names.length; i++) {
     var sheet = ss.getSheetByName(names[i]);
     if (!sheet) continue;
     var lay = layout_(sheet);
     if (!lay) continue;
     found++;
-    if (names[i] === focusTab) focusSheet = sheet;
     var rows = readTab_(ss, sheet, lay);
     // Tab được chọn xem thì hiện đủ; các tab còn lại chỉ lấy việc chưa quá cũ.
     if (names[i] !== wanted) rows = rows.filter(function (j) { return !j.date || j.date >= cutoff; });
@@ -226,10 +224,16 @@ function list_(ss, wantedTab) {
   }
   if (found === 0) return { ok: false, error: 'no_tab' };
   var tabs = [];
+  var gids = {};
   var all = ss.getSheets();
-  for (var s = 0; s < all.length; s++) if (isMonthTab_(all[s].getName())) tabs.push(all[s].getName());
-  var url = ss.getUrl() + (focusSheet ? '#gid=' + focusSheet.getSheetId() : '');
-  return { ok: true, jobs: jobs, sheetUrl: url, tabs: tabs, currentTab: thisTab, recentTabs: recent };
+  for (var s = 0; s < all.length; s++) {
+    var tabName = all[s].getName();
+    if (!isMonthTab_(tabName)) continue;
+    tabs.push(tabName);
+    gids[tabName] = all[s].getSheetId();
+  }
+  var url = ss.getUrl() + (gids[focusTab] !== undefined ? '#gid=' + gids[focusTab] : '');
+  return { ok: true, jobs: jobs, sheetUrl: url, tabs: tabs, tabGids: gids, currentTab: thisTab, recentTabs: recent };
 }
 
 // id có dạng "T11:31" (tab:dòng). Chỉ cho phép tab tháng để không ghi nhầm tab khác.

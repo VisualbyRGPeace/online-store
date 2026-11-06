@@ -209,9 +209,19 @@ export type JobList = {
   currentTab: string;
   /** Các tab nằm trong phạm vi "gần đây" (tháng này ± 1). Rỗng nếu script cũ chưa cập nhật. */
   recentTabs: string[];
+  /** Mã nội bộ (gid) của từng tab, để mở đúng tab trong Google Sheet. */
+  tabGids: Record<string, number>;
   /** true nếu Apps Script trên Google còn là bản cũ (chưa trả danh sách tab). */
   outdated: boolean;
 };
+
+function gidMap(value: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (typeof value === "object" && value !== null) {
+    for (const [key, gid] of Object.entries(value)) if (typeof gid === "number" && Number.isFinite(gid)) out[key] = gid;
+  }
+  return out;
+}
 
 function textList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
@@ -230,6 +240,7 @@ export async function listJobs(link: JobLink, tab = ""): Promise<JobList> {
     tabs: tabs.length > 0 ? tabs : [...new Set(jobs.map((job) => job.tab).filter(Boolean))],
     currentTab: typeof body.currentTab === "string" ? body.currentTab : "",
     recentTabs: textList(body.recentTabs),
+    tabGids: gidMap(body.tabGids),
     outdated: !Array.isArray(body.tabs),
   };
 }

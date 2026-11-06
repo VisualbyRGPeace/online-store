@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { Modal } from "@/components/utilities/modal";
 import {
@@ -104,6 +104,13 @@ function fold(value: string): string {
 // ---- Sắp xếp / chia nhóm ----
 const STATUS_RANK: Record<JobStatus, number> = { priority: 0, doing: 1, received: 2, done: 3 };
 const STATUS_SHORT: Record<JobStatus, string> = { received: "Đã nhận", priority: "Ưu tiên", doing: "Đang làm", done: "Kết thúc" };
+// Màu theo trạng thái: xanh dương = đã nhận, xanh lá = đang thực hiện, đỏ = ưu tiên, xám = kết thúc.
+const STATUS_STYLE: Record<JobStatus, { label: string; bar: string; dot: string; pill: string }> = {
+  received: { label: "Đã nhận", bar: "bg-blue-500", dot: "bg-blue-500", pill: "bg-blue-50 text-blue-700" },
+  doing: { label: "Đang thực hiện", bar: "bg-emerald-500", dot: "bg-emerald-500", pill: "bg-emerald-50 text-emerald-700" },
+  priority: { label: "Ưu tiên", bar: "bg-red-500", dot: "bg-red-500", pill: "bg-red-50 text-red-700" },
+  done: { label: "Kết thúc", bar: "bg-slate-200", dot: "bg-slate-300", pill: "bg-slate-100 text-slate-500" },
+};
 const DESIGNER_KEY = "job-designer-filter";
 
 function compareJobs(a: Job, b: Job): number {
@@ -236,6 +243,15 @@ function Segmented<T extends string>({
   );
 }
 
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+      <div className="mt-0.5 truncate text-sm text-slate-800">{children}</div>
+    </div>
+  );
+}
+
 function JobRow({
   job,
   today,
@@ -254,9 +270,15 @@ function JobRow({
   const done = job.status === "done";
   const late = !done && job.date !== "" && job.date < today;
   const lateDays = late ? daysBetween(job.date, today) : 0;
+  const style = STATUS_STYLE[job.status];
 
   return (
-    <li className={`flex items-start gap-3 rounded-2xl border bg-white p-3.5 transition hover:border-slate-400 hover:shadow-sm ${fresh ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-200"}`}>
+    <li
+      className={`relative flex items-start gap-3 overflow-hidden rounded-2xl border bg-white py-3.5 pl-5 pr-3.5 transition hover:border-slate-400 hover:shadow-sm ${
+        fresh ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-200"
+      }`}
+    >
+      <span className={`absolute inset-y-0 left-0 w-1.5 ${style.bar}`} aria-hidden="true" />
       <button
         type="button"
         onClick={onToggle}
@@ -271,23 +293,34 @@ function JobRow({
       </button>
 
       <div className="min-w-0 flex-1">
-        <p className={`text-sm font-semibold leading-6 ${done ? "text-slate-400 line-through" : "text-slate-950"}`}>{job.title}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          {fresh && <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">MỚI</span>}
-          {job.task && <span className="max-w-full truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-700">{job.task}</span>}
-          {job.status === "doing" && <span className="rounded-md bg-slate-950 px-1.5 py-0.5 text-xs font-medium text-white">Đang thực hiện</span>}
-          {job.status === "priority" && <span className="rounded-md border border-slate-900 px-1.5 py-0.5 text-xs font-semibold text-slate-950">Ưu tiên</span>}
-          {job.status === "received" && <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-xs text-slate-500">Đã nhận</span>}
-          {late ? (
-            <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700">
-              Quá hạn {lateDays} ngày · {formatDate(job.date)}
-            </span>
-          ) : (
-            job.date !== "" && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">{formatDate(job.date)}</span>
-          )}
+        <div className="flex items-start gap-2">
+          <p className={`min-w-0 flex-1 text-sm font-semibold leading-6 ${done ? "text-slate-400 line-through" : "text-slate-950"}`}>{job.title}</p>
+          {fresh && <span className="mt-0.5 shrink-0 rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">MỚI</span>}
         </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+          <Field label="Phân loại">{job.task || <span className="text-slate-400">—</span>}</Field>
+          <Field label="Trạng thái">
+            <span className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${style.pill}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} aria-hidden="true" />
+              {style.label}
+            </span>
+          </Field>
+          <Field label="Deadline">
+            {job.date === "" ? (
+              <span className="text-slate-400">—</span>
+            ) : late ? (
+              <span className="font-semibold text-red-600">
+                {formatDate(job.date)} · trễ {lateDays} ngày
+              </span>
+            ) : (
+              formatDate(job.date)
+            )}
+          </Field>
+        </div>
+
         {(job.designer || job.assigner || job.quantity > 1) && (
-          <p className="mt-1.5 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-slate-500">
             {[job.designer && `Designer: ${job.designer}`, job.assigner && `Giao: ${job.assigner}`, job.quantity > 1 && `SL: ${job.quantity}`].filter(Boolean).join(" · ")}
           </p>
         )}
@@ -467,7 +500,7 @@ function JobManagerInner({ userId }: { userId: string }) {
   const [linkLoaded, setLinkLoaded] = useState(false);
   const [linkError, setLinkError] = useState("");
 
-  const [loaded, setLoaded] = useState<{ key: string; jobs: Job[]; sheetUrl: string; tabs: string[]; currentTab: string; recentTabs: string[]; outdated: boolean } | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; jobs: Job[]; sheetUrl: string; tabs: string[]; currentTab: string; recentTabs: string[]; tabGids: Record<string, number>; outdated: boolean } | null>(null);
   const [version, setVersion] = useState(0);
   const [error, setError] = useState("");
   const lastFetch = useRef(0);
@@ -565,14 +598,14 @@ function JobManagerInner({ userId }: { userId: string }) {
         }
         setError("");
         setUpdatedAt(Date.now());
-        setLoaded({ key: dataKey, jobs: result.jobs, sheetUrl: result.sheetUrl, tabs: result.tabs, currentTab: result.currentTab, recentTabs: result.recentTabs, outdated: result.outdated });
+        setLoaded({ key: dataKey, jobs: result.jobs, sheetUrl: result.sheetUrl, tabs: result.tabs, currentTab: result.currentTab, recentTabs: result.recentTabs, tabGids: result.tabGids, outdated: result.outdated });
         detectNewJobs(link, result.jobs);
       },
       (err) => {
         console.error(err);
         if (!current) return;
         setError(describeError(err));
-        setLoaded((prev) => (prev ? { ...prev, key: dataKey } : { key: dataKey, jobs: [], sheetUrl: "", tabs: [], currentTab: "", recentTabs: [], outdated: false }));
+        setLoaded((prev) => (prev ? { ...prev, key: dataKey } : { key: dataKey, jobs: [], sheetUrl: "", tabs: [], currentTab: "", recentTabs: [], tabGids: {}, outdated: false }));
       },
     );
     return () => {
@@ -612,13 +645,16 @@ function JobManagerInner({ userId }: { userId: string }) {
   }, [link]);
 
   const jobs = useMemo(() => loaded?.jobs ?? [], [loaded]);
-  const sheetUrl = loaded && isAllowedDriveUrl(loaded.sheetUrl) ? loaded.sheetUrl : "";
   const refreshing = Boolean(link) && loaded?.key !== dataKey;
   const firstLoad = Boolean(link) && loaded === null;
   const tabs = useMemo(() => loaded?.tabs ?? [], [loaded]);
   const recentTabs = useMemo(() => loaded?.recentTabs ?? [], [loaded]);
   const currentTab = loaded?.currentTab ?? "";
   const scriptOutdated = loaded?.outdated ?? false;
+  // "Mở Google Sheet" mở đúng tab đang xem (tab đã chọn, hoặc tháng hiện tại khi ở "Gần đây").
+  const baseSheetUrl = loaded && isAllowedDriveUrl(loaded.sheetUrl) ? loaded.sheetUrl : "";
+  const targetGid = loaded?.tabGids[viewTab || currentTab];
+  const sheetUrl = baseSheetUrl && targetGid !== undefined ? `${baseSheetUrl.split("#")[0]}#gid=${targetGid}` : baseSheetUrl;
   // Vừa bấm sang một tab tháng mà dữ liệu của tab đó chưa về: hiện khung chờ thay vì "trống việc".
   const switching = refreshing && viewTab !== "" && !jobs.some((job) => job.tab === viewTab);
 
