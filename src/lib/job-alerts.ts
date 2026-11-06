@@ -85,8 +85,16 @@ export function rememberJob(seen: SeenMap, job: Job): void {
 // ---- Thông báo của trình duyệt + âm báo ----
 export type NotifyPermission = NotificationPermission | "unsupported";
 
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const SOUND_URL = `${BASE}/thongbao.mp3`;
+const ICON_URL = `${BASE}/notify-icon.png`;
+
 function supportsNotifications(): boolean {
   return typeof window !== "undefined" && "Notification" in window;
+}
+
+export function getNotifyPermission(): NotifyPermission {
+  return supportsNotifications() ? Notification.permission : "unsupported";
 }
 
 export async function askNotifyPermission(): Promise<NotifyPermission> {
@@ -99,42 +107,59 @@ export async function askNotifyPermission(): Promise<NotifyPermission> {
   }
 }
 
-/** Chỉ hiện thông báo hệ thống khi bạn đang ở tab/cửa sổ khác; đang xem trang thì đã có biểu ngữ trong trang. */
-export function showSystemNotice(title: string, body: string): void {
+/** Mô tả ngắn một job cho thẻ thông báo, ví dụ "Post Social · Vũ · 06/11". */
+export function describeJob(job: Job): string {
+  const date = job.date.length >= 10 ? `${job.date.slice(8, 10)}/${job.date.slice(5, 7)}` : "";
+  return [job.task, job.designer, date].filter(Boolean).join(" · ");
+}
+
+/**
+ * Thẻ thông báo của hệ điều hành (giống Zalo). Mặc định chỉ hiện khi bạn đang ở tab/cửa sổ khác;
+ * đang xem trang thì đã có thẻ thông báo ngay trong trang. force = true để thử.
+ */
+export function showSystemNotice(title: string, body: string, force = false): boolean {
   try {
-    if (!supportsNotifications() || Notification.permission !== "granted") return;
-    if (document.visibilityState === "visible" && document.hasFocus()) return;
-    const notice = new Notification(title, { body, tag: "job-new" });
+    if (!supportsNotifications() || Notification.permission !== "granted") return false;
+    if (!force && document.visibilityState === "visible" && document.hasFocus()) return false;
+    // silent: true vì web tự phát âm thanh riêng, tránh kêu hai lần.
+    const options: NotificationOptions & { silent?: boolean } = { body, icon: ICON_URL, tag: "job-new", silent: true };
+    const notice = new Notification(title, options);
     notice.onclick = () => {
       window.focus();
       notice.close();
     };
+    return true;
   } catch {
-    /* một số trình duyệt di động không cho tạo trực tiếp */
+    return false; // một số trình duyệt di động không cho tạo trực tiếp
+  }
+}
+
+// ---- Âm thanh thông báo (file public/thongbao.mp3) ----
+let sound: HTMLAudioElement | null = null;
+
+function getSound(): HTMLAudioElement {
+  if (!sound) {
+    sound = new Audio(SOUND_URL);
+    sound.preload = "auto";
+  }
+  return sound;
+}
+
+/** Tải sẵn file âm thanh để lúc có việc mới phát được ngay. */
+export function preloadSound(): void {
+  try {
+    getSound().load();
+  } catch {
+    /* bỏ qua */
   }
 }
 
 export function playChime(): void {
   try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    const now = ctx.currentTime;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-    [880, 1175].forEach((frequency, index) => {
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = frequency;
-      osc.connect(gain);
-      osc.start(now + index * 0.18);
-      osc.stop(now + index * 0.18 + 0.3);
-    });
-    window.setTimeout(() => void ctx.close(), 1200);
+    const audio = getSound();
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined); // trình duyệt chưa cho phát tiếng (chưa tương tác với trang): bỏ qua
   } catch {
-    /* trình duyệt chưa cho phát âm thanh: bỏ qua */
+    /* bỏ qua */
   }
 }

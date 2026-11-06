@@ -36,7 +36,21 @@ import {
   type JobLink,
   type JobStatus,
 } from "@/services/job-service";
-import { askNotifyPermission, diffJobs, jobKey, loadSeen, playChime, rememberJob, saveSeen, showSystemNotice, type SeenMap } from "@/lib/job-alerts";
+import {
+  askNotifyPermission,
+  describeJob,
+  diffJobs,
+  getNotifyPermission,
+  jobKey,
+  loadSeen,
+  playChime,
+  preloadSound,
+  rememberJob,
+  saveSeen,
+  showSystemNotice,
+  type NotifyPermission,
+  type SeenMap,
+} from "@/lib/job-alerts";
 import { copyText } from "@/utils/clipboard";
 import { isAllowedDriveUrl } from "@/utils/drive";
 
@@ -506,6 +520,9 @@ function JobManagerInner({ userId }: { userId: string }) {
   const [viewTab, setViewTab] = useState(""); // "" = các tháng gần đây; "T9"… = xem tab tháng đó
   const [freshKeys, setFreshKeys] = useState<Set<string>>(() => new Set());
   const [alertsOn, setAlertsOn] = useState(readAlertsOn);
+  const [permission, setPermission] = useState<NotifyPermission>(getNotifyPermission);
+  const [promptDismissed, setPromptDismissed] = useState(false);
+  const [popup, setPopup] = useState<{ id: number; jobs: Job[] } | null>(null); // thẻ thông báo kiểu Zalo trong trang
   const seenRef = useRef<{ storeKey: string; seen: SeenMap } | null>(null);
   const designerRef = useRef("");
   const alertsRef = useRef(true);
@@ -579,11 +596,14 @@ function JobManagerInner({ userId }: { userId: string }) {
       const mine = fresh.filter((job) => job.status !== "done" && (designerRef.current === "" || job.designer === designerRef.current));
       if (mine.length === 0) return;
       setFreshKeys((prev) => new Set([...prev, ...mine.map(jobKey)]));
-      showToast(mine.length === 1 ? `Việc mới: ${mine[0]?.title ?? ""}` : `Có ${mine.length} việc mới vừa được book`);
-      if (alertsRef.current) {
-        showSystemNotice(mine.length === 1 ? "Có việc mới" : `Có ${mine.length} việc mới`, mine.slice(0, 3).map((job) => job.title).join("\n"));
-        playChime();
-      }
+      if (!alertsRef.current) return;
+      setPopup({ id: Date.now(), jobs: mine });
+      const lines = mine.slice(0, 3).map((job) => {
+        const detail = describeJob(job);
+        return mine.length === 1 ? `${job.title}\n${detail}`.trim() : `${job.title}${detail ? ` — ${detail}` : ""}`;
+      });
+      showSystemNotice(mine.length === 1 ? "Có việc mới" : `Có ${mine.length} việc mới`, lines.join("\n"));
+      playChime();
     }
 
     listJobs(link, viewTab).then(
@@ -608,7 +628,17 @@ function JobManagerInner({ userId }: { userId: string }) {
     return () => {
       current = false;
     };
-  }, [link, dataKey, userId, viewTab, showToast]);
+  }, [link, dataKey, userId, viewTab]);
+
+  useEffect(() => {
+    preloadSound();
+  }, []);
+
+  useEffect(() => {
+    if (!popup) return;
+    const timer = window.setTimeout(() => setPopup(null), 9000);
+    return () => window.clearTimeout(timer);
+  }, [popup]);
 
   useEffect(() => {
     designerRef.current = designer;
@@ -723,14 +753,24 @@ function JobManagerInner({ userId }: { userId: string }) {
     if (name !== "" && name !== currentTab) setTab("all"); // tháng khác tháng này: xem toàn bộ cho dễ thấy
   }
 
+  async function allowNotifications() {
+    const result = await askNotifyPermission();
+    setPermission(result);
+    if (result === "granted") {
+      showSystemNotice("Đã bật thông báo", "Khi có job mới, web sẽ báo ở đây kèm âm thanh.", true);
+      playChime();
+      showToast("Đã bật thông báo việc mới.");
+    } else if (result === "denied") {
+      showToast("Trình duyệt đang chặn thông báo của trang này.", false);
+    } else if (result === "unsupported") {
+      showToast("Trình duyệt này chỉ hỗ trợ thẻ thông báo và âm báo trong trang.", false);
+    }
+  }
+
   async function toggleAlerts() {
     const next = !alertsOn;
     if (next) {
-      const permission = await askNotifyPermission();
-      if (permission === "denied") showToast("Trình duyệt đang chặn thông báo của trang này. Vẫn có biểu ngữ và âm báo.", false);
-      else if (permission === "unsupported") showToast("Trình duyệt này chỉ hỗ trợ biểu ngữ và âm báo trong trang.", false);
-      else showToast("Đã bật thông báo việc mới.");
-      playChime();
+      await allowNotifications();
     } else {
       showToast("Đã tắt thông báo việc mới.");
     }
@@ -1034,6 +1074,55 @@ function JobManagerInner({ userId }: { userId: string }) {
             </button>
           ))}
         </div>
+
+        {popup && (
+          <div role="alert" className="fixed right-4 top-4 z-50 w-[calc(100vw-2rem)] max-w-sm">
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xl">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-black text-white">
+                <BellIcon className="h-5 w-5" />
+              </span>
+              <button type="button" onClick={() => setPopup(null)} className="min-w-0 flex-1 text-left" aria-label="Đóng thông báo">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-slate-950">{popup.jobs.length === 1 ? "Có việc mới" : `Có ${popup.jobs.length} việc mới`}</span>
+                  <span className="shrink-0 text-xs text-slate-400">bây giờ</span>
+                </span>
+                {popup.jobs.slice(0, 3).map((job) => (
+                  <span key={job.id} className="mt-1 block">
+                    <span className="block truncate text-sm text-slate-800">{job.title}</span>
+                    {describeJob(job) !== "" && <span className="block truncate text-xs text-slate-500">{describeJob(job)}</span>}
+                  </span>
+                ))}
+                {popup.jobs.length > 3 && <span className="mt-1 block text-xs text-slate-500">… và {popup.jobs.length - 3} việc khác</span>}
+              </button>
+              <button type="button" onClick={() => setPopup(null)} aria-label="Đóng" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700">
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {alertsOn && permission === "default" && !promptDismissed && (
+          <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <BellIcon className="h-5 w-5 shrink-0 text-slate-500" />
+            <p className="min-w-0 flex-1">Cho phép web gửi thông báo khi có job mới, kèm âm thanh.</p>
+            <button type="button" onClick={() => void allowNotifications()} className="h-9 rounded-xl bg-black px-3.5 text-sm font-medium text-white transition hover:bg-slate-800">
+              Cho phép
+            </button>
+            <button type="button" onClick={() => setPromptDismissed(true)} className="h-9 rounded-xl px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-100">
+              Để sau
+            </button>
+          </div>
+        )}
+
+        {alertsOn && permission === "denied" && !promptDismissed && (
+          <div role="status" className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <BellIcon className="h-5 w-5 shrink-0 text-slate-400" off />
+            <p className="min-w-0 flex-1">Trình duyệt đang chặn thông báo của trang này. Bấm biểu tượng ổ khóa cạnh địa chỉ web → Thông báo → Cho phép, rồi tải lại trang.</p>
+            <button type="button" onClick={() => setPromptDismissed(true)} className="h-9 rounded-xl px-3 text-sm font-medium text-slate-500 transition hover:bg-slate-100">
+              Đóng
+            </button>
+          </div>
+        )}
 
         {scriptOutdated && (
           <div role="alert" className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
