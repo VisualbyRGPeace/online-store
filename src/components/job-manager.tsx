@@ -105,11 +105,11 @@ function fold(value: string): string {
 const STATUS_RANK: Record<JobStatus, number> = { priority: 0, doing: 1, received: 2, done: 3 };
 const STATUS_SHORT: Record<JobStatus, string> = { received: "Đã nhận", priority: "Ưu tiên", doing: "Đang làm", done: "Kết thúc" };
 // Màu theo trạng thái: xanh dương = đã nhận, xanh lá = đang thực hiện, đỏ = ưu tiên, xám = kết thúc.
-const STATUS_STYLE: Record<JobStatus, { label: string; bar: string; dot: string; pill: string }> = {
-  received: { label: "Đã nhận", bar: "bg-blue-500", dot: "bg-blue-500", pill: "bg-blue-50 text-blue-700" },
-  doing: { label: "Đang thực hiện", bar: "bg-emerald-500", dot: "bg-emerald-500", pill: "bg-emerald-50 text-emerald-700" },
-  priority: { label: "Ưu tiên", bar: "bg-red-500", dot: "bg-red-500", pill: "bg-red-50 text-red-700" },
-  done: { label: "Kết thúc", bar: "bg-slate-200", dot: "bg-slate-300", pill: "bg-slate-100 text-slate-500" },
+const STATUS_STYLE: Record<JobStatus, { label: string; dot: string; pill: string }> = {
+  received: { label: "Đã nhận", dot: "bg-blue-500", pill: "bg-blue-50 text-blue-700" },
+  doing: { label: "Đang thực hiện", dot: "bg-emerald-500", pill: "bg-emerald-50 text-emerald-700" },
+  priority: { label: "Ưu tiên", dot: "bg-red-500", pill: "bg-red-50 text-red-700" },
+  done: { label: "Kết thúc", dot: "bg-slate-300", pill: "bg-slate-100 text-slate-500" },
 };
 const DESIGNER_KEY = "job-designer-filter";
 
@@ -274,11 +274,10 @@ function JobRow({
 
   return (
     <li
-      className={`relative flex items-start gap-3 overflow-hidden rounded-2xl border bg-white py-3.5 pl-5 pr-3.5 transition hover:border-slate-400 hover:shadow-sm ${
+      className={`flex items-start gap-3 rounded-2xl border bg-white p-3.5 transition hover:border-slate-400 hover:shadow-sm ${
         fresh ? "border-emerald-400 ring-2 ring-emerald-100" : "border-slate-200"
       }`}
     >
-      <span className={`absolute inset-y-0 left-0 w-1.5 ${style.bar}`} aria-hidden="true" />
       <button
         type="button"
         onClick={onToggle}
@@ -298,7 +297,7 @@ function JobRow({
           {fresh && <span className="mt-0.5 shrink-0 rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-semibold text-white">MỚI</span>}
         </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+        <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
           <Field label="Phân loại">{job.task || <span className="text-slate-400">—</span>}</Field>
           <Field label="Trạng thái">
             <span className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${style.pill}`}>
@@ -317,13 +316,11 @@ function JobRow({
               formatDate(job.date)
             )}
           </Field>
+          <Field label="Designer">{job.designer || <span className="text-slate-400">—</span>}</Field>
+          <Field label="Người giao">{job.assigner || <span className="text-slate-400">—</span>}</Field>
+          <Field label="Số lượng">{job.quantity}</Field>
         </div>
 
-        {(job.designer || job.assigner || job.quantity > 1) && (
-          <p className="mt-2 text-xs text-slate-500">
-            {[job.designer && `Designer: ${job.designer}`, job.assigner && `Giao: ${job.assigner}`, job.quantity > 1 && `SL: ${job.quantity}`].filter(Boolean).join(" · ")}
-          </p>
-        )}
       </div>
 
       <div className="flex shrink-0 items-center">
