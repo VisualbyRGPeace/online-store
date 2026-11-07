@@ -13,24 +13,26 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "gifenc": "^1.0.3",
     "next": "latest",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
     "react": "latest",
     "react-dom": "latest",
-    "zod": "latest",
-    "qrcode": "^1.5.4",
-    "gifenc": "^1.0.3"
+    "zod": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",
     "@types/node": "latest",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "tailwindcss": "latest",
-    "typescript": "latest",
-    "@types/qrcode": "^1.5.5"
+    "typescript": "latest"
   }
 }

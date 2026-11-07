@@ -12,6 +12,7 @@ import {
   ClipboardIcon,
   CloseIcon,
   CopyIcon,
+  DownloadIcon,
   EditIcon,
   ExternalIcon,
   PlusIcon,
@@ -57,6 +58,7 @@ import {
   type SeenMap,
 } from "@/lib/job-alerts";
 import { holdKeepAlive, startTicker } from "@/lib/background-ticker";
+import { buildReport } from "@/lib/job-report";
 import { copyText } from "@/utils/clipboard";
 import { isAllowedDriveUrl } from "@/utils/drive";
 
@@ -126,6 +128,8 @@ const STATUS_STYLE: Record<JobStatus, { label: string; dot: string; pill: string
   done: { label: "Kết thúc", dot: "bg-slate-300", pill: "bg-slate-100 text-slate-500" },
 };
 const DESIGNER_KEY = "job-designer-filter";
+const AUTHOR_KEY = "job-report-author";
+const DEFAULT_AUTHOR = "Nguyễn Anh Vũ";
 
 function compareJobs(a: Job, b: Job): number {
   return STATUS_RANK[a.status] - STATUS_RANK[b.status] || a.title.localeCompare(b.title, "vi");
@@ -136,6 +140,14 @@ function readDesigner(): string {
     return window.localStorage.getItem(DESIGNER_KEY) ?? "";
   } catch {
     return "";
+  }
+}
+
+function readAuthor(): string {
+  try {
+    return window.localStorage.getItem(AUTHOR_KEY) ?? DEFAULT_AUTHOR;
+  } catch {
+    return DEFAULT_AUTHOR;
   }
 }
 
@@ -534,6 +546,10 @@ function JobManagerInner({ userId }: { userId: string }) {
   const [toDelete, setToDelete] = useState<Job | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [author, setAuthor] = useState<string>(readAuthor);
+  const [exporting, setExporting] = useState(false);
+  const [reportError, setReportError] = useState("");
 
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
@@ -748,6 +764,43 @@ function JobManagerInner({ userId }: { userId: string }) {
   };
 
   const sections = useMemo(() => buildSections(tab, visibleJobs, today), [tab, visibleJobs, today]);
+
+  // Báo cáo theo tab tháng đang xem ("Gần đây" thì lấy tháng hiện tại), tính trên toàn bộ job của tháng đó.
+  const reportTab = viewTab || currentTab;
+  const report = useMemo(() => (reportOpen && reportTab ? buildReport(jobs, reportTab) : null), [reportOpen, reportTab, jobs]);
+
+  function openReport() {
+    setReportError("");
+    setReportOpen(true);
+  }
+
+  async function exportReport(event?: FormEvent) {
+    event?.preventDefault();
+    if (!report || exporting) return;
+    const name = author.trim();
+    if (!name) {
+      setReportError("Nhập tên người lập báo cáo.");
+      return;
+    }
+    setExporting(true);
+    setReportError("");
+    try {
+      try {
+        window.localStorage.setItem(AUTHOR_KEY, name);
+      } catch {
+        /* chỉ giữ trong phiên */
+      }
+      const { downloadReport } = await import("@/lib/job-report-pdf"); // chỉ tải thư viện PDF khi bấm xuất
+      await downloadReport(report, name);
+      setReportOpen(false);
+      showToast(`Đã xuất báo cáo ${report.tab}.`);
+    } catch (err) {
+      console.error(err);
+      setReportError("Chưa xuất được báo cáo. Vui lòng thử lại.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function chooseMonth(name: string) {
     setViewTab(name);
@@ -1032,6 +1085,17 @@ function JobManagerInner({ userId }: { userId: string }) {
             >
               <RefreshIcon className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
             </button>
+            <button
+              type="button"
+              onClick={openReport}
+              disabled={firstLoad || switching || !reportTab}
+              title={reportTab ? `Xuất báo cáo ${reportTab} ra PDF` : "Chưa có tab tháng để xuất"}
+              className={outlineButton}
+            >
+              <DownloadIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Xuất báo cáo</span>
+              <span className="sm:hidden">Báo cáo</span>
+            </button>
             {sheetUrl && (
               <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={outlineButton} title="Mở Google Sheet">
                 <ExternalIcon className="h-4 w-4" />
@@ -1284,6 +1348,80 @@ function JobManagerInner({ userId }: { userId: string }) {
               </button>
               <button type="submit" disabled={saving} className={`${blackButton} h-11 px-6`}>
                 {saving ? "Đang lưu…" : form.id ? "Lưu thay đổi" : "Thêm"}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal open={reportOpen} onClose={() => !exporting && setReportOpen(false)} title={`Xuất báo cáo ${reportTab}`} description="File PDF, số liệu tự tính từ các job của tab này.">
+        {report && (
+          <form onSubmit={(event) => void exportReport(event)} className="space-y-5">
+            <div className="grid grid-cols-3 gap-2.5">
+              {(
+                [
+                  ["Tháng", report.month > 0 ? `${report.month}/${report.year}` : report.tab],
+                  ["Tổng task", String(report.totalJobs)],
+                  ["Tổng số lượng", String(report.totalQty)],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="rounded-2xl bg-slate-50 px-3.5 py-3">
+                  <p className="text-xs text-slate-500">{label}</p>
+                  <p className="mt-0.5 text-xl font-semibold tracking-tight text-slate-950">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-600">
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">Theo designer</p>
+              <div className="flex flex-wrap gap-x-5 gap-y-1">
+                {report.designers.map((name, index) => {
+                  const count = report.taskRows.reduce((total, row) => total + (row.byDesigner[index]?.count ?? 0), 0);
+                  const qty = report.taskRows.reduce((total, row) => total + (row.byDesigner[index]?.qty ?? 0), 0);
+                  return (
+                    <span key={name}>
+                      <span className="font-semibold text-slate-900">{name}</span> {count} task · {qty} SL
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+
+            <label className="block">
+              <span className="mb-1.5 block text-sm font-medium">Người lập báo cáo</span>
+              <input
+                value={author}
+                onChange={(event) => {
+                  setAuthor(event.target.value);
+                  setReportError("");
+                }}
+                maxLength={60}
+                placeholder="Họ và tên"
+                className={inputClass}
+              />
+            </label>
+            <p className="-mt-2 text-xs leading-5 text-slate-500">
+              Ngày lập báo cáo tự lấy theo ngày xuất ({formatDate(today)}). Báo cáo tính cho cả tab {report.tab}, không phụ thuộc bộ lọc designer hay ô tìm kiếm.
+            </p>
+
+            {report.totalJobs === 0 && (
+              <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Tab {report.tab} chưa có công việc nào để báo cáo.
+              </p>
+            )}
+            {reportError && (
+              <p role="alert" className="text-sm text-red-600">
+                {reportError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setReportOpen(false)} disabled={exporting} className="h-11 rounded-xl px-4 text-sm font-medium text-slate-600 hover:text-slate-950">
+                Hủy
+              </button>
+              <button type="submit" disabled={exporting || report.totalJobs === 0} className={`${blackButton} h-11 px-6`}>
+                <DownloadIcon className="h-4 w-4" />
+                {exporting ? "Đang xuất…" : "Xuất file PDF"}
               </button>
             </div>
           </form>
