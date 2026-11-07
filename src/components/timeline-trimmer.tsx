@@ -10,7 +10,8 @@ type Props = {
   start: number;
   seconds: number;
   onChange: (next: { start: number; seconds: number }) => void;
-  filmstrip?: string;
+  /** Các khung hình vuông (data URL) lấy đều theo thời gian của video. */
+  frames?: string[];
   minSeconds?: number;
   maxSeconds?: number;
   onScrub?: (time: number) => void;
@@ -44,7 +45,7 @@ export default function TimelineTrimmer({
   start,
   seconds,
   onChange,
-  filmstrip,
+  frames,
   minSeconds = 3,
   maxSeconds = 6,
   onScrub,
@@ -170,7 +171,9 @@ export default function TimelineTrimmer({
   const isLong = safeSeconds >= maxLength - 0.05;
 
   const handleClass =
-    "absolute top-[34px] z-10 flex h-[60px] w-[14px] cursor-ew-resize touch-none items-center justify-center bg-white shadow-[0_0_0_0.5px_rgba(0,0,0,0.25),0_3px_10px_rgba(0,0,0,0.35)] transition-colors before:absolute before:inset-y-0 before:-inset-x-2.5 before:content-[''] hover:bg-neutral-100 active:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-950";
+    "absolute top-[34px] z-10 flex h-[60px] cursor-ew-resize touch-none items-center justify-center overflow-visible bg-white shadow-[0_0_0_0.5px_rgba(0,0,0,0.25),0_3px_10px_rgba(0,0,0,0.3)] transition-colors before:absolute before:inset-y-0 before:content-[''] hover:bg-neutral-100 active:bg-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-950";
+  // Tay nắm nằm TRONG đoạn chọn nên không bao giờ lòi ra ngoài dải ảnh; đoạn quá nhỏ thì hai tay nắm tự thu hẹp.
+  const handleWidth = `min(14px, ${widthPct / 2}%)`;
 
   return (
     <div className="select-none">
@@ -211,14 +214,15 @@ export default function TimelineTrimmer({
         </div>
 
         {/* Dải ảnh khung hình + vùng được chọn (phần ngoài được phủ tối, cắt theo góc bo của dải ảnh) */}
-        <div
-          className="absolute inset-x-0 top-[34px] h-[60px] overflow-hidden rounded-xl bg-gradient-to-b from-[#ececea] to-[#dddcd9] shadow-[0_0_0_0.5px_rgba(0,0,0,0.2)]"
-          style={{
-            backgroundImage: filmstrip ? `url(${filmstrip})` : undefined,
-            backgroundSize: "100% 100%",
-            backgroundRepeat: "no-repeat",
-          }}
-        >
+        <div className="absolute inset-x-0 top-[34px] flex h-[60px] overflow-hidden rounded-xl bg-gradient-to-b from-[#ececea] to-[#dddcd9] shadow-[0_0_0_0.5px_rgba(0,0,0,0.2)]">
+          {(frames ?? []).map((src, index) => (
+            <div
+              key={index}
+              aria-hidden="true"
+              className="h-full min-w-0 flex-1 bg-cover bg-center bg-no-repeat"
+              style={{ backgroundImage: `url(${src})` }}
+            />
+          ))}
           <div
             className="absolute inset-y-0 box-border cursor-grab border-y-[3px] border-white shadow-[0_0_0_9999px_rgba(12,12,14,0.62)] active:cursor-grabbing"
             style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
@@ -234,7 +238,7 @@ export default function TimelineTrimmer({
           />
         )}
 
-        {/* Hai tay nắm hai đầu đoạn chọn */}
+        {/* Hai tay nắm hai đầu đoạn chọn (nằm bên trong đoạn chọn) */}
         {(["start", "end"] as const).map((mode) => (
           <div
             key={mode}
@@ -247,10 +251,12 @@ export default function TimelineTrimmer({
             aria-valuetext={formatPrecise(mode === "start" ? safeStart : safeEnd)}
             onPointerDown={(event) => beginTimeline(event, mode)}
             onKeyDown={(event) => nudge(event, mode)}
-            className={`${handleClass} ${mode === "start" ? "-translate-x-full rounded-l-[9px]" : "rounded-r-[9px]"}`}
-            style={{ left: `${mode === "start" ? leftPct : leftPct + widthPct}%` }}
+            className={`${handleClass} ${
+              mode === "start" ? "rounded-l-[11px] before:-left-2.5 before:right-0" : "-translate-x-full rounded-r-[11px] before:-right-2.5 before:left-0"
+            }`}
+            style={{ left: `${mode === "start" ? leftPct : leftPct + widthPct}%`, width: handleWidth }}
           >
-            <span aria-hidden="true" className="pointer-events-none block h-[18px] w-0.5 rounded-sm bg-neutral-400" />
+            <span aria-hidden="true" className="pointer-events-none block h-[18px] w-0.5 shrink-0 rounded-sm bg-neutral-400" />
           </div>
         ))}
 

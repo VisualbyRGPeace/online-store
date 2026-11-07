@@ -79,22 +79,25 @@ function releaseVideo(video: HTMLVideoElement) {
 async function makeFilmstrip(src: string, duration: number, isCancelled: () => boolean) {
   const video = await loadVideo(src);
   try {
-    const count = 16;
-    const thumb = 64;
+    const count = 12;
+    const thumb = 96;
     const canvas = document.createElement("canvas");
-    canvas.width = count * thumb;
+    canvas.width = thumb;
     canvas.height = thumb;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return "";
+    if (!ctx) return [];
+    // Cắt vuông ở giữa khung hình (không kéo giãn) để hình không bị méo.
     const side = Math.min(video.videoWidth, video.videoHeight);
     const sx = (video.videoWidth - side) / 2;
     const sy = (video.videoHeight - side) / 2;
+    const frames: string[] = [];
     for (let i = 0; i < count; i++) {
-      if (isCancelled()) return "";
+      if (isCancelled()) return [];
       await seek(video, clamp(duration * ((i + 0.5) / count), 0, Math.max(0, duration - 0.05)));
-      ctx.drawImage(video, sx, sy, side, side, i * thumb, 0, thumb, thumb);
+      ctx.drawImage(video, sx, sy, side, side, 0, 0, thumb, thumb);
+      frames.push(canvas.toDataURL("image/jpeg", 0.72));
     }
-    return canvas.toDataURL("image/jpeg", 0.7);
+    return frames;
   } finally {
     releaseVideo(video);
   }
@@ -195,7 +198,7 @@ export function VideoToGifUtility() {
   const [dimensions, setDimensions] = useState<[number, number] | null>(null);
   const [videoDuration, setVideoDuration] = useState(0);
   const [cropBox, setCropBox] = useState<CropBox>({ x: 0, y: 0, size: 1 });
-  const [filmstripState, setFilmstripState] = useState({ key: "", url: "" });
+  const [filmstripState, setFilmstripState] = useState<{ key: string; frames: string[] }>({ key: "", frames: [] });
   const [start, setStart] = useState(0);
   const [seconds, setSeconds] = useState(3);
   const [caption, setCaption] = useState("");
@@ -216,7 +219,7 @@ export function VideoToGifUtility() {
   const maxSeconds = Math.max(0.1, Math.min(MAX_SECONDS, videoDuration || MAX_SECONDS));
   const minSeconds = Math.min(3, maxSeconds);
   const ready = Boolean(source && dimensions);
-  const filmstrip = filmstripState.key === `${source}|${videoDuration}` ? filmstripState.url : "";
+  const filmstrip = filmstripState.key === `${source}|${videoDuration}` ? filmstripState.frames : [];
 
   useEffect(() => () => { if (source) URL.revokeObjectURL(source); }, [source]);
   useEffect(() => () => { if (gif) URL.revokeObjectURL(gif); }, [gif]);
@@ -227,7 +230,7 @@ export function VideoToGifUtility() {
     let cancelled = false;
     const key = `${source}|${videoDuration}`;
     makeFilmstrip(source, videoDuration, () => cancelled)
-      .then((url) => { if (!cancelled) setFilmstripState({ key, url }); })
+      .then((frames) => { if (!cancelled) setFilmstripState({ key, frames }); })
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, [source, videoDuration]);
@@ -293,7 +296,7 @@ export function VideoToGifUtility() {
     stopPreview();
     setSource(""); setGif(""); setGifName(""); setName("video"); setSourceName("");
     setDimensions(null); setVideoDuration(0); setCropBox({ x: 0, y: 0, size: 1 });
-    setFilmstripState({ key: "", url: "" });
+    setFilmstripState({ key: "", frames: [] });
     setStart(0); setSeconds(3); setCaption(""); setCaptionPosition({ x: 0.5, y: 0.84 }); setCaptionSize(9);
     setBytes(0); setQualityLabel(""); setProgress({ pct: 0, text: "" }); setPlayhead(0);
     setHistoryWarning(""); setError("");
@@ -586,7 +589,7 @@ export function VideoToGifUtility() {
               seconds={seconds}
               minSeconds={minSeconds}
               maxSeconds={maxSeconds}
-              filmstrip={filmstrip}
+              frames={filmstrip}
               playhead={previewPlaying ? playhead : undefined}
               onScrub={scrubPreview}
               onChange={({ start: nextStart, seconds: nextSeconds }) => {
