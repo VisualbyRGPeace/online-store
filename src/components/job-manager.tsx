@@ -15,6 +15,7 @@ import {
   DownloadIcon,
   EditIcon,
   ExternalIcon,
+  LockIcon,
   PlusIcon,
   RefreshIcon,
   SearchIcon,
@@ -364,6 +365,81 @@ const SETUP_STEPS: string[] = [
   "Sao chép “URL ứng dụng web” (kết thúc bằng /exec), dán vào ô bên dưới cùng mật mã vừa đặt.",
 ];
 
+// ---- Khóa phần liên kết Google Sheet bằng câu đố ----
+const RIDDLE = "Hồi mới vô năm nhất, khi đang đi học trên con xe Atila thì Thành đã bị rơi gì ra đường?";
+// Mã băm SHA-256 của đáp án đã chuẩn hóa ("bo"): không lưu đáp án dạng chữ trong mã nguồn.
+const RIDDLE_HASH = "3d099d0f13df9d0bb4427a6ce99d61b988861761e286d6e34b17d6371b46b13f";
+
+async function checkRiddle(answer: string): Promise<boolean> {
+  const normalized = fold(answer).replace(/[^a-z0-9]/g, ""); // Bô / bô / BO / bo / "b ô" đều được
+  if (!normalized || !globalThis.crypto?.subtle) return false;
+  const bytes = new TextEncoder().encode(normalized);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  const hex = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return hex === RIDDLE_HASH;
+}
+
+/** Chỉ hiện nội dung bên trong (hướng dẫn + URL + mật mã) sau khi trả lời đúng câu đố. Đóng hộp thoại là khóa lại. */
+function LockedSetup({ children }: { children: ReactNode }) {
+  const [unlocked, setUnlocked] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  if (unlocked) return <>{children}</>;
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (checking) return;
+    setChecking(true);
+    const ok = await checkRiddle(answer);
+    setChecking(false);
+    if (ok) {
+      setUnlocked(true);
+    } else {
+      setError("Chưa đúng rồi, thử lại nhé.");
+      setAnswer("");
+    }
+  }
+
+  return (
+    <form onSubmit={(event) => void submit(event)} className="space-y-4 rounded-2xl bg-slate-50 p-5">
+      <div className="flex items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-950 text-white">
+          <LockIcon className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-sm font-semibold text-slate-950">Phần này đang bị khóa</p>
+          <p className="text-xs text-slate-500">Trả lời đúng câu đố để mở hướng dẫn và liên kết tới bảng.</p>
+        </div>
+      </div>
+      <p className="text-sm leading-6 text-slate-800">{RIDDLE}</p>
+      <input
+        value={answer}
+        onChange={(event) => {
+          setAnswer(event.target.value);
+          setError("");
+        }}
+        placeholder="Nhập đáp án…"
+        autoComplete="off"
+        autoFocus
+        spellCheck={false}
+        className={inputClass}
+      />
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <button type="submit" disabled={checking || answer.trim() === ""} className={`${blackButton} px-6`}>
+          Mở khóa
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /** Hướng dẫn + biểu mẫu nối với Google Sheet. Dùng cả khi chưa kết nối và trong hộp Cài đặt. */
 function SetupPanel({
   userId,
@@ -457,6 +533,7 @@ function SetupPanel({
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium">URL ứng dụng web</span>
           <input
+            type="password"
             value={scriptUrl}
             onChange={(event) => setScriptUrl(event.target.value)}
             placeholder="https://script.google.com/macros/s/…/exec"
@@ -960,23 +1037,25 @@ function JobManagerInner({ userId }: { userId: string }) {
             {linkError}
           </p>
         )}
-        <SetupPanel
-          userId={userId}
-          initial={null}
-          onConnected={(value) => {
-            setLink(value);
-            showToast("Đã kết nối Google Sheet.");
-          }}
-          onDisconnected={() => undefined}
-          onToast={showToast}
-        />
+        <LockedSetup>
+          <SetupPanel
+            userId={userId}
+            initial={null}
+            onConnected={(value) => {
+              setLink(value);
+              showToast("Đã kết nối Google Sheet.");
+            }}
+            onDisconnected={() => undefined}
+            onToast={showToast}
+          />
+        </LockedSetup>
         {toast && <ToastView toast={toast} />}
       </section>
     );
   }
 
   const deploymentId = link.scriptUrl.match(/\/s\/([^/]+)\/exec/)?.[1] ?? "";
-  const shortId = deploymentId.length > 18 ? `${deploymentId.slice(0, 8)}…${deploymentId.slice(-8)}` : deploymentId;
+  const shortId = deploymentId ? `••••${deploymentId.slice(-4)}` : ""; // chỉ lộ 4 ký tự cuối để giữ liên kết kín
 
   const progress = counts.todayTotal > 0 ? Math.round((counts.todayDone / counts.todayTotal) * 100) : 0;
 
@@ -1446,22 +1525,24 @@ function JobManagerInner({ userId }: { userId: string }) {
       </Modal>
 
       <Modal open={settingsOpen} onClose={() => setSettingsOpen(false)} title="Liên kết Google Sheet" size="lg">
-        <SetupPanel
-          userId={userId}
-          initial={link}
-          onConnected={(value) => {
-            setLink(value);
-            setVersion((current) => current + 1);
-            setSettingsOpen(false);
-            showToast("Đã lưu liên kết.");
-          }}
-          onDisconnected={() => {
-            setLink(null);
-            setLoaded(null);
-            setSettingsOpen(false);
-          }}
-          onToast={showToast}
-        />
+        <LockedSetup>
+          <SetupPanel
+            userId={userId}
+            initial={link}
+            onConnected={(value) => {
+              setLink(value);
+              setVersion((current) => current + 1);
+              setSettingsOpen(false);
+              showToast("Đã lưu liên kết.");
+            }}
+            onDisconnected={() => {
+              setLink(null);
+              setLoaded(null);
+              setSettingsOpen(false);
+            }}
+            onToast={showToast}
+          />
+        </LockedSetup>
       </Modal>
 
       {toast && <ToastView toast={toast} />}
