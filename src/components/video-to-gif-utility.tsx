@@ -39,12 +39,6 @@ const CAPTION_SPOTS: { label: string; y: number }[] = [
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-function formatTime(value: number) {
-  const minutes = Math.floor(value / 60).toString().padStart(2, "0");
-  const seconds = (value % 60).toFixed(1).padStart(4, "0");
-  return `${minutes}:${seconds}`;
-}
-
 function seek(video: HTMLVideoElement, time: number) {
   return new Promise<void>((resolve, reject) => {
     let timer = 0;
@@ -599,39 +593,17 @@ export function VideoToGifUtility() {
                 setStart(nextStart);
                 setSeconds(nextSeconds);
               }}
+              footer={
+                <button
+                  type="button"
+                  onClick={() => void togglePreview()}
+                  className="inline-flex h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  {previewPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+                  {previewPlaying ? "Dừng xem thử" : "Xem thử đoạn cắt"}
+                </button>
+              }
             />
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void togglePreview()}
-                className="inline-flex h-11 items-center gap-2 rounded-xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-slate-700"
-              >
-                {previewPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
-                {previewPlaying ? "Dừng xem thử" : "Xem thử đoạn cắt"}
-              </button>
-              <span className="text-sm tabular-nums text-slate-600">
-                {formatTime(start)} → {formatTime(start + seconds)}
-              </span>
-              <label className="ml-auto flex items-center gap-2 text-sm text-slate-600">
-                Thời lượng
-                <input
-                  type="number"
-                  min={minSeconds}
-                  max={maxSeconds}
-                  step="0.1"
-                  value={seconds.toFixed(1)}
-                  onChange={(event) => {
-                    const parsed = Number(event.target.value);
-                    if (!Number.isFinite(parsed)) return;
-                    const next = clamp(parsed, minSeconds, maxSeconds);
-                    setSeconds(next);
-                    setStart((current) => Math.min(current, Math.max(0, videoDuration - next)));
-                  }}
-                  className="h-10 w-20 rounded-lg border border-slate-200 bg-white px-2 text-center outline-none focus:border-slate-500"
-                />
-                giây
-              </label>
-            </div>
           </Section>
         )}
 
