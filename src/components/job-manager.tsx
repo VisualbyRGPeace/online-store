@@ -1089,12 +1089,11 @@ function JobManagerInner({ userId }: { userId: string }) {
               type="button"
               onClick={openReport}
               disabled={firstLoad || switching || !reportTab}
+              aria-label="Xuất báo cáo"
               title={reportTab ? `Xuất báo cáo ${reportTab} ra PDF` : "Chưa có tab tháng để xuất"}
-              className={outlineButton}
+              className={`${outlineButton} w-10 px-0`}
             >
               <DownloadIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Xuất báo cáo</span>
-              <span className="sm:hidden">Báo cáo</span>
             </button>
             {sheetUrl && (
               <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className={outlineButton} title="Mở Google Sheet">
