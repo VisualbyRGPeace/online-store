@@ -4,7 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Byline } from "@/components/byline";
+import { ClipboardIcon, FilmIcon, FolderIcon, FrameIcon, PromptIcon, QrIcon } from "@/components/utilities/tool-icons";
 import { SITE_NAME } from "@/lib/site-config";
+
+const UTILITY_LINKS = [
+  { href: "/utilities/qr/", label: "Tạo mã QR", Icon: QrIcon },
+  { href: "/utilities/prompts/", label: "Thư viện prompt", Icon: PromptIcon },
+  { href: "/utilities/video-to-gif/", label: "Video thành GIF", Icon: FilmIcon },
+  { href: "/utilities/add-frame/", label: "Add frame", Icon: FrameIcon },
+  { href: "/utilities/folders/", label: "Quản lý thư mục", Icon: FolderIcon },
+  { href: "/utilities/jobs/", label: "Quản lý Job", Icon: ClipboardIcon },
+];
 
 export function LogoMark() {
   return (
@@ -31,30 +41,19 @@ export function Header() {
               <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 transition-transform group-open:rotate-180"><path d="m5 7.5 5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </summary>
             <div className="absolute right-0 top-full z-30 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg">
-              <Link href="/utilities/qr/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-xs font-semibold">QR</span>
-                <span>Tạo mã QR</span>
-              </Link>
-              <Link href="/utilities/prompts/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-xs font-semibold">Aa</span>
-                <span>Thư viện prompt</span>
-              </Link>
-              <Link href="/utilities/video-to-gif/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">GIF</span>
-                <span>Video thành GIF</span>
-              </Link>
-              <Link href="/utilities/add-frame/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">FR</span>
-                <span>Add frame</span>
-              </Link>
-              <Link href="/utilities/folders/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">TM</span>
-                <span>Quản lý thư mục</span>
-              </Link>
-              <Link href="/utilities/jobs/" onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-[10px] font-semibold">JB</span>
-                <span>Quản lý Job</span>
-              </Link>
+              {UTILITY_LINKS.map(({ href, label, Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); }}
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-100"
+                >
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-700">
+                    <Icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span>{label}</span>
+                </Link>
+              ))}
             </div>
           </details>
           {!loading &&
