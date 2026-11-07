@@ -294,6 +294,18 @@ export function VideoToGifUtility() {
     setSource(URL.createObjectURL(file));
   }
 
+  // Bắt đầu lại từ đầu để tạo một GIF khác (bỏ video, GIF và mọi thiết lập của lần trước).
+  function startOver() {
+    stopPreview();
+    setSource(""); setGif(""); setGifName(""); setName("video"); setSourceName("");
+    setDimensions(null); setVideoDuration(0); setCropBox({ x: 0, y: 0, size: 1 });
+    setFilmstripState({ key: "", url: "" });
+    setStart(0); setSeconds(3); setCaption(""); setCaptionPosition({ x: 0.5, y: 0.84 }); setCaptionSize(9);
+    setBytes(0); setQualityLabel(""); setProgress({ pct: 0, text: "" }); setPlayhead(0);
+    setHistoryWarning(""); setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function onDrop(event: DragEvent<HTMLLabelElement>) {
     event.preventDefault();
     setDragOver(false);
@@ -712,6 +724,9 @@ export function VideoToGifUtility() {
               <a href={gif} download={gifName} className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-black px-4 text-sm font-semibold text-white transition hover:bg-slate-700">
                 <DownloadIcon className="h-4 w-4" /> Tải GIF
               </a>
+              <button type="button" onClick={startOver} className="mt-2 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-900">
+                <FilmIcon className="h-4 w-4" /> Tạo GIF khác
+              </button>
               {historyWarning && <p role="status" className="mt-3 text-xs text-slate-500">{historyWarning}</p>}
             </div>
           ) : (
